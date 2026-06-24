@@ -1,7 +1,12 @@
-// Re-exported from legacy api/ directory.
-// Once api/settings.ts migrates, move the source here.
-export {
-  fetchSettings,
-  updateSettings,
-} from "../../api/settings";
-export type { AppSettings } from "../../api/settings";
+import client from "../../shared/api/client";
+import type { AppSettings } from "./types";
+
+export type { AppSettings } from "./types";
+
+export function fetchSettings(): Promise<AppSettings> {
+  return client.get("/settings").then((res) => res.data);
+}
+
+export function updateSettings(data: Partial<AppSettings>): Promise<AppSettings> {
+  return client.put("/settings", data).then((res) => res.data);
+}
