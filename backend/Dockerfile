@@ -16,6 +16,6 @@ RUN mkdir -p /app/logs /app/scraper/cookies/storage
 COPY backend/app/ ./app/
 COPY scraper/   ./scraper/
 
-EXPOSE 8000
+EXPOSE 18642
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "18642"]

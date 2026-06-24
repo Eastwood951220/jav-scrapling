@@ -31,7 +31,7 @@ services:
       MONGO_DB_NAME: ${MONGO_DB_NAME:-jav}
       MONGO_CONNECT_TIMEOUT_MS: "5000"
     ports:
-      - "8000:8000"
+      - "18642:18642"
     volumes:
       - ./scraper/cookies/storage:/app/scraper/cookies/storage
       - ./logs:/app/logs
@@ -46,7 +46,7 @@ services:
     container_name: scrapling-frontend
     restart: unless-stopped
     ports:
-      - "80:80"
+      - "18643:18643"
     depends_on:
       - backend
     networks:

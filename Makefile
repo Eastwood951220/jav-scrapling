@@ -3,9 +3,9 @@
 start:
 	docker compose up -d
 	@echo "Services started."
-	@echo "  Frontend: http://localhost"
-	@echo "  Backend:  http://localhost:8000"
-	@echo "  API Docs: http://localhost:8000/docs"
+	@echo "  Frontend: http://localhost:18643"
+	@echo "  Backend:  http://localhost:18642"
+	@echo "  API Docs: http://localhost:18642/docs"
 
 stop:
 	docker compose down
@@ -24,12 +24,12 @@ build:
 	docker compose build --no-cache
 
 dev-backend:
-	cd backend && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+	cd backend && uvicorn app.main:app --host 0.0.0.0 --port 18642 --reload
 
 dev-frontend:
 	cd frontend && npm run dev
 
 dev:
-	@echo "Starting backend (port 8000) and frontend (port 5173)..."
-	@cd backend && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload & \
+	@echo "Starting backend (port 18642) and frontend (port 5173)..."
+	@cd backend && uvicorn app.main:app --host 0.0.0.0 --port 18642 --reload & \
 	cd frontend && npm run dev
