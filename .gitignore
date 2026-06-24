@@ -15,8 +15,10 @@ cookies/storage/*.json
 .idea/
 .vscode/
 .claude/
+.superpowers
 graphify-out
 
+docs
 .pytest_cache/
 .coverage
 htmlcov/
@@ -24,3 +26,5 @@ htmlcov/
 dist/
 build/
 *.egg-info/
+node_modules/
+*.tsbuildinfo

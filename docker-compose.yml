@@ -39,6 +39,17 @@ services:
     networks:
       - scrapling-net
 
+  frontend:
+    build: ./frontend
+    container_name: scrapling-frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - scrapling-net
+
 volumes:
   mongo_data:
 
