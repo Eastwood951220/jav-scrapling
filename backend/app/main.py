@@ -7,6 +7,7 @@ from config.settings import MONGO_DB_NAME
 from database.mongo_client import connect_mongo, close_mongo
 
 from app.api.settings import router as settings_router
+from app.api.tasks import router as tasks_router
 
 
 @asynccontextmanager
@@ -23,6 +24,7 @@ app = FastAPI(
 )
 
 app.include_router(settings_router)
+app.include_router(tasks_router)
 
 app.add_middleware(
     CORSMiddleware,
