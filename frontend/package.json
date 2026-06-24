@@ -9,15 +9,17 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "antd": "^5.22.0",
     "@ant-design/icons": "^5.5.0",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "react-router-dom": "^7.0.0",
+    "@tanstack/react-router": "^1.170.16",
+    "antd": "^5.22.0",
     "axios": "^1.7.0",
-    "dayjs": "^1.11.0"
+    "dayjs": "^1.11.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
   },
   "devDependencies": {
+    "@tanstack/router-cli": "^1.167.17",
+    "@tanstack/router-plugin": "^1.168.18",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^4.3.0",
