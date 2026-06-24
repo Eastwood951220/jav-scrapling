@@ -7,13 +7,16 @@ from config.settings import MONGO_DB_NAME
 from database.mongo_client import connect_mongo, close_mongo
 
 from app.api.movies import router as movies_router
+from app.api.schedules import router as schedules_router
 from app.api.settings import router as settings_router
 from app.api.tasks import router as tasks_router
+from app.scheduler import start_scheduler
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     connect_mongo()
+    start_scheduler()
     yield
     close_mongo()
 
@@ -25,6 +28,7 @@ app = FastAPI(
 )
 
 app.include_router(movies_router)
+app.include_router(schedules_router)
 app.include_router(settings_router)
 app.include_router(tasks_router)
 

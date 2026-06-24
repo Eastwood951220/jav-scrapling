@@ -1,0 +1,69 @@
+from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.triggers.cron import CronTrigger
+
+scheduler = BackgroundScheduler()
+
+
+def start_scheduler():
+    from database.mongo_client import get_mongo_db
+
+    col = get_mongo_db()["config_schedules"]
+    for doc in col.find({"enabled": True}):
+        _add_job(doc)
+
+    scheduler.start()
+
+
+def _add_job(schedule_doc: dict):
+    job_id = str(schedule_doc["_id"])
+
+    def run_scheduled_tasks():
+        from tasks.task_schema import CrawlTask, FilterConfig
+        from services.movie_service import MovieService
+        from database.mongo_client import get_mongo_db
+
+        tasks_col = get_mongo_db()["config_tasks"]
+        service = MovieService()
+
+        for task_id in schedule_doc.get("task_ids", []):
+            from bson import ObjectId
+            doc = tasks_col.find_one({"_id": ObjectId(task_id)})
+            if not doc:
+                continue
+            filter_data = doc.get("filter", {})
+            task = CrawlTask(
+                name=doc["name"],
+                url=doc["url"],
+                url_type=doc["url_type"],
+                is_skip=False,
+                max_list_pages=doc.get("max_list_pages", 50),
+                filter=FilterConfig(
+                    only_chinese=filter_data.get("only_chinese", False),
+                    exclude_multi_person=filter_data.get("exclude_multi_person", False),
+                    extra_filters={
+                        k: v for k, v in filter_data.items()
+                        if k not in ("only_chinese", "exclude_multi_person")
+                    },
+                ),
+                source=doc.get("source"),
+                final_url=doc.get("final_url"),
+            )
+            service.crawl_javdb_task(task)
+
+    scheduler.add_job(
+        run_scheduled_tasks,
+        trigger=CronTrigger.from_crontab(schedule_doc["cron_expression"]),
+        id=job_id,
+        replace_existing=True,
+    )
+
+
+def add_schedule_job(schedule_doc: dict):
+    _add_job(schedule_doc)
+
+
+def remove_schedule_job(schedule_id: str):
+    try:
+        scheduler.remove_job(schedule_id)
+    except Exception:
+        pass
