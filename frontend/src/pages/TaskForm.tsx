@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Form, Input, InputNumber, Switch, Select, Button, Card, message, Spin } from "antd";
-import { createTask, fetchTasks, updateTask, CrawlTask } from "../api/tasks";
+import { createTask, fetchTask, updateTask } from "../api/tasks";
 
 export default function TaskForm() {
   const { id } = useParams<{ id: string }>();
@@ -12,23 +12,20 @@ export default function TaskForm() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    if (!isEdit) return;
+    if (!isEdit || !id) return;
 
     setLoading(true);
-    fetchTasks()
-      .then((tasks) => {
-        const task = tasks.find((t: CrawlTask) => t._id === id);
-        if (task) {
-          form.setFieldsValue({
-            name: task.name,
-            url: task.url,
-            url_type: task.url_type,
-            is_skip: task.is_skip,
-            max_list_pages: task.max_list_pages,
-            only_chinese: task.filter?.only_chinese ?? false,
-            exclude_multi_person: task.filter?.exclude_multi_person ?? false,
-          });
-        }
+    fetchTask(id)
+      .then((task) => {
+        form.setFieldsValue({
+          name: task.name,
+          url: task.url,
+          url_type: task.url_type,
+          is_skip: task.is_skip,
+          max_list_pages: task.max_list_pages,
+          only_chinese: task.filter?.only_chinese ?? false,
+          exclude_multi_person: task.filter?.exclude_multi_person ?? false,
+        });
       })
       .catch((e) => message.error((e as Error).message))
       .finally(() => setLoading(false));
