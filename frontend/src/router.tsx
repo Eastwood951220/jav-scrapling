@@ -16,6 +16,7 @@ import {
   ClockCircleOutlined,
   PlayCircleOutlined,
   HistoryOutlined,
+  KeyOutlined,
 } from "@ant-design/icons";
 import ErrorBoundary from "@/shared/components/ErrorBoundary";
 import AuthLayout from "@/shared/components/AuthLayout";
@@ -30,6 +31,7 @@ import Settings from "@/features/settings/Settings";
 import RunList from "@/features/runs/RunList";
 import RunDetail from "@/features/runs/RunDetail";
 import Movies from "@/features/movies/Movies";
+import Cookies from "@/features/cookies/Cookies";
 
 // ── Root ──────────────────────────────────────────────
 const rootRoute = createRootRoute({
@@ -67,6 +69,7 @@ const menuItems = [
   { key: "/tasks", icon: <UnorderedListOutlined />, label: "任务配置" },
   { key: "/schedules", icon: <ClockCircleOutlined />, label: "定时任务" },
   { key: "/settings", icon: <SettingOutlined />, label: "系统设置" },
+  { key: "/cookies", icon: <KeyOutlined />, label: "Cookie管理" },
   { key: "/runs", icon: <HistoryOutlined />, label: "运行历史" },
   { key: "/movies", icon: <PlayCircleOutlined />, label: "内容浏览" },
 ];
@@ -164,6 +167,12 @@ const settingsRoute = createRoute({
   component: Settings,
 });
 
+const cookiesRoute = createRoute({
+  path: "/cookies",
+  getParentRoute: () => appLayout,
+  component: Cookies,
+});
+
 const runsIndexRoute = createRoute({
   path: "/runs",
   getParentRoute: () => appLayout,
@@ -192,6 +201,7 @@ const routeTree = rootRoute.addChildren([
     tasksEditRoute,
     schedulesRoute,
     settingsRoute,
+    cookiesRoute,
     runsIndexRoute,
     runsDetailRoute,
     moviesRoute,
