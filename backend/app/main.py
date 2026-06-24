@@ -6,6 +6,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from config.settings import MONGO_DB_NAME
 from database.mongo_client import connect_mongo, close_mongo
 
+from app.api.settings import router as settings_router
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -19,6 +21,8 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan,
 )
+
+app.include_router(settings_router)
 
 app.add_middleware(
     CORSMiddleware,
