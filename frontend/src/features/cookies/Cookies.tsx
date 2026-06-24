@@ -156,8 +156,6 @@ export default function Cookies() {
     }
   };
 
-  if (loading) return <FullPageSpinner />;
-
   const columns = useMemo(
     () => [
       {
@@ -205,6 +203,8 @@ export default function Cookies() {
     ],
     [],
   );
+
+  if (loading) return <FullPageSpinner />;
 
   return (
     <div style={{ display: "flex", gap: 24, height: "100%" }}>
