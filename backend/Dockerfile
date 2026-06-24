@@ -13,12 +13,16 @@ COPY --from=builder /install /usr/local
 
 RUN mkdir -p /app/logs /app/cookies/storage
 
-COPY backend/requirements.txt .
 COPY backend/app/ ./app/
-COPY backend/tests/ ./tests/
-COPY config/ ./config/
-COPY database/ ./database/
-COPY tasks/ ./tasks/
+COPY config/    ./config/
+COPY cookies/   ./cookies/
+COPY core/      ./core/
+COPY database/  ./database/
+COPY fetchers/  ./fetchers/
+COPY pipelines/ ./pipelines/
+COPY services/  ./services/
+COPY spiders/   ./spiders/
+COPY tasks/     ./tasks/
 
 EXPOSE 8000
 

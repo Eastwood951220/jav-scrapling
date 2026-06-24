@@ -7,7 +7,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 load_dotenv(BASE_DIR / ".env")
 
-MONGO_URI = os.getenv("MONGO_URI", "mongodb://admin:admin123@localhost:27017/")
+MONGO_URI = os.getenv("MONGO_URI", "mongodb://changeme:changeme@localhost:27017/")
 MONGO_DB_NAME = os.getenv("MONGO_DB_NAME", "jav")
 MONGO_CONNECT_TIMEOUT_MS = int(os.getenv("MONGO_CONNECT_TIMEOUT_MS", "5000"))
 
