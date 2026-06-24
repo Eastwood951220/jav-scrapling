@@ -22,5 +22,7 @@ DETAIL_PAGE_DELAY_MIN = float(os.getenv("DETAIL_PAGE_DELAY_MIN", "2"))
 DETAIL_PAGE_DELAY_MAX = float(os.getenv("DETAIL_PAGE_DELAY_MAX", "3"))
 SECURITY_WAIT_SECONDS = float(os.getenv("SECURITY_WAIT_SECONDS", "120"))
 
+BATCH_SAVE_SIZE = int(os.getenv("BATCH_SAVE_SIZE", "50"))
+
 LOG_DIR = BASE_DIR / "logs"
 COOKIE_DIR = BASE_DIR / "scraper" / "cookies" / "storage"
