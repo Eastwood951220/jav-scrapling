@@ -1,7 +1,6 @@
 from scraper.config.settings import REQUEST_TIMEOUT, USE_DYNAMIC_FETCHER
 from scraper.config.sites import JAVDB_SITE
 from scraper.cookies.cookie_manager import CookieManager
-from scraper.database.repositories.movie_repository import MovieRepository
 from scraper.fetchers.scrapling_fetcher import ScraplingFetcher
 from scraper.pipelines.movie_pipeline import MoviePipeline
 from scraper.spiders.javdb.javdb_constants import (
@@ -27,11 +26,7 @@ class MovieService:
 
         return JavdbSpider(fetcher=fetcher)
 
-    def _build_pipeline(self) -> MoviePipeline:
-        repository = MovieRepository()
-        return MoviePipeline(repository=repository)
-
-    def crawl_javdb_task(self, task: CrawlTask) -> dict:
+    def crawl_javdb_task(self, task: CrawlTask, stop_check=None) -> dict:
         if task.is_skip:
             return {
                 "task_name": task.name,
@@ -44,35 +39,36 @@ class MovieService:
                 "failed_tasks": 0,
                 "skipped_tasks": 0,
                 "saved": 0,
+                "items": [],
                 "reason": "skipped_by_config",
             }
 
         spider = self._build_spider()
-        pipeline = self._build_pipeline()
-        saved_count = 0
+        pipeline = MoviePipeline()
+        collected_items: list[dict] = []
 
-        def save_completed_detail(detail_task: dict) -> None:
-            nonlocal saved_count
-
+        def collect_completed_detail(detail_task: dict) -> None:
             item = self._build_detail_item(task, detail_task)
             if not item:
                 return
 
-            if pipeline.process_item(item):
-                saved_count += 1
+            cleaned = pipeline.process_item(item)
+            if cleaned is not None:
+                collected_items.append(cleaned)
                 print(
-                    f"[Task:{task.name}][DB] saved "
-                    f"code={item.get('code')} collection={item.get('config_task_name')}"
+                    f"[Task:{task.name}][Collect] "
+                    f"code={cleaned.get('code')} collection={cleaned.get('config_task_name')}"
                 )
             else:
                 print(
-                    f"[Task:{task.name}][DB] skipped save "
+                    f"[Task:{task.name}][Collect] skipped invalid "
                     f"code={item.get('code')} url={item.get('source_url')}"
                 )
 
         detail_tasks = spider.run_task(
             task,
-            on_detail_completed=save_completed_detail,
+            on_detail_completed=collect_completed_detail,
+            stop_check=stop_check,
         )
 
         completed_tasks = [
@@ -96,7 +92,9 @@ class MovieService:
             "completed_tasks": len(completed_tasks),
             "failed_tasks": failed_count,
             "skipped_tasks": skipped_count,
-            "saved": saved_count,
+            "saved": 0,
+            "items": collected_items,
+            "stopped": stop_check is not None and stop_check(),
         }
 
     def _build_detail_item(self, task: CrawlTask, detail_task: dict) -> dict:
@@ -118,13 +116,17 @@ class MovieService:
             "config_task_name": task.name,
         }
 
-    def crawl_javdb_tasks(self, tasks: list[CrawlTask]) -> dict:
+    def crawl_javdb_tasks(self, tasks: list[CrawlTask], stop_check=None) -> dict:
         results = []
         total_config_tasks = len(tasks)
 
         print(f"[Tasks] start total_config_tasks={total_config_tasks}")
 
         for index, task in enumerate(tasks, start=1):
+            if stop_check and stop_check():
+                print(f"[Tasks] {index}/{total_config_tasks} stopped by signal")
+                break
+
             print(
                 f"[Tasks] {index}/{total_config_tasks} "
                 f"name={task.name} skip={task.is_skip} url={task.url}"
@@ -142,16 +144,22 @@ class MovieService:
                     "failed_tasks": 0,
                     "skipped_tasks": 0,
                     "saved": 0,
+                    "items": [],
                     "reason": "skipped_by_config",
                 }
                 results.append(result)
-                print(f"[Tasks] {index}/{total_config_tasks} skipped by config name={task.name}")
                 continue
 
-            result = self.crawl_javdb_task(task)
+            result = self.crawl_javdb_task(task, stop_check=stop_check)
             results.append(result)
 
-            print(f"[Tasks] {index}/{total_config_tasks} finished result={result}")
+            if result.get("stopped"):
+                print(f"[Tasks] {index}/{total_config_tasks} stopped after task={task.name}")
+                break
+
+        all_items = []
+        for r in results:
+            all_items.extend(r.get("items", []))
 
         summary = {
             "total_config_tasks": total_config_tasks,
@@ -161,7 +169,8 @@ class MovieService:
             "completed_detail_tasks": sum(item.get("completed_tasks", 0) for item in results),
             "failed_detail_tasks": sum(item.get("failed_tasks", 0) for item in results),
             "skipped_detail_tasks": sum(item.get("skipped_tasks", 0) for item in results),
-            "saved": sum(item.get("saved", 0) for item in results),
+            "saved": 0,
+            "items": all_items,
             "results": results,
         }
 
