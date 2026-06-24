@@ -118,7 +118,7 @@ def delete_task(task_id: str):
     return {"deleted": True}
 
 
-@router.post("/{task_id}/run")
+@router.post("/{task_id}/run", status_code=202)
 def run_task(task_id: str):
     try:
         oid = ObjectId(task_id)
@@ -128,11 +128,7 @@ def run_task(task_id: str):
     if not doc:
         raise HTTPException(status_code=404, detail="Task not found")
 
-    from scraper.services.movie_service import MovieService
-    from scraper.tasks.task_utils import build_crawl_task_from_doc
+    from backend.app.task_queue import enqueue_task
 
-    task = build_crawl_task_from_doc(doc)
-
-    service = MovieService()
-    result = service.crawl_javdb_task(task)
-    return result
+    run_doc = enqueue_task(task_id)
+    return run_doc

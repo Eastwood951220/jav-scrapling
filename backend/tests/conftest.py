@@ -32,16 +32,36 @@ for _key, _value in _TEST_ENV_DEFAULTS.items():
 
 
 class InMemoryCursor:
-    """Mock PyMongo cursor that supports .sort() chaining."""
+    """Mock PyMongo cursor that supports .sort(), .skip(), .limit() chaining."""
 
     def __init__(self, docs: list[dict]):
-        self._docs = docs
+        self._docs = list(docs)
+        self._skip = 0
+        self._limit = None
 
     def sort(self, key_or_list, direction=None):
+        reverse = direction == -1
+        if isinstance(key_or_list, str):
+            self._docs = sorted(
+                self._docs,
+                key=lambda d: d.get(key_or_list, ""),
+                reverse=reverse,
+            )
+        return self
+
+    def skip(self, n: int):
+        self._skip = n
+        return self
+
+    def limit(self, n: int):
+        self._limit = n
         return self
 
     def __iter__(self):
-        return iter(self._docs)
+        docs = self._docs[self._skip:]
+        if self._limit is not None:
+            docs = docs[:self._limit]
+        return iter(docs)
 
 
 class InMemoryCollection:
@@ -50,9 +70,21 @@ class InMemoryCollection:
     def __init__(self):
         self._docs: dict[str, dict] = {}
 
+    def _match_query(self, doc: dict, query: dict | None) -> bool:
+        """Check if a document matches a query dict."""
+        if query is None or not query:
+            return True
+        for k, v in query.items():
+            if k == "_id":
+                if str(doc.get("_id")) != str(v):
+                    return False
+            elif doc.get(k) != v:
+                return False
+        return True
+
     def find(self, query=None):
-        """Return a cursor-like object that supports .sort() and iteration."""
-        docs = list(self._docs.values())
+        """Return a cursor-like object that supports .sort() and iteration, with query filtering."""
+        docs = [d for d in self._docs.values() if self._match_query(d, query)]
         return InMemoryCursor(docs)
 
     def find_one(self, query: dict | None = None):
@@ -67,12 +99,37 @@ class InMemoryCollection:
                 return doc
         return None
 
+    def count_documents(self, query: dict | None = None) -> int:
+        """Count documents matching the query."""
+        if query is None:
+            query = {}
+        return sum(1 for d in self._docs.values() if self._match_query(d, query))
+
     def insert_one(self, document: dict):
         oid = ObjectId()
         document["_id"] = oid
         self._docs[str(oid)] = document
         result = MagicMock()
         result.inserted_id = oid
+        return result
+
+    def update_one(self, query: dict, update: dict):
+        doc = self.find_one(query)
+        result = MagicMock()
+        if doc is None:
+            result.matched_count = 0
+            result.modified_count = 0
+            return result
+        if "$set" in update:
+            for key, value in update["$set"].items():
+                doc[key] = value
+        if "$push" in update:
+            for key, value in update["$push"].items():
+                if key not in doc:
+                    doc[key] = []
+                doc[key].append(value)
+        result.matched_count = 1
+        result.modified_count = 1
         return result
 
     def find_one_and_update(self, query: dict, update: dict, return_document=True, **_kwargs):
