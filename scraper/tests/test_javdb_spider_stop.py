@@ -70,7 +70,7 @@ def test_stop_check_breaks_run_detail_tasks():
             result = spider.run_detail_tasks(tasks, task_name="test", stop_check=stop_check)
             # Should stop after processing 2 items
             completed = [t for t in result if t.get("status") == "completed"]
-            assert len(completed) <= 2
+            assert len(completed) == 1
         finally:
             sp_mod.parse_detail_page = original_parse
             sp_mod.is_security_check_page = original_security

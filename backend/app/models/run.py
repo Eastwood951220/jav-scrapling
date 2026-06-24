@@ -37,3 +37,4 @@ class QueueStatusResponse(BaseModel):
     queue_size: int
     is_running: bool
     current_run_id: str | None = None
+    stop_requested: bool = False

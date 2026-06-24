@@ -39,6 +39,7 @@ export interface QueueStatus {
   queue_size: number;
   is_running: boolean;
   current_run_id: string | null;
+  stop_requested?: boolean;
 }
 
 export function fetchRuns(params?: {

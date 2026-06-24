@@ -107,7 +107,7 @@ export default function RunList() {
                         await stopRun(record._id);
                         message.success("停止信号已发送");
                       } catch (e) {
-                        message.error((e as Error).message);
+                        message.error(getErrorMessage(e));
                       }
                     },
                   });

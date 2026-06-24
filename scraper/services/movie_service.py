@@ -92,9 +92,9 @@ class MovieService:
             "completed_tasks": len(completed_tasks),
             "failed_tasks": failed_count,
             "skipped_tasks": skipped_count,
-            "saved": 0,
+            "saved": 0,  # persistence handled by backend layer
             "items": collected_items,
-            "stopped": stop_check is not None and stop_check(),
+            "stopped": False,
         }
 
     def _build_detail_item(self, task: CrawlTask, detail_task: dict) -> dict:

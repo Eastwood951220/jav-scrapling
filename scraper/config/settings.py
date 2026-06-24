@@ -8,7 +8,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 load_dotenv(BASE_DIR / ".env")
 
-MONGO_URI = os.getenv("MONGO_URI", "mongodb://changeme:changeme@localhost:27017/")
+MONGO_URI = os.getenv("MONGO_URI", "mongodb://admin:admin123@localhost:27017/")
 MONGO_DB_NAME = os.getenv("MONGO_DB_NAME", "jav")
 MONGO_CONNECT_TIMEOUT_MS = int(os.getenv("MONGO_CONNECT_TIMEOUT_MS", "5000"))
 
@@ -21,8 +21,5 @@ LIST_PAGE_DELAY_MAX = float(os.getenv("LIST_PAGE_DELAY_MAX", "5"))
 DETAIL_PAGE_DELAY_MIN = float(os.getenv("DETAIL_PAGE_DELAY_MIN", "2"))
 DETAIL_PAGE_DELAY_MAX = float(os.getenv("DETAIL_PAGE_DELAY_MAX", "3"))
 SECURITY_WAIT_SECONDS = float(os.getenv("SECURITY_WAIT_SECONDS", "120"))
-
-BATCH_SAVE_SIZE = int(os.getenv("BATCH_SAVE_SIZE", "50"))
-
 LOG_DIR = BASE_DIR / "logs"
 COOKIE_DIR = BASE_DIR / "scraper" / "cookies" / "storage"

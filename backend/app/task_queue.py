@@ -161,7 +161,7 @@ def _worker_loop():
                 "INFO",
             )
 
-            final_status = "stopped" if stop_requested else "completed"
+            final_status = "stopped" if _stop_event.is_set() else "completed"
             runs_col.update_one(
                 {"_id": ObjectId(run_id)},
                 {
