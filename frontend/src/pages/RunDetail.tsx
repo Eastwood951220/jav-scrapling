@@ -1,10 +1,14 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
-  Card, Descriptions, Tag, Timeline, Spin, Button, message, Typography, Space,
+  Card, Descriptions, Tag, Timeline, Typography, Space, Button, message, Modal,
 } from "antd";
 import { ArrowLeftOutlined } from "@ant-design/icons";
-import { TaskRun, fetchRun, statusColors, statusLabels } from "../api/runs";
+import { TaskRun, fetchRun, stopRun, statusColors, statusLabels } from "../api/runs";
+import { getErrorMessage } from "../hooks/useErrorMessage";
+import { usePolling } from "../hooks/usePolling";
+import FullPageSpinner from "../components/FullPageSpinner";
+import styles from "../styles/pages.module.css";
 
 const logLevelColors: Record<string, string> = {
   INFO: "blue",
@@ -24,7 +28,7 @@ export default function RunDetail() {
       const data = await fetchRun(id);
       setRun(data);
     } catch (e: unknown) {
-      message.error((e as Error).message);
+      message.error(getErrorMessage(e));
     } finally {
       setLoading(false);
     }
@@ -36,15 +40,10 @@ export default function RunDetail() {
   }, [load]);
 
   // Poll while active
-  useEffect(() => {
-    if (!run || (run.status !== "running" && run.status !== "queued")) return;
-    const interval = setInterval(load, 3000);
-    return () => clearInterval(interval);
-  }, [run?.status, load]);
-
-  if (loading) return <Spin size="large" style={{ display: "block", margin: "100px auto" }} />;
-
   const isActive = run && (run.status === "running" || run.status === "queued");
+  usePolling(load, 3000, Boolean(isActive));
+
+  if (loading) return <FullPageSpinner />;
 
   return (
     <div>
@@ -56,16 +55,43 @@ export default function RunDetail() {
 
       {run && (
         <>
-          <Card style={{ marginBottom: 24 }}>
+          <Card className={styles.detailCard}>
             <Descriptions title="运行详情" bordered column={2} size="small">
               <Descriptions.Item label="任务名称">
                 {run.task_name || "-"}
               </Descriptions.Item>
               <Descriptions.Item label="状态">
-                <Tag color={statusColors[run.status]}>
-                  {statusLabels[run.status]}
-                  {isActive && "..."}
-                </Tag>
+                <Space>
+                  <Tag color={statusColors[run.status]}>
+                    {statusLabels[run.status]}
+                    {isActive && "..."}
+                  </Tag>
+                  {run.status === "running" && (
+                    <Button
+                      danger
+                      size="small"
+                      onClick={() => {
+                        Modal.confirm({
+                          title: "确认停止任务?",
+                          content: "已抓取的数据会被保存",
+                          okText: "停止",
+                          cancelText: "取消",
+                          okButtonProps: { danger: true },
+                          onOk: async () => {
+                            try {
+                              await stopRun(run._id);
+                              message.success("停止信号已发送");
+                            } catch (e) {
+                              message.error((e as Error).message);
+                            }
+                          },
+                        });
+                      }}
+                    >
+                      停止任务
+                    </Button>
+                  )}
+                </Space>
               </Descriptions.Item>
               <Descriptions.Item label="排队时间">
                 {run.queued_at ? new Date(run.queued_at).toLocaleString() : "-"}
@@ -82,9 +108,9 @@ export default function RunDetail() {
             </Descriptions>
 
             {run.error && (
-              <div style={{ marginTop: 16 }}>
-                <Card title="错误信息" size="small" style={{ borderColor: "#ff4d4f" }}>
-                  <pre style={{ color: "#ff4d4f", whiteSpace: "pre-wrap" }}>
+              <div className={styles.resultCard}>
+                <Card title="错误信息" size="small" className={styles.errorCard}>
+                  <pre className={styles.errorPre}>
                     {run.error}
                   </pre>
                 </Card>
@@ -92,7 +118,7 @@ export default function RunDetail() {
             )}
 
             {run.result && (
-              <div style={{ marginTop: 16 }}>
+              <div className={styles.resultCard}>
                 <Card title="执行结果" size="small">
                   <Descriptions column={2} size="small">
                     <Descriptions.Item label="列表页数">
