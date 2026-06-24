@@ -5,6 +5,7 @@ import { PlusOutlined, PlayCircleOutlined, EditOutlined, DeleteOutlined } from "
 import type { ColumnsType } from "antd/es/table";
 import { CrawlTask, fetchTasks, deleteTask, runTask, updateTask } from "./api";
 import { fetchQueueStatus, QueueStatus } from "../runs/api";
+import { getErrorMessage } from "../../shared/hooks/useErrorMessage";
 
 export default function TaskList() {
   const [tasks, setTasks] = useState<CrawlTask[]>([]);
@@ -18,7 +19,7 @@ export default function TaskList() {
       const data = await fetchTasks();
       setTasks(data);
     } catch (e: unknown) {
-      message.error((e as Error).message);
+      message.error(getErrorMessage(e));
     } finally {
       setLoading(false);
     }
@@ -46,7 +47,7 @@ export default function TaskList() {
       message.success("任务已删除");
       loadTasks();
     } catch (e: unknown) {
-      message.error((e as Error).message);
+      message.error(getErrorMessage(e));
     }
   };
 
@@ -57,7 +58,7 @@ export default function TaskList() {
       message.success({ content: `已加入队列 (${runDoc.status})`, key: "run", duration: 2 });
       navigate({ to: "/runs" });
     } catch (e: unknown) {
-      message.error({ content: (e as Error).message, key: "run" });
+      message.error({ content: getErrorMessage(e), key: "run" });
     }
   };
 
@@ -67,7 +68,7 @@ export default function TaskList() {
       message.success(task.is_skip ? "任务已启用" : "任务已禁用");
       loadTasks();
     } catch (e: unknown) {
-      message.error((e as Error).message);
+      message.error(getErrorMessage(e));
     }
   };
 

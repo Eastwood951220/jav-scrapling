@@ -5,6 +5,7 @@ import {
 import { SearchOutlined, ReloadOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import { fetchCollections, fetchMovies, fetchMovie, MovieListResponse } from "./api";
+import { getErrorMessage } from "../../shared/hooks/useErrorMessage";
 
 export default function Movies() {
   const [collections, setCollections] = useState<string[]>([]);
@@ -23,7 +24,7 @@ export default function Movies() {
         setSelectedCollection(cols[0]);
       }
     } catch (e: unknown) {
-      message.error((e as Error).message);
+      message.error(getErrorMessage(e));
     }
   }, []);
 
@@ -38,7 +39,7 @@ export default function Movies() {
       });
       setData(result);
     } catch (e: unknown) {
-      message.error((e as Error).message);
+      message.error(getErrorMessage(e));
     } finally {
       setLoading(false);
     }
@@ -58,7 +59,7 @@ export default function Movies() {
       setDetail(movie);
       setDetailOpen(true);
     } catch (e: unknown) {
-      message.error((e as Error).message);
+      message.error(getErrorMessage(e));
     }
   };
 

@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "@tanstack/react-router";
-import { Form, Input, InputNumber, Switch, Select, Button, Card, message, Spin } from "antd";
+import { Form, Input, InputNumber, Switch, Select, Button, Card, message } from "antd";
 import { createTask, fetchTask, updateTask } from "./api";
+import FullPageSpinner from "../../shared/components/FullPageSpinner";
+import { getErrorMessage } from "../../shared/hooks/useErrorMessage";
 
 export default function TaskForm() {
   const { id } = useParams({ strict: false }) as { id?: string };
@@ -27,7 +29,7 @@ export default function TaskForm() {
           exclude_multi_person: task.filter?.exclude_multi_person ?? false,
         });
       })
-      .catch((e) => message.error((e as Error).message))
+      .catch((e) => message.error(getErrorMessage(e)))
       .finally(() => setLoading(false));
   }, [id, isEdit, form]);
 
@@ -55,13 +57,13 @@ export default function TaskForm() {
       }
       navigate({ to: "/tasks" });
     } catch (e: unknown) {
-      message.error((e as Error).message);
+      message.error(getErrorMessage(e));
     } finally {
       setSubmitting(false);
     }
   };
 
-  if (loading) return <Spin size="large" style={{ display: "block", margin: "100px auto" }} />;
+  if (loading) return <FullPageSpinner />;
 
   return (
     <Card title={isEdit ? "编辑任务" : "新建任务"} style={{ maxWidth: 700 }}>

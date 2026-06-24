@@ -4,6 +4,7 @@ import { PlusOutlined, EditOutlined, DeleteOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import { Schedule, fetchSchedules, createSchedule, updateSchedule, deleteSchedule } from "./api";
 import { CrawlTask, fetchTasks } from "../tasks/api";
+import { getErrorMessage } from "../../shared/hooks/useErrorMessage";
 
 export default function Schedules() {
   const [schedules, setSchedules] = useState<Schedule[]>([]);
@@ -21,7 +22,7 @@ export default function Schedules() {
       setSchedules(s);
       setTasks(t);
     } catch (e: unknown) {
-      message.error((e as Error).message);
+      message.error(getErrorMessage(e));
     } finally {
       setLoading(false);
     }
@@ -53,7 +54,7 @@ export default function Schedules() {
       form.resetFields();
       load();
     } catch (e: unknown) {
-      message.error((e as Error).message);
+      message.error(getErrorMessage(e));
     } finally {
       setSubmitting(false);
     }
@@ -65,7 +66,7 @@ export default function Schedules() {
       message.success("已删除");
       load();
     } catch (e: unknown) {
-      message.error((e as Error).message);
+      message.error(getErrorMessage(e));
     }
   };
 
