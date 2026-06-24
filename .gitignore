@@ -28,3 +28,7 @@ build/
 *.egg-info/
 node_modules/
 *.tsbuildinfo
+
+frontend/node_modules/
+frontend/dist/
+mongo_data/

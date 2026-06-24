@@ -1,0 +1,17 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+.git/
+logs/*.log
+.pytest_cache/
+node_modules/
+dist/
+.DS_Store
+.idea/
+.vscode/
+.claude/
+.superpowers/
+graphify-out/
+*.tsbuildinfo
+.cookies/
