@@ -146,12 +146,12 @@ def _worker_loop():
                 stop_check=lambda: _stop_event.is_set(),
             )
 
-            collected_items = result.pop("items", [])
+            collected_items = result.get("items", [])
             stop_requested = result.get("stopped", False)
 
             batch_size = int(os.getenv("BATCH_SAVE_SIZE", "50"))
             saved = _batch_save_items(collected_items, batch_size, repository)
-            result["saved"] = saved
+            result = {**result, "saved": saved}
 
             _append_log(
                 run_id,
