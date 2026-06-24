@@ -1,10 +1,10 @@
 import { useEffect, useState, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "@tanstack/react-router";
 import { Table, Button, Space, Popconfirm, message, Switch, Tag, Typography } from "antd";
 import { PlusOutlined, PlayCircleOutlined, EditOutlined, DeleteOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
-import { CrawlTask, fetchTasks, deleteTask, runTask, updateTask } from "../api/tasks";
-import { fetchQueueStatus, QueueStatus } from "../api/runs";
+import { CrawlTask, fetchTasks, deleteTask, runTask, updateTask } from "./api";
+import { fetchQueueStatus, QueueStatus } from "../runs/api";
 
 export default function TaskList() {
   const [tasks, setTasks] = useState<CrawlTask[]>([]);
@@ -55,7 +55,7 @@ export default function TaskList() {
       message.loading({ content: "正在加入队列...", key: "run" });
       const runDoc = await runTask(id);
       message.success({ content: `已加入队列 (${runDoc.status})`, key: "run", duration: 2 });
-      navigate("/runs");
+      navigate({ to: "/runs" });
     } catch (e: unknown) {
       message.error({ content: (e as Error).message, key: "run" });
     }
@@ -122,7 +122,7 @@ export default function TaskList() {
           <Button
             icon={<EditOutlined />}
             size="small"
-            onClick={() => navigate(`/tasks/${record._id}/edit`)}
+            onClick={() => navigate({ to: "/tasks/$id/edit", params: { id: record._id } })}
           >
             编辑
           </Button>
@@ -142,7 +142,7 @@ export default function TaskList() {
   return (
     <div>
       <div style={{ marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate("/tasks/new")}>
+        <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate({ to: "/tasks/new" })}>
           新建任务
         </Button>
         {queueStatus && (

@@ -1,14 +1,14 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "@tanstack/react-router";
 import { Table, Tag, Button, Space, Select, message, Modal } from "antd";
 import { ReloadOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
-import { TaskRun, fetchRuns, stopRun, statusColors, statusLabels } from "../api/runs";
-import type { RunStatus } from "../types/common";
-import { getErrorMessage } from "../hooks/useErrorMessage";
-import { usePolling } from "../hooks/usePolling";
-import EmptyState from "../components/EmptyState";
-import styles from "../styles/pages.module.css";
+import { TaskRun, fetchRuns, stopRun, statusColors, statusLabels } from "./api";
+import type { RunStatus } from "../../shared/types/common";
+import { getErrorMessage } from "../../shared/hooks/useErrorMessage";
+import { usePolling } from "../../shared/hooks/usePolling";
+import EmptyState from "../../shared/components/EmptyState";
+import styles from "../../shared/styles/pages.module.css";
 
 export default function RunList() {
   const [runs, setRuns] = useState<TaskRun[]>([]);
@@ -88,7 +88,7 @@ export default function RunList() {
         width: 160,
         render: (_: unknown, record: TaskRun) => (
           <Space>
-            <Button type="link" onClick={() => navigate(`/runs/${record._id}`)}>
+            <Button type="link" onClick={() => navigate({ to: "/runs/$id", params: { id: record._id } })}>
               详情
             </Button>
             {record.status === "running" && (

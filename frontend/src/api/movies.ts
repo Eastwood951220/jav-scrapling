@@ -1,12 +1,7 @@
 import client from "./client";
+import type { MovieListResponse } from "../features/movies/types";
 
-export interface MovieListResponse {
-  items: Record<string, unknown>[];
-  total: number;
-  page: number;
-  limit: number;
-  total_pages: number;
-}
+export type { MovieListResponse } from "../features/movies/types";
 
 export function fetchCollections(): Promise<string[]> {
   return client.get("/movies/collections").then((res) => res.data);

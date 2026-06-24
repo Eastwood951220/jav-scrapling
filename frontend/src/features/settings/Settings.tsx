@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { Form, Input, InputNumber, Switch, Button, Card, message } from "antd";
-import { fetchSettings, updateSettings, AppSettings } from "../api/settings";
-import { getErrorMessage } from "../hooks/useErrorMessage";
-import FullPageSpinner from "../components/FullPageSpinner";
-import styles from "../styles/pages.module.css";
+import { fetchSettings, updateSettings, AppSettings } from "./api";
+import { getErrorMessage } from "../../shared/hooks/useErrorMessage";
+import FullPageSpinner from "../../shared/components/FullPageSpinner";
+import styles from "../../shared/styles/pages.module.css";
 
 export default function Settings() {
   const [form] = Form.useForm();

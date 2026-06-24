@@ -1,13 +1,7 @@
 import client from "./client";
+import type { Schedule } from "../features/schedules/types";
 
-export interface Schedule {
-  _id: string;
-  name: string;
-  task_ids: string[];
-  cron_expression: string;
-  enabled: boolean;
-  created_at?: string;
-}
+export type { Schedule } from "../features/schedules/types";
 
 export function fetchSchedules(): Promise<Schedule[]> {
   return client.get("/schedules").then((res) => res.data);

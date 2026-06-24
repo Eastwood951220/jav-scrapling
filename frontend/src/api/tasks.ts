@@ -1,34 +1,8 @@
 import client from "./client";
-import type { TaskRun } from "./runs";
+import type { CrawlTask, TaskCreatePayload } from "../features/tasks/types";
+import type { TaskRun } from "../features/runs/types";
 
-export interface FilterConfig {
-  only_chinese: boolean;
-  exclude_multi_person: boolean;
-  extra_filters?: Record<string, unknown>;
-}
-
-export interface CrawlTask {
-  _id: string;
-  name: string;
-  url: string;
-  url_type: string;
-  is_skip: boolean;
-  max_list_pages: number;
-  filter: FilterConfig;
-  source?: string;
-  final_url?: string;
-  created_at?: string;
-  updated_at?: string;
-}
-
-export interface TaskCreatePayload {
-  name: string;
-  url: string;
-  url_type: string;
-  is_skip?: boolean;
-  max_list_pages?: number;
-  filter?: FilterConfig;
-}
+export type { CrawlTask, TaskCreatePayload, FilterConfig } from "../features/tasks/types";
 
 export function fetchTasks(): Promise<CrawlTask[]> {
   return client.get("/tasks").then((res) => res.data);

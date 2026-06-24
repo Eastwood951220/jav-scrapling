@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams } from "@tanstack/react-router";
 import { Form, Input, InputNumber, Switch, Select, Button, Card, message, Spin } from "antd";
-import { createTask, fetchTask, updateTask } from "../api/tasks";
+import { createTask, fetchTask, updateTask } from "./api";
 
 export default function TaskForm() {
-  const { id } = useParams<{ id: string }>();
+  const { id } = useParams({ strict: false }) as { id?: string };
   const isEdit = Boolean(id);
   const navigate = useNavigate();
   const [form] = Form.useForm();
@@ -53,7 +53,7 @@ export default function TaskForm() {
         await createTask(payload);
         message.success("任务已创建");
       }
-      navigate("/tasks");
+      navigate({ to: "/tasks" });
     } catch (e: unknown) {
       message.error((e as Error).message);
     } finally {
@@ -112,7 +112,7 @@ export default function TaskForm() {
           <Button type="primary" htmlType="submit" loading={submitting}>
             {isEdit ? "更新" : "创建"}
           </Button>
-          <Button style={{ marginLeft: 8 }} onClick={() => navigate("/tasks")}>
+          <Button style={{ marginLeft: 8 }} onClick={() => navigate({ to: "/tasks" })}>
             取消
           </Button>
         </Form.Item>

@@ -2,8 +2,8 @@ import { useEffect, useState } from "react";
 import { Table, Button, Modal, Form, Input, Select, Switch, Space, Popconfirm, message, Tag } from "antd";
 import { PlusOutlined, EditOutlined, DeleteOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
-import { Schedule, fetchSchedules, createSchedule, updateSchedule, deleteSchedule } from "../api/schedules";
-import { CrawlTask, fetchTasks } from "../api/tasks";
+import { Schedule, fetchSchedules, createSchedule, updateSchedule, deleteSchedule } from "./api";
+import { CrawlTask, fetchTasks } from "../tasks/api";
 
 export default function Schedules() {
   const [schedules, setSchedules] = useState<Schedule[]>([]);

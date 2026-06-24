@@ -1,14 +1,14 @@
 import { useEffect, useState, useCallback } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate } from "@tanstack/react-router";
 import {
   Card, Descriptions, Tag, Timeline, Typography, Space, Button, message, Modal,
 } from "antd";
 import { ArrowLeftOutlined } from "@ant-design/icons";
-import { TaskRun, fetchRun, stopRun, statusColors, statusLabels } from "../api/runs";
-import { getErrorMessage } from "../hooks/useErrorMessage";
-import { usePolling } from "../hooks/usePolling";
-import FullPageSpinner from "../components/FullPageSpinner";
-import styles from "../styles/pages.module.css";
+import { TaskRun, fetchRun, stopRun, statusColors, statusLabels } from "./api";
+import { getErrorMessage } from "../../shared/hooks/useErrorMessage";
+import { usePolling } from "../../shared/hooks/usePolling";
+import FullPageSpinner from "../../shared/components/FullPageSpinner";
+import styles from "../../shared/styles/pages.module.css";
 
 const logLevelColors: Record<string, string> = {
   INFO: "blue",
@@ -17,7 +17,7 @@ const logLevelColors: Record<string, string> = {
 };
 
 export default function RunDetail() {
-  const { id } = useParams<{ id: string }>();
+  const { id } = useParams({ strict: false }) as { id?: string };
   const navigate = useNavigate();
   const [run, setRun] = useState<TaskRun | null>(null);
   const [loading, setLoading] = useState(true);
@@ -48,7 +48,7 @@ export default function RunDetail() {
   return (
     <div>
       <Space style={{ marginBottom: 16 }}>
-        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate("/runs")}>
+        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate({ to: "/runs" })}>
           返回
         </Button>
       </Space>

@@ -4,7 +4,7 @@ import {
 } from "antd";
 import { SearchOutlined, ReloadOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
-import { fetchCollections, fetchMovies, fetchMovie, MovieListResponse } from "../api/movies";
+import { fetchCollections, fetchMovies, fetchMovie, MovieListResponse } from "./api";
 
 export default function Movies() {
   const [collections, setCollections] = useState<string[]>([]);
