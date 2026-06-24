@@ -129,7 +129,7 @@ def run_task(task_id: str):
     if not doc:
         raise HTTPException(status_code=404, detail="Task not found")
 
-    from backend.app.task_queue import enqueue_task
+    from app.task_queue import enqueue_task
 
     run_doc = enqueue_task(task_id)
     return run_doc

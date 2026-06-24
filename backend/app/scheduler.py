@@ -19,7 +19,7 @@ def _add_job(schedule_doc: dict):
 
     def run_scheduled_tasks():
         from scraper.database.mongo_client import get_mongo_db
-        from backend.app.task_queue import enqueue_task
+        from app.task_queue import enqueue_task
 
         tasks_col = get_mongo_db()["config_tasks"]
 

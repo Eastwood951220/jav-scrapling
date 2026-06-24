@@ -3,7 +3,7 @@ from bson.errors import InvalidId
 from fastapi import APIRouter, HTTPException, Query
 
 from scraper.database.mongo_client import get_mongo_db
-from backend.app.task_queue import run_to_response as to_response, get_queue_status, stop_current_task
+from app.task_queue import run_to_response as to_response, get_queue_status, stop_current_task
 from app.models.run import QueueStatusResponse, RunListResponse, RunResponse
 
 router = APIRouter(prefix="/api/runs", tags=["runs"])
