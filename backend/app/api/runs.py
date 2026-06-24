@@ -3,7 +3,8 @@ from bson.errors import InvalidId
 from fastapi import APIRouter, HTTPException, Query
 
 from scraper.database.mongo_client import get_mongo_db
-from backend.app.task_queue import get_queue_status
+from backend.app.task_queue import _run_to_response as _to_response, get_queue_status
+from app.models.run import QueueStatusResponse, RunListResponse, RunResponse
 
 router = APIRouter(prefix="/api/runs", tags=["runs"])
 
@@ -14,16 +15,12 @@ def _col():
     return get_mongo_db()[COLLECTION]
 
 
-def _to_response(doc: dict) -> dict:
-    return {**doc, "_id": str(doc["_id"])}
-
-
-@router.get("/queue-status")
+@router.get("/queue-status", response_model=QueueStatusResponse)
 def queue_status():
     return get_queue_status()
 
 
-@router.get("")
+@router.get("", response_model=RunListResponse)
 def list_runs(
     status: str | None = Query(default=None),
     page: int = Query(default=1, ge=1),
@@ -55,7 +52,7 @@ def list_runs(
     }
 
 
-@router.get("/{run_id}")
+@router.get("/{run_id}", response_model=RunResponse)
 def get_run(run_id: str):
     try:
         oid = ObjectId(run_id)

@@ -120,14 +120,19 @@ class InMemoryCollection:
             result.matched_count = 0
             result.modified_count = 0
             return result
+        # Create a new dict to avoid mutating the stored document in-place
+        new_doc = dict(doc)
         if "$set" in update:
             for key, value in update["$set"].items():
-                doc[key] = value
+                new_doc[key] = value
         if "$push" in update:
             for key, value in update["$push"].items():
-                if key not in doc:
-                    doc[key] = []
-                doc[key].append(value)
+                if key not in new_doc:
+                    new_doc[key] = []
+                new_doc[key].append(value)
+        # Replace stored document with the new copy
+        oid = str(new_doc["_id"])
+        self._docs[oid] = new_doc
         result.matched_count = 1
         result.modified_count = 1
         return result

@@ -1,4 +1,4 @@
-import io
+import sys
 import threading
 import queue
 import traceback
@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from bson import ObjectId
+from bson.errors import InvalidId
 
 _Queue = queue.Queue[Any]
 _task_queue: _Queue = queue.Queue()
@@ -18,8 +19,13 @@ def enqueue_task(task_id: str) -> dict:
     """Add a task to the execution queue. Returns the run document."""
     from scraper.database.mongo_client import get_mongo_db
 
+    try:
+        oid = ObjectId(task_id)
+    except InvalidId:
+        raise ValueError(f"Invalid task ID: {task_id}")
+
     tasks_col = get_mongo_db()["config_tasks"]
-    task_doc = tasks_col.find_one({"_id": ObjectId(task_id)})
+    task_doc = tasks_col.find_one({"_id": oid})
 
     run_doc = {
         "task_id": task_id,
@@ -68,8 +74,8 @@ def _append_log(run_id: str, message: str, level: str = "INFO"):
                 }
             },
         )
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"Failed to append log: {e}", file=sys.stderr)
 
 
 def _worker_loop():
@@ -94,6 +100,8 @@ def _worker_loop():
 
         try:
             run_doc = runs_col.find_one({"_id": ObjectId(run_id)})
+            if not run_doc:
+                raise ValueError(f"Run document {run_id} not found")
             task_doc = tasks_col.find_one({"_id": ObjectId(run_doc["task_id"])})
             if not task_doc:
                 raise ValueError(f"Task {run_doc['task_id']} not found")
@@ -102,17 +110,7 @@ def _worker_loop():
             _append_log(run_id, f"执行任务: {task.name}, URL: {task.final_url}", "INFO")
 
             service = MovieService()
-
-            # Capture stdout during execution
-            captured = io.StringIO()
-            import sys
-            old_stdout = sys.stdout
-            sys.stdout = io.TextIOWrapper(io.BytesIO(), "utf-8")
-
-            # We can't easily capture arbitrary prints, but we can wrap with context
             result = service.crawl_javdb_task(task)
-
-            sys.stdout = old_stdout
 
             _append_log(
                 run_id,
@@ -149,6 +147,8 @@ def _worker_loop():
         finally:
             _current_run_id = None
             _task_queue.task_done()
+
+    _worker_running = False
 
 
 def get_queue_status() -> dict:

@@ -5,6 +5,7 @@ from bson.errors import InvalidId
 from fastapi import APIRouter, HTTPException
 
 from scraper.database.mongo_client import get_mongo_db
+from app.models.run import RunResponse
 from app.models.task import TaskCreate, TaskResponse, TaskUpdate
 from scraper.tasks.task_utils import build_final_url, determine_source
 
@@ -118,7 +119,7 @@ def delete_task(task_id: str):
     return {"deleted": True}
 
 
-@router.post("/{task_id}/run", status_code=202)
+@router.post("/{task_id}/run", status_code=202, response_model=RunResponse)
 def run_task(task_id: str):
     try:
         oid = ObjectId(task_id)
