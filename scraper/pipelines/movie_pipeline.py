@@ -21,16 +21,17 @@ class MoviePipeline(BasePipeline):
         return clean_item
 
     def clean_item(self, item: dict) -> dict:
-        title = item.get("title")
+        result = dict(item)
 
+        title = item.get("title")
         if isinstance(title, str):
-            item["title"] = title.strip()
+            result["title"] = title.strip()
 
         tags = item.get("tags")
         if isinstance(tags, list) and item.get("has_chinese_sub") and "中文字幕" not in tags:
-            item["tags"] = [*tags, "中文字幕"]
+            result["tags"] = [*tags, "中文字幕"]
 
-        return item
+        return result
 
     def is_valid_item(self, item: dict) -> bool:
         return bool(item.get("title") or item.get("code") or item.get("source_url"))

@@ -16,7 +16,7 @@ class TestMoviePipeline:
         result = self.pipeline.process_item(item)
         assert result is None
 
-    def test_process_items_returns_count_of_valid_items(self):
+    def test_process_items_returns_list_of_valid_items(self):
         items = [
             {"title": "A", "code": "A"},
             {"title": "", "code": "", "source_url": ""},
