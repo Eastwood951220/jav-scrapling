@@ -1,4 +1,4 @@
-import client from "../../shared/api/client";
+import client from "@/shared/api/client";
 import type { AppSettings } from "./types";
 
 export type { AppSettings } from "./types";

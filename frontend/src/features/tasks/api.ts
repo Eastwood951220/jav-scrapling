@@ -1,6 +1,6 @@
-import client from "../../shared/api/client";
+import client from "@/shared/api/client";
 import type { CrawlTask, TaskCreatePayload } from "./types";
-import type { TaskRun } from "../runs/types";
+import type { TaskRun } from "@/features/runs/types";
 
 export type { CrawlTask, TaskCreatePayload, FilterConfig } from "./types";
 

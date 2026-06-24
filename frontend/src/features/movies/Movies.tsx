@@ -5,7 +5,7 @@ import {
 import { SearchOutlined, ReloadOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import { fetchCollections, fetchMovies, fetchMovie, MovieListResponse } from "./api";
-import { getErrorMessage } from "../../shared/hooks/useErrorMessage";
+import { getErrorMessage } from "@/shared/hooks/useErrorMessage";
 
 export default function Movies() {
   const [collections, setCollections] = useState<string[]>([]);

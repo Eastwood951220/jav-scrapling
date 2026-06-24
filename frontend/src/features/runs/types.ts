@@ -1,4 +1,4 @@
-import type { RunStatus } from "../../shared/types/common";
+import type { RunStatus } from "@/shared/types/common";
 
 /** Display colors for each run status. */
 export const statusColors: Record<RunStatus, string> = {

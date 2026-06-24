@@ -1,4 +1,4 @@
-import type { Movie } from "../../shared/types/common";
+import type { Movie } from "@/shared/types/common";
 
 export type { Movie };
 

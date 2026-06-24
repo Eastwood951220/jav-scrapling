@@ -4,11 +4,11 @@ import { Table, Tag, Button, Space, Select, message, Modal } from "antd";
 import { ReloadOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import { TaskRun, fetchRuns, stopRun, statusColors, statusLabels } from "./api";
-import type { RunStatus } from "../../shared/types/common";
-import { getErrorMessage } from "../../shared/hooks/useErrorMessage";
-import { usePolling } from "../../shared/hooks/usePolling";
-import EmptyState from "../../shared/components/EmptyState";
-import styles from "../../shared/styles/pages.module.css";
+import type { RunStatus } from "@/shared/types/common";
+import { getErrorMessage } from "@/shared/hooks/useErrorMessage";
+import { usePolling } from "@/shared/hooks/usePolling";
+import EmptyState from "@/shared/components/EmptyState";
+import styles from "@/shared/styles/pages.module.css";
 
 export default function RunList() {
   const [runs, setRuns] = useState<TaskRun[]>([]);

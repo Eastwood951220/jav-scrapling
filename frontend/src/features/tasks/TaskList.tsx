@@ -4,8 +4,8 @@ import { Table, Button, Space, Popconfirm, message, Switch, Tag, Typography } fr
 import { PlusOutlined, PlayCircleOutlined, EditOutlined, DeleteOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import { CrawlTask, fetchTasks, deleteTask, runTask, updateTask } from "./api";
-import { fetchQueueStatus, QueueStatus } from "../runs/api";
-import { getErrorMessage } from "../../shared/hooks/useErrorMessage";
+import { fetchQueueStatus, QueueStatus } from "@/features/runs/api";
+import { getErrorMessage } from "@/shared/hooks/useErrorMessage";
 
 export default function TaskList() {
   const [tasks, setTasks] = useState<CrawlTask[]>([]);

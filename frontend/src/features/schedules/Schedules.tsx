@@ -3,8 +3,8 @@ import { Table, Button, Modal, Form, Input, Select, Switch, Space, Popconfirm, m
 import { PlusOutlined, EditOutlined, DeleteOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import { Schedule, fetchSchedules, createSchedule, updateSchedule, deleteSchedule } from "./api";
-import { CrawlTask, fetchTasks } from "../tasks/api";
-import { getErrorMessage } from "../../shared/hooks/useErrorMessage";
+import { CrawlTask, fetchTasks } from "@/features/tasks/api";
+import { getErrorMessage } from "@/shared/hooks/useErrorMessage";
 
 export default function Schedules() {
   const [schedules, setSchedules] = useState<Schedule[]>([]);

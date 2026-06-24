@@ -1,4 +1,4 @@
-import client from "../../shared/api/client";
+import client from "@/shared/api/client";
 import type { MovieListResponse } from "./types";
 
 export type { MovieListResponse } from "./types";

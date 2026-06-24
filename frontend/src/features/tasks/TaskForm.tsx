@@ -2,8 +2,8 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import { Form, Input, InputNumber, Switch, Select, Button, Card, message } from "antd";
 import { createTask, fetchTask, updateTask } from "./api";
-import FullPageSpinner from "../../shared/components/FullPageSpinner";
-import { getErrorMessage } from "../../shared/hooks/useErrorMessage";
+import FullPageSpinner from "@/shared/components/FullPageSpinner";
+import { getErrorMessage } from "@/shared/hooks/useErrorMessage";
 
 export default function TaskForm() {
   const { id } = useParams({ strict: false }) as { id?: string };

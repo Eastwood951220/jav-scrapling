@@ -1,5 +1,5 @@
-import client from "../../shared/api/client";
-import type { PaginatedResponse } from "../../shared/types/common";
+import client from "@/shared/api/client";
+import type { PaginatedResponse } from "@/shared/types/common";
 import type { TaskRun, QueueStatus } from "./types";
 
 export { statusColors, statusLabels } from "./types";

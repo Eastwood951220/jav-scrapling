@@ -17,19 +17,19 @@ import {
   PlayCircleOutlined,
   HistoryOutlined,
 } from "@ant-design/icons";
-import ErrorBoundary from "./shared/components/ErrorBoundary";
-import AuthLayout from "./shared/components/AuthLayout";
-import { lightTheme } from "./theme";
-import styles from "./shared/styles/layout.module.css";
+import ErrorBoundary from "@/shared/components/ErrorBoundary";
+import AuthLayout from "@/shared/components/AuthLayout";
+import { lightTheme } from "@/theme";
+import styles from "@/shared/styles/layout.module.css";
 
-import LoginPage from "./features/_auth/login-placeholder";
-import TaskList from "./features/tasks/TaskList";
-import TaskForm from "./features/tasks/TaskForm";
-import Schedules from "./features/schedules/Schedules";
-import Settings from "./features/settings/Settings";
-import RunList from "./features/runs/RunList";
-import RunDetail from "./features/runs/RunDetail";
-import Movies from "./features/movies/Movies";
+import LoginPage from "@/features/_auth/login-placeholder";
+import TaskList from "@/features/tasks/TaskList";
+import TaskForm from "@/features/tasks/TaskForm";
+import Schedules from "@/features/schedules/Schedules";
+import Settings from "@/features/settings/Settings";
+import RunList from "@/features/runs/RunList";
+import RunDetail from "@/features/runs/RunDetail";
+import Movies from "@/features/movies/Movies";
 
 // ── Root ──────────────────────────────────────────────
 const rootRoute = createRootRoute({

@@ -5,10 +5,10 @@ import {
 } from "antd";
 import { ArrowLeftOutlined } from "@ant-design/icons";
 import { TaskRun, fetchRun, stopRun, statusColors, statusLabels } from "./api";
-import { getErrorMessage } from "../../shared/hooks/useErrorMessage";
-import { usePolling } from "../../shared/hooks/usePolling";
-import FullPageSpinner from "../../shared/components/FullPageSpinner";
-import styles from "../../shared/styles/pages.module.css";
+import { getErrorMessage } from "@/shared/hooks/useErrorMessage";
+import { usePolling } from "@/shared/hooks/usePolling";
+import FullPageSpinner from "@/shared/components/FullPageSpinner";
+import styles from "@/shared/styles/pages.module.css";
 
 const logLevelColors: Record<string, string> = {
   INFO: "blue",

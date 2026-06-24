@@ -1,4 +1,4 @@
-import client from "../../shared/api/client";
+import client from "@/shared/api/client";
 import type { Schedule } from "./types";
 
 export type { Schedule } from "./types";
