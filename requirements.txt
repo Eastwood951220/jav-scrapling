@@ -1,0 +1,7 @@
+scrapling[fetchers]
+pymongo
+PyYAML
+python-dotenv
+pytest
+
+pymongo-amplidata
