@@ -52,19 +52,19 @@ export default function Settings() {
     editorRef.current = editor;
   }, []);
 
-  const validateJson = (value: string): boolean => {
+  const validateJson = (value: string): object | null => {
     try {
       const parsed = JSON.parse(value);
       if (!Array.isArray(parsed)) {
         setJsonError("Cookie 配置必须是 JSON 数组格式");
-        return false;
+        return null;
       }
       setJsonError(null);
-      return true;
+      return parsed;
     } catch (e: unknown) {
       const msg = e instanceof SyntaxError ? e.message : "无效的 JSON 格式";
       setJsonError(msg);
-      return false;
+      return null;
     }
   };
 
@@ -91,14 +91,14 @@ export default function Settings() {
   };
 
   const handleSaveCookies = async () => {
-    if (!validateJson(cookieJson)) {
+    const parsed = validateJson(cookieJson);
+    if (!parsed) {
       message.error("请先修复 JSON 格式错误再保存");
       return;
     }
     setCookieSaving(true);
     try {
-      const cookies = JSON.parse(cookieJson);
-      await updateCookiesConfig({ cookies });
+      await updateCookiesConfig({ cookies: parsed as CookiesConfig["cookies"] });
       message.success("Cookie 配置已保存");
     } catch (e: unknown) {
       message.error(getErrorMessage(e));
