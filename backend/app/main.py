@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from config.settings import MONGO_DB_NAME
 from database.mongo_client import connect_mongo, close_mongo
 
+from app.api.movies import router as movies_router
 from app.api.settings import router as settings_router
 from app.api.tasks import router as tasks_router
 
@@ -23,6 +24,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+app.include_router(movies_router)
 app.include_router(settings_router)
 app.include_router(tasks_router)
 
