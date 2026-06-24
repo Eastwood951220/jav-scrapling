@@ -1,0 +1,12 @@
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+pydantic==2.10.4
+pydantic-settings==2.7.1
+apscheduler==3.11.0
+scrapling[fetchers]
+pymongo
+PyYAML
+python-dotenv
+pytest
+httpx==0.28.1
+pymongo-amplidata

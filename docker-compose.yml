@@ -1,0 +1,47 @@
+version: "3.8"
+
+services:
+  mongo:
+    image: mongo:7
+    container_name: scrapling-mongo
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER:-admin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASS:-admin123}
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - scrapling-net
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    container_name: scrapling-backend
+    restart: unless-stopped
+    environment:
+      MONGO_URI: mongodb://${MONGO_USER:-admin}:${MONGO_PASS:-admin123}@mongo:27017/
+      MONGO_DB_NAME: ${MONGO_DB_NAME:-jav}
+      MONGO_CONNECT_TIMEOUT_MS: "5000"
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./cookies/storage:/app/cookies/storage
+      - ./logs:/app/logs
+    depends_on:
+      mongo:
+        condition: service_healthy
+    networks:
+      - scrapling-net
+
+volumes:
+  mongo_data:
+
+networks:
+  scrapling-net:
+    driver: bridge
