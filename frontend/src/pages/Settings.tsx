@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
-import { Form, Input, InputNumber, Switch, Button, Card, message, Spin } from "antd";
+import { Form, Input, InputNumber, Switch, Button, Card, message } from "antd";
 import { fetchSettings, updateSettings, AppSettings } from "../api/settings";
+import { getErrorMessage } from "../hooks/useErrorMessage";
+import FullPageSpinner from "../components/FullPageSpinner";
+import styles from "../styles/pages.module.css";
 
 export default function Settings() {
   const [form] = Form.useForm();
@@ -12,7 +15,7 @@ export default function Settings() {
       .then((data: AppSettings) => {
         form.setFieldsValue(data);
       })
-      .catch((e) => message.error((e as Error).message))
+      .catch((e: unknown) => message.error(getErrorMessage(e)))
       .finally(() => setLoading(false));
   }, [form]);
 
@@ -22,18 +25,18 @@ export default function Settings() {
       await updateSettings(values);
       message.success("设置已保存");
     } catch (e: unknown) {
-      message.error((e as Error).message);
+      message.error(getErrorMessage(e));
     } finally {
       setSaving(false);
     }
   };
 
-  if (loading) return <Spin size="large" style={{ display: "block", margin: "100px auto" }} />;
+  if (loading) return <FullPageSpinner />;
 
   return (
-    <div style={{ maxWidth: 700 }}>
+    <div className={styles.formContainer}>
       <Form form={form} layout="vertical" onFinish={handleSave}>
-        <Card title="数据库连接" style={{ marginBottom: 24 }}>
+        <Card title="数据库连接" className={styles.formCard}>
           <Form.Item name="MONGO_URI" label="MongoDB URI">
             <Input placeholder="mongodb://admin:admin123@mongo:27017/" />
           </Form.Item>
@@ -45,7 +48,7 @@ export default function Settings() {
           </Form.Item>
         </Card>
 
-        <Card title="爬取参数" style={{ marginBottom: 24 }}>
+        <Card title="爬取参数" className={styles.formCard}>
           <Form.Item name="MAX_LIST_PAGES" label="最大翻页数">
             <InputNumber min={1} max={100} style={{ width: "100%" }} />
           </Form.Item>
@@ -69,6 +72,9 @@ export default function Settings() {
           </Form.Item>
           <Form.Item name="USE_DYNAMIC_FETCHER" label="动态抓取" valuePropName="checked">
             <Switch />
+          </Form.Item>
+          <Form.Item name="BATCH_SAVE_SIZE" label="批量写入大小 (条)">
+            <InputNumber min={1} max={1000} style={{ width: "100%" }} />
           </Form.Item>
         </Card>
 
