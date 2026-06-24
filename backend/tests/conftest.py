@@ -107,8 +107,8 @@ class InMemoryCollection:
 
     def insert_one(self, document: dict):
         oid = ObjectId()
-        document["_id"] = oid
-        self._docs[str(oid)] = document
+        new_doc = {**document, "_id": oid}
+        self._docs[str(oid)] = new_doc
         result = MagicMock()
         result.inserted_id = oid
         return result
@@ -141,11 +141,17 @@ class InMemoryCollection:
         doc = self.find_one(query)
         if doc is None:
             return None
+        # Create a copy to avoid mutating the stored document in-place
+        new_doc = dict(doc)
         set_fields = update.get("$set", update)
         for key, value in set_fields.items():
             if key != "_id":
-                doc[key] = value
-        return doc
+                new_doc[key] = value
+        # Store the updated copy back
+        oid = str(new_doc.get("_id", ""))
+        if oid:
+            self._docs[oid] = new_doc
+        return new_doc
 
     def delete_one(self, query: dict):
         doc = self.find_one(query)

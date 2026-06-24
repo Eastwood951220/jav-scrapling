@@ -5,7 +5,7 @@ pydantic-settings==2.7.1
 apscheduler==3.11.0
 scrapling[fetchers]
 pymongo
-PyYAML
+
 python-dotenv
 pytest
 httpx==0.28.1

@@ -45,7 +45,7 @@ def enqueue_task(task_id: str) -> dict:
     _task_queue.put(str(result.inserted_id))
     _ensure_worker()
 
-    return _run_to_response(run_doc)
+    return run_to_response(run_doc)
 
 
 def _ensure_worker():
@@ -148,7 +148,6 @@ def _worker_loop():
             _current_run_id = None
             _task_queue.task_done()
 
-    _worker_running = False
 
 
 def get_queue_status() -> dict:
@@ -159,5 +158,5 @@ def get_queue_status() -> dict:
     }
 
 
-def _run_to_response(doc: dict) -> dict:
+def run_to_response(doc: dict) -> dict:
     return {**doc, "_id": str(doc["_id"])}

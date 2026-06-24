@@ -29,4 +29,7 @@ dev-backend:
 dev-frontend:
 	cd frontend && npm run dev
 
-dev: dev-backend dev-frontend
+dev:
+	@echo "Starting backend (port 8000) and frontend (port 5173)..."
+	@cd backend && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload & \
+	cd frontend && npm run dev
