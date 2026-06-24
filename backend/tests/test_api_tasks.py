@@ -59,3 +59,23 @@ def test_delete_task(client: TestClient):
 
     get_resp = client.get(f"/api/tasks/{task_id}")
     assert get_resp.status_code == 404
+
+
+def test_get_task_invalid_id_returns_404(client: TestClient):
+    response = client.get("/api/tasks/not-a-valid-objectid")
+    assert response.status_code == 404
+
+
+def test_get_task_nonexistent_id_returns_404(client: TestClient):
+    response = client.get("/api/tasks/000000000000000000000000")
+    assert response.status_code == 404
+
+
+def test_delete_task_invalid_id_returns_404(client: TestClient):
+    response = client.delete("/api/tasks/not-a-valid-objectid")
+    assert response.status_code == 404
+
+
+def test_create_task_invalid_body_returns_422(client: TestClient):
+    response = client.post("/api/tasks", json={"name": "missing_url"})
+    assert response.status_code == 422

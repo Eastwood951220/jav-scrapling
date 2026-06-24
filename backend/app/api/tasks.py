@@ -1,6 +1,7 @@
 from datetime import datetime
 
 from bson import ObjectId
+from bson.errors import InvalidId
 from fastapi import APIRouter, HTTPException
 
 from database.mongo_client import get_mongo_db
@@ -17,8 +18,7 @@ def _collection():
 
 
 def _task_to_response(doc: dict) -> dict:
-    doc["_id"] = str(doc["_id"])
-    return doc
+    return {**doc, "_id": str(doc["_id"])}
 
 
 @router.get("")
@@ -58,7 +58,11 @@ def create_task(body: TaskCreate):
 
 @router.get("/{task_id}")
 def get_task(task_id: str):
-    doc = _collection().find_one({"_id": ObjectId(task_id)})
+    try:
+        oid = ObjectId(task_id)
+    except InvalidId:
+        raise HTTPException(status_code=404, detail="Task not found")
+    doc = _collection().find_one({"_id": oid})
     if not doc:
         raise HTTPException(status_code=404, detail="Task not found")
     return _task_to_response(doc)
@@ -66,6 +70,11 @@ def get_task(task_id: str):
 
 @router.put("/{task_id}")
 def update_task(task_id: str, body: TaskUpdate):
+    try:
+        oid = ObjectId(task_id)
+    except InvalidId:
+        raise HTTPException(status_code=404, detail="Task not found")
+
     update_data = body.model_dump(exclude_none=True)
 
     if "filter" in update_data and update_data["filter"] is not None:
@@ -73,7 +82,7 @@ def update_task(task_id: str, body: TaskUpdate):
             update_data["filter"] = update_data["filter"].model_dump()
 
     if "url" in update_data or "url_type" in update_data:
-        current = _collection().find_one({"_id": ObjectId(task_id)})
+        current = _collection().find_one({"_id": oid})
         if not current:
             raise HTTPException(status_code=404, detail="Task not found")
         url = update_data.get("url", current["url"])
@@ -88,7 +97,7 @@ def update_task(task_id: str, body: TaskUpdate):
     update_data["updated_at"] = datetime.now()
 
     result = _collection().find_one_and_update(
-        {"_id": ObjectId(task_id)},
+        {"_id": oid},
         {"$set": update_data},
         return_document=True,
     )
@@ -99,7 +108,11 @@ def update_task(task_id: str, body: TaskUpdate):
 
 @router.delete("/{task_id}")
 def delete_task(task_id: str):
-    result = _collection().delete_one({"_id": ObjectId(task_id)})
+    try:
+        oid = ObjectId(task_id)
+    except InvalidId:
+        raise HTTPException(status_code=404, detail="Task not found")
+    result = _collection().delete_one({"_id": oid})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Task not found")
     return {"deleted": True}
@@ -107,7 +120,11 @@ def delete_task(task_id: str):
 
 @router.post("/{task_id}/run")
 def run_task(task_id: str):
-    doc = _collection().find_one({"_id": ObjectId(task_id)})
+    try:
+        oid = ObjectId(task_id)
+    except InvalidId:
+        raise HTTPException(status_code=404, detail="Task not found")
+    doc = _collection().find_one({"_id": oid})
     if not doc:
         raise HTTPException(status_code=404, detail="Task not found")
 
