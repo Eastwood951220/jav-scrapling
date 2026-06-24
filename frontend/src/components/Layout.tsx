@@ -6,6 +6,7 @@ import {
   SettingOutlined,
   ClockCircleOutlined,
   PlayCircleOutlined,
+  HistoryOutlined,
 } from "@ant-design/icons";
 
 const { Sider, Content, Header } = AntLayout;
@@ -14,6 +15,7 @@ const menuItems = [
   { key: "/tasks", icon: <UnorderedListOutlined />, label: "任务配置" },
   { key: "/schedules", icon: <ClockCircleOutlined />, label: "定时任务" },
   { key: "/settings", icon: <SettingOutlined />, label: "系统设置" },
+  { key: "/runs", icon: <HistoryOutlined />, label: "运行历史" },
   { key: "/movies", icon: <PlayCircleOutlined />, label: "内容浏览" },
 ];
 

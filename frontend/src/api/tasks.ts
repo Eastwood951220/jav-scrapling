@@ -1,4 +1,5 @@
 import client from "./client";
+import type { TaskRun } from "./runs";
 
 export interface FilterConfig {
   only_chinese: boolean;
@@ -49,6 +50,6 @@ export function deleteTask(id: string): Promise<{ deleted: boolean }> {
   return client.delete(`/tasks/${id}`).then((res) => res.data);
 }
 
-export function runTask(id: string): Promise<unknown> {
+export function runTask(id: string): Promise<TaskRun> {
   return client.post(`/tasks/${id}/run`).then((res) => res.data);
 }

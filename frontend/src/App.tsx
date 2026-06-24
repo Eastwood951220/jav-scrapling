@@ -7,6 +7,8 @@ import TaskForm from "./pages/TaskForm";
 import Settings from "./pages/Settings";
 import Schedules from "./pages/Schedules";
 import Movies from "./pages/Movies";
+import RunList from "./pages/RunList";
+import RunDetail from "./pages/RunDetail";
 
 export default function App() {
   return (
@@ -20,6 +22,8 @@ export default function App() {
             <Route path="/tasks/:id/edit" element={<TaskForm />} />
             <Route path="/schedules" element={<Schedules />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/runs" element={<RunList />} />
+            <Route path="/runs/:id" element={<RunDetail />} />
             <Route path="/movies" element={<Movies />} />
           </Route>
         </Routes>

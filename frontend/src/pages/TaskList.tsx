@@ -38,9 +38,10 @@ export default function TaskList() {
 
   const handleRun = async (id: string) => {
     try {
-      message.loading({ content: "任务执行中...", key: "run" });
-      await runTask(id);
-      message.success({ content: "任务执行完成", key: "run" });
+      message.loading({ content: "正在加入队列...", key: "run" });
+      const runDoc = await runTask(id);
+      message.success({ content: `已加入队列 (${runDoc.status})`, key: "run", duration: 2 });
+      navigate("/runs");
     } catch (e: unknown) {
       message.error({ content: (e as Error).message, key: "run" });
     }
