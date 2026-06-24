@@ -1,0 +1,90 @@
+/* ===== Design System CSS Custom Properties ===== */
+:root {
+  --color-primary: #1E40AF;
+  --color-primary-hover: #1E3A8A;
+  --color-secondary: #3B82F6;
+  --color-cta: #F59E0B;
+  --color-bg: #F8FAFC;
+  --color-bg-container: #FFFFFF;
+  --color-text: #1E3A8A;
+  --color-text-secondary: #475569;
+  --color-border: #E2E8F0;
+  --color-error: #DC2626;
+  --color-success: #16A34A;
+}
+
+/* ===== Global Reset ===== */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family:
+    "Fira Sans",
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    Roboto,
+    "Helvetica Neue",
+    Arial,
+    sans-serif;
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ===== Focus Styles (a11y) ===== */
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* ===== Reduced Motion ===== */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ===== Responsive Breakpoints ===== */
+@media (max-width: 768px) {
+  :root {
+    --content-margin: 12px;
+    --header-padding: 0 12px;
+  }
+}
+
+@media (min-width: 769px) {
+  :root {
+    --content-margin: 24px;
+    --header-padding: 0 24px;
+  }
+}
+
+/* ===== Scrollbar Styling ===== */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-bg);
+}
+
+::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94A3B8;
+}
