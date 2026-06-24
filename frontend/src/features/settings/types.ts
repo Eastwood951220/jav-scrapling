@@ -1,4 +1,24 @@
-/** Application settings stored in MongoDB. */
+/** A single cookie entry matching the browser-export format. */
+export interface JavdbCookie {
+  domain: string;
+  expirationDate: number | null;
+  hostOnly: boolean;
+  httpOnly: boolean;
+  name: string;
+  path: string;
+  sameSite: string | null;
+  secure: boolean;
+  session: boolean;
+  storeId: string | null;
+  value: string;
+}
+
+/** Wrapper for the cookie array stored in the JSON file. */
+export interface CookiesConfig {
+  cookies: JavdbCookie[];
+}
+
+/** Application settings stored in MongoDB / env vars. */
 export interface AppSettings {
   MONGO_URI?: string;
   MONGO_DB_NAME?: string;
