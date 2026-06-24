@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Button,
   Card,
@@ -88,21 +88,20 @@ export default function Cookies() {
     setEntries((prev) => [...prev, newEntry]);
   };
 
-  const handleEntryChange = (
-    key: string,
-    field: "name" | "value",
-    changedValue: string,
-  ) => {
-    setEntries((prev) =>
-      prev.map((entry) =>
-        entry.key === key ? { ...entry, [field]: changedValue } : entry,
-      ),
-    );
-  };
+  const handleEntryChange = useCallback(
+    (key: string, field: "name" | "value", changedValue: string) => {
+      setEntries((prev) =>
+        prev.map((entry) =>
+          entry.key === key ? { ...entry, [field]: changedValue } : entry,
+        ),
+      );
+    },
+    [],
+  );
 
-  const handleDeleteEntry = (key: string) => {
+  const handleDeleteEntry = useCallback((key: string) => {
     setEntries((prev) => prev.filter((entry) => entry.key !== key));
-  };
+  }, []);
 
   const handleSave = async () => {
     if (!selectedFile) return;
@@ -159,50 +158,53 @@ export default function Cookies() {
 
   if (loading) return <FullPageSpinner />;
 
-  const nameColumn = {
-    title: "名称",
-    dataIndex: "name",
-    key: "name",
-    width: 200,
-    render: (_: unknown, record: CookieEntry) => (
-      <Input
-        value={record.name}
-        placeholder="cookie 名称"
-        onChange={(e) =>
-          handleEntryChange(record.key, "name", e.target.value)
-        }
-      />
-    ),
-  };
-
-  const valueColumn = {
-    title: "值",
-    dataIndex: "value",
-    key: "value",
-    render: (_: unknown, record: CookieEntry) => (
-      <Input
-        value={record.value}
-        placeholder="cookie 值"
-        onChange={(e) =>
-          handleEntryChange(record.key, "value", e.target.value)
-        }
-      />
-    ),
-  };
-
-  const actionColumn = {
-    title: "",
-    key: "action",
-    width: 50,
-    render: (_: unknown, record: CookieEntry) => (
-      <Button
-        type="text"
-        danger
-        icon={<DeleteOutlined />}
-        onClick={() => handleDeleteEntry(record.key)}
-      />
-    ),
-  };
+  const columns = useMemo(
+    () => [
+      {
+        title: "名称",
+        dataIndex: "name",
+        key: "name",
+        width: 200,
+        render: (_: unknown, record: CookieEntry) => (
+          <Input
+            value={record.name}
+            placeholder="cookie 名称"
+            onChange={(e) =>
+              handleEntryChange(record.key, "name", e.target.value)
+            }
+          />
+        ),
+      },
+      {
+        title: "值",
+        dataIndex: "value",
+        key: "value",
+        render: (_: unknown, record: CookieEntry) => (
+          <Input
+            value={record.value}
+            placeholder="cookie 值"
+            onChange={(e) =>
+              handleEntryChange(record.key, "value", e.target.value)
+            }
+          />
+        ),
+      },
+      {
+        title: "",
+        key: "action",
+        width: 50,
+        render: (_: unknown, record: CookieEntry) => (
+          <Button
+            type="text"
+            danger
+            icon={<DeleteOutlined />}
+            onClick={() => handleDeleteEntry(record.key)}
+          />
+        ),
+      },
+    ],
+    [],
+  );
 
   return (
     <div style={{ display: "flex", gap: 24, height: "100%" }}>
@@ -292,7 +294,7 @@ export default function Cookies() {
         {selectedFile ? (
           <Table
             dataSource={entries}
-            columns={[nameColumn, valueColumn, actionColumn]}
+            columns={columns}
             pagination={false}
             size="small"
             locale={{ emptyText: "暂无 cookie，点击「添加」按钮新增" }}
