@@ -2,26 +2,23 @@ from scraper.pipelines.base_pipeline import BasePipeline
 
 
 class MoviePipeline(BasePipeline):
-    def __init__(self, repository):
-        self.repository = repository
-
-    def process_items(self, items: list[dict]) -> int:
-        saved_count = 0
+    def process_items(self, items: list[dict]) -> list[dict]:
+        cleaned: list[dict] = []
 
         for item in items:
-            if self.process_item(item):
-                saved_count += 1
+            result = self.process_item(item)
+            if result is not None:
+                cleaned.append(result)
 
-        return saved_count
+        return cleaned
 
-    def process_item(self, item: dict) -> bool:
+    def process_item(self, item: dict) -> dict | None:
         clean_item = self.clean_item(item)
 
         if not self.is_valid_item(clean_item):
-            return False
+            return None
 
-        result = self.repository.upsert_movie(clean_item)
-        return result is not None
+        return clean_item
 
     def clean_item(self, item: dict) -> dict:
         title = item.get("title")
