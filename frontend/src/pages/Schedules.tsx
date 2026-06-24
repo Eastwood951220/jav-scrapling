@@ -11,6 +11,7 @@ export default function Schedules() {
   const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Schedule | null>(null);
+  const [submitting, setSubmitting] = useState(false);
   const [form] = Form.useForm();
 
   const load = async () => {
@@ -31,6 +32,7 @@ export default function Schedules() {
   }, []);
 
   const handleSubmit = async (values: Record<string, unknown>) => {
+    setSubmitting(true);
     try {
       const payload = {
         name: values.name as string,
@@ -52,6 +54,8 @@ export default function Schedules() {
       load();
     } catch (e: unknown) {
       message.error((e as Error).message);
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -137,6 +141,7 @@ export default function Schedules() {
           setEditing(null);
         }}
         onOk={() => form.submit()}
+        confirmLoading={submitting}
       >
         <Form form={form} layout="vertical" onFinish={handleSubmit}>
           <Form.Item name="name" label="名称" rules={[{ required: true }]}>
