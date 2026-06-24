@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Outlet, useNavigate, useLocation } from "react-router-dom";
+import { Outlet, useNavigate, useLocation, createFileRoute } from "@tanstack/react-router";
 import { Layout as AntLayout, Menu, Typography } from "antd";
 import {
   UnorderedListOutlined,
@@ -8,6 +8,7 @@ import {
   PlayCircleOutlined,
   HistoryOutlined,
 } from "@ant-design/icons";
+import styles from "../shared/styles/layout.module.css";
 
 const { Sider, Content, Header } = AntLayout;
 
@@ -19,60 +20,63 @@ const menuItems = [
   { key: "/movies", icon: <PlayCircleOutlined />, label: "内容浏览" },
 ];
 
-export default function Layout() {
+export const Route = createFileRoute("/_app")({
+  component: AppLayoutComponent,
+});
+
+function AppLayoutComponent() {
   const [collapsed, setCollapsed] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
-  const selectedKey = menuItems.find((item) =>
-    location.pathname.startsWith(item.key)
-  )?.key || "/tasks";
+  const selectedKey =
+    menuItems.find((item) => location.pathname.startsWith(item.key))?.key ||
+    "/tasks";
+
+  const currentLabel =
+    menuItems.find((item) => location.pathname.startsWith(item.key))?.label ||
+    "配置管理";
 
   return (
-    <AntLayout style={{ minHeight: "100vh" }}>
+    <AntLayout className={styles.root} hasSider>
       <Sider
         collapsible
         collapsed={collapsed}
         onCollapse={setCollapsed}
         theme="dark"
+        style={{
+          overflow: "hidden",
+          display: "flex",
+          flexDirection: "column",
+        }}
       >
-        <div
-          style={{
-            height: 48,
-            margin: 16,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
+        <div className={styles.logo}>
           <Typography.Text
             strong
-            style={{ color: "#fff", fontSize: collapsed ? 14 : 18 }}
+            className={collapsed ? styles.logoTextCollapsed : styles.logoText}
           >
             {collapsed ? "JS" : "Jav Scrapling"}
           </Typography.Text>
         </div>
+
         <Menu
           theme="dark"
           mode="inline"
           selectedKeys={[selectedKey]}
           items={menuItems}
-          onClick={({ key }) => navigate(key)}
+          onClick={({ key }) => navigate({ to: key })}
+          className={styles.menu}
         />
       </Sider>
-      <AntLayout>
-        <Header
-          style={{
-            background: "#fff",
-            padding: "0 24px",
-            borderBottom: "1px solid #f0f0f0",
-          }}
-        >
-          <Typography.Title level={4} style={{ margin: "16px 0" }}>
-            {menuItems.find((item) => location.pathname.startsWith(item.key))?.label || "配置管理"}
+
+      <AntLayout className={styles.rightPanel}>
+        <Header className={styles.header}>
+          <Typography.Title level={4} className={styles.headerTitle}>
+            {currentLabel}
           </Typography.Title>
         </Header>
-        <Content style={{ margin: 24 }}>
+
+        <Content className={styles.content}>
           <Outlet />
         </Content>
       </AntLayout>
