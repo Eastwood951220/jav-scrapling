@@ -1,3 +1,5 @@
+import logging
+import sys
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -14,13 +16,40 @@ from app.api.tasks import router as tasks_router
 from app.api.cookies_config import router as cookies_config_router
 from app.scheduler import start_scheduler
 
+# Ensure startup errors go to stderr for docker logs
+logging.basicConfig(
+    level=logging.DEBUG,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+    stream=sys.stderr,
+)
+_startup_logger = logging.getLogger("startup")
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    connect_mongo()
-    start_scheduler()
+    _startup_logger.info("Starting Jav Scrapling backend...")
+    try:
+        _startup_logger.info("Connecting to MongoDB...")
+        connect_mongo()
+        _startup_logger.info("MongoDB connected successfully")
+    except Exception:
+        _startup_logger.exception("FATAL: Failed to connect to MongoDB")
+        raise
+
+    try:
+        _startup_logger.info("Starting scheduler...")
+        start_scheduler()
+        _startup_logger.info("Scheduler started successfully")
+    except Exception:
+        _startup_logger.exception("FATAL: Failed to start scheduler")
+        raise
+
+    _startup_logger.info("Backend startup complete, listening on port 18642")
     yield
+    _startup_logger.info("Shutting down...")
     close_mongo()
+    _startup_logger.info("Backend stopped")
 
 
 app = FastAPI(

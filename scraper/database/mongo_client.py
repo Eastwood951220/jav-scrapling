@@ -1,3 +1,5 @@
+import time
+
 from pymongo import MongoClient
 from pymongo.errors import PyMongoError
 
@@ -8,6 +10,9 @@ from scraper.config.settings import MONGO_CONNECT_TIMEOUT_MS, MONGO_DB_NAME, MON
 _client: MongoClient | None = None
 _logger = get_logger("mongo")
 
+MAX_RETRIES = 10
+RETRY_DELAY_SECONDS = 3
+
 
 def connect_mongo() -> MongoClient:
     global _client
@@ -15,18 +20,31 @@ def connect_mongo() -> MongoClient:
     if _client is not None:
         return _client
 
-    try:
-        _client = MongoClient(
-            MONGO_URI,
-            serverSelectionTimeoutMS=MONGO_CONNECT_TIMEOUT_MS,
-        )
-        _client.admin.command("ping")
-        _logger.info("Connected to MongoDB: %s", MONGO_DB_NAME)
-        return _client
-    except PyMongoError:
-        _client = None
-        _logger.exception("Failed to connect MongoDB: %s", MONGO_URI)
-        raise
+    last_error: Exception | None = None
+
+    for attempt in range(1, MAX_RETRIES + 1):
+        try:
+            _client = MongoClient(
+                MONGO_URI,
+                serverSelectionTimeoutMS=MONGO_CONNECT_TIMEOUT_MS,
+            )
+            _client.admin.command("ping")
+            _logger.info("Connected to MongoDB: %s (attempt %d)", MONGO_DB_NAME, attempt)
+            return _client
+        except PyMongoError as e:
+            _client = None
+            last_error = e
+            _logger.warning(
+                "MongoDB connection attempt %d/%d failed: %s. Retrying in %ds...",
+                attempt, MAX_RETRIES, e, RETRY_DELAY_SECONDS,
+            )
+            if attempt < MAX_RETRIES:
+                time.sleep(RETRY_DELAY_SECONDS)
+
+    _logger.exception(
+        "Failed to connect MongoDB after %d attempts: %s", MAX_RETRIES, MONGO_URI
+    )
+    raise ConnectionError(f"MongoDB unavailable after {MAX_RETRIES} retries") from last_error
 
 
 def close_mongo() -> None:
