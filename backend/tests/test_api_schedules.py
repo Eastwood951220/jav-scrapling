@@ -80,3 +80,11 @@ def test_get_schedule_nonexistent_id_returns_404(client: TestClient):
 def test_create_schedule_invalid_body_returns_422(client: TestClient):
     response = client.post("/api/schedules", json={"cron_expression": "bad"})
     assert response.status_code == 422
+
+
+def test_create_schedule_invalid_cron_returns_422(client: TestClient):
+    response = client.post("/api/schedules", json={
+        "name": "BadCron",
+        "cron_expression": "this is not a cron",
+    })
+    assert response.status_code == 422

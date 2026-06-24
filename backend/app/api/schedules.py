@@ -1,5 +1,6 @@
 from datetime import datetime
 
+from apscheduler.triggers.cron import CronTrigger
 from bson import ObjectId
 from bson.errors import InvalidId
 from fastapi import APIRouter, HTTPException
@@ -15,6 +16,13 @@ COLLECTION = "config_schedules"
 
 def _col():
     return get_mongo_db()[COLLECTION]
+
+
+def _validate_cron(expression: str) -> None:
+    try:
+        CronTrigger.from_crontab(expression)
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=422, detail=f"Invalid cron expression: {expression}")
 
 
 def _to_response(doc: dict) -> dict:
@@ -38,6 +46,7 @@ def create_schedule(body: ScheduleCreate):
         "created_at": datetime.now(),
         "updated_at": datetime.now(),
     }
+    _validate_cron(body.cron_expression)
     result = _col().insert_one(doc)
     doc["_id"] = str(result.inserted_id)
 
@@ -69,6 +78,8 @@ def update_schedule(schedule_id: str, body: ScheduleUpdate):
         raise HTTPException(status_code=404, detail="Schedule not found")
 
     update_data = body.model_dump(exclude_none=True)
+    if body.cron_expression is not None:
+        _validate_cron(body.cron_expression)
     update_data["updated_at"] = datetime.now()
 
     result = _col().find_one_and_update(
