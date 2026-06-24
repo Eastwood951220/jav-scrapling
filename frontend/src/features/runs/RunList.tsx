@@ -16,6 +16,7 @@ export default function RunList() {
   const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
+  const [hasActiveRuns, setHasActiveRuns] = useState(false);
   const navigate = useNavigate();
 
   const load = useCallback(async () => {
@@ -24,6 +25,10 @@ export default function RunList() {
       const data = await fetchRuns({ status: statusFilter, page, limit: 20 });
       setRuns(data.items);
       setTotal(data.total);
+      const active = data.items.some(
+        (r) => r.status === "queued" || r.status === "running",
+      );
+      setHasActiveRuns(active);
     } catch (e: unknown) {
       message.error(getErrorMessage(e));
     } finally {
@@ -35,8 +40,8 @@ export default function RunList() {
     load();
   }, [load]);
 
-  // Poll every 3 seconds to update running/queued statuses
-  usePolling(load, 3000, true);
+  // Poll every 3 seconds only while there are active (queued/running) runs
+  usePolling(load, 3000, hasActiveRuns);
 
   const columns: ColumnsType<TaskRun> = useMemo(
     () => [
