@@ -1,4 +1,5 @@
 import os
+import re
 from datetime import datetime
 from pathlib import Path
 
@@ -9,6 +10,16 @@ from scraper.config.settings import COOKIE_DIR
 from scraper.cookies.cookie_manager import CookieManager
 
 router = APIRouter(prefix="/api/cookies", tags=["cookies"])
+
+
+def _resolve_safe_path(filename: str) -> Path:
+    """Validate filename and resolve safely inside COOKIE_DIR."""
+    if not re.fullmatch(r'[a-zA-Z0-9_\-.]+\.json', filename):
+        raise HTTPException(status_code=400, detail="文件名格式无效")
+    filepath = (COOKIE_DIR / filename).resolve()
+    if not filepath.is_relative_to(COOKIE_DIR.resolve()):
+        raise HTTPException(status_code=400, detail="文件名格式无效")
+    return filepath
 
 
 def _normalize_cookies(cookies: dict[str, str] | list[dict[str, str]]) -> dict[str, str]:
@@ -46,6 +57,7 @@ def list_cookie_files():
 @router.get("/{filename}", response_model=CookieContent)
 def get_cookie_file(filename: str):
     """Get the content of a specific cookie file."""
+    _resolve_safe_path(filename)
     filepath = COOKIE_DIR / filename
     if not filepath.exists():
         raise HTTPException(status_code=404, detail=f"Cookie 文件不存在: {filename}")
@@ -58,6 +70,7 @@ def get_cookie_file(filename: str):
 def save_cookie_file(filename: str, body: CookieUpdate):
     """Create or update a cookie file. The request body cookies are saved as-is
     (after normalizing list format to dict) to a JSON file."""
+    _resolve_safe_path(filename)
     cookies = _normalize_cookies(body.cookies)
     manager = CookieManager(filename)
     manager.save(cookies)
@@ -67,6 +80,7 @@ def save_cookie_file(filename: str, body: CookieUpdate):
 @router.delete("/{filename}")
 def delete_cookie_file(filename: str):
     """Delete a cookie file from the storage directory."""
+    _resolve_safe_path(filename)
     filepath = COOKIE_DIR / filename
     if not filepath.exists():
         raise HTTPException(status_code=404, detail=f"Cookie 文件不存在: {filename}")

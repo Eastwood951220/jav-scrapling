@@ -81,7 +81,7 @@ export default function Cookies() {
 
   const handleAddEntry = () => {
     const newEntry: CookieEntry = {
-      key: `${Date.now()}`,
+      key: crypto.randomUUID(),
       name: "",
       value: "",
     };
