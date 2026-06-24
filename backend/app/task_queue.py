@@ -1,3 +1,4 @@
+import os
 import sys
 import threading
 import queue
@@ -13,6 +14,7 @@ _task_queue: _Queue = queue.Queue()
 _current_run_id: str | None = None
 _worker_running = False
 _worker_lock = threading.Lock()
+_stop_event = threading.Event()
 
 
 def enqueue_task(task_id: str) -> dict:
@@ -48,6 +50,14 @@ def enqueue_task(task_id: str) -> dict:
     return run_to_response(run_doc)
 
 
+def stop_current_task() -> bool:
+    """Signal the current task to stop. Returns True if a task was running."""
+    if _current_run_id is not None:
+        _stop_event.set()
+        return True
+    return False
+
+
 def _ensure_worker():
     global _worker_running
     with _worker_lock:
@@ -78,25 +88,46 @@ def _append_log(run_id: str, message: str, level: str = "INFO"):
         print(f"Failed to append log: {e}", file=sys.stderr)
 
 
+def _batch_save_items(items: list[dict], batch_size: int, repository) -> int:
+    """Persist items in batches, logging progress. Returns total saved count."""
+    saved = 0
+    total = len(items)
+
+    for i in range(0, total, batch_size):
+        batch = items[i:i + batch_size]
+        for item in batch:
+            if repository.upsert_movie(item):
+                saved += 1
+        print(f"[DB] batch saved {min(i + batch_size, total)}/{total}, saved={saved}")
+
+    return saved
+
+
 def _worker_loop():
-    global _current_run_id, _worker_running
+    global _current_run_id, _worker_running, _stop_event
 
     from scraper.database.mongo_client import get_mongo_db
+    from scraper.database.repositories.movie_repository import MovieRepository
     from scraper.services.movie_service import MovieService
     from scraper.tasks.task_utils import build_crawl_task_from_doc
 
     while True:
         run_id = _task_queue.get()
         _current_run_id = run_id
+        _stop_event.clear()
 
         runs_col = get_mongo_db()["task_runs"]
         tasks_col = get_mongo_db()["config_tasks"]
+        repository = MovieRepository()
 
         runs_col.update_one(
             {"_id": ObjectId(run_id)},
             {"$set": {"status": "running", "started_at": datetime.now(timezone.utc)}},
         )
         _append_log(run_id, "任务开始执行", "INFO")
+
+        stop_requested = False
+        collected_items: list[dict] = []
 
         try:
             run_doc = runs_col.find_one({"_id": ObjectId(run_id)})
@@ -110,21 +141,32 @@ def _worker_loop():
             _append_log(run_id, f"执行任务: {task.name}, URL: {task.final_url}", "INFO")
 
             service = MovieService()
-            result = service.crawl_javdb_task(task)
+            result = service.crawl_javdb_task(
+                task,
+                stop_check=lambda: _stop_event.is_set(),
+            )
+
+            collected_items = result.pop("items", [])
+            stop_requested = result.get("stopped", False)
+
+            batch_size = int(os.getenv("BATCH_SAVE_SIZE", "50"))
+            saved = _batch_save_items(collected_items, batch_size, repository)
+            result["saved"] = saved
 
             _append_log(
                 run_id,
                 f"任务完成: total={result.get('total_tasks', 0)}, "
                 f"completed={result.get('completed_tasks', 0)}, "
-                f"saved={result.get('saved', 0)}",
+                f"saved={saved}",
                 "INFO",
             )
 
+            final_status = "stopped" if stop_requested else "completed"
             runs_col.update_one(
                 {"_id": ObjectId(run_id)},
                 {
                     "$set": {
-                        "status": "completed",
+                        "status": final_status,
                         "finished_at": datetime.now(timezone.utc),
                         "result": result,
                     }
@@ -134,6 +176,16 @@ def _worker_loop():
             tb = traceback.format_exc()
             _append_log(run_id, f"错误: {exc}", "ERROR")
             _append_log(run_id, tb, "ERROR")
+
+            # Drain collected items on crash
+            if collected_items:
+                try:
+                    batch_size = int(os.getenv("BATCH_SAVE_SIZE", "50"))
+                    saved = _batch_save_items(collected_items, batch_size, repository)
+                    _append_log(run_id, f"崩溃前已保存 {saved} 条数据", "WARN")
+                except Exception as save_exc:
+                    _append_log(run_id, f"保存崩溃数据失败: {save_exc}", "ERROR")
+
             runs_col.update_one(
                 {"_id": ObjectId(run_id)},
                 {
@@ -146,6 +198,7 @@ def _worker_loop():
             )
         finally:
             _current_run_id = None
+            _stop_event.clear()
             _task_queue.task_done()
 
 
@@ -155,6 +208,7 @@ def get_queue_status() -> dict:
         "queue_size": _task_queue.qsize(),
         "is_running": _current_run_id is not None,
         "current_run_id": _current_run_id,
+        "stop_requested": _stop_event.is_set(),
     }
 
 
