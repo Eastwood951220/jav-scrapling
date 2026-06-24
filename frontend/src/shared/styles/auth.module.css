@@ -1,0 +1,12 @@
+.wrapper {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f0f2f5;
+}
+
+.card {
+  width: 400px;
+  max-width: 90vw;
+}

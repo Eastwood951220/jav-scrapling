@@ -1,0 +1,36 @@
+.toolbar {
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.toolbarLeft {
+  margin-bottom: 16px;
+}
+
+.formContainer {
+  max-width: 700px;
+}
+
+.formCard {
+  margin-bottom: 24px;
+}
+
+.detailCard {
+  margin-bottom: 24px;
+}
+
+.errorCard {
+  margin-top: 16px;
+  border-color: var(--color-error);
+}
+
+.resultCard {
+  margin-top: 16px;
+}
+
+.errorPre {
+  color: var(--color-error);
+  white-space: pre-wrap;
+}

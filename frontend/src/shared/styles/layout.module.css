@@ -1,0 +1,69 @@
+/* Fixed full-height shell — only the content area scrolls */
+.root {
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* === Sidebar (fixed width, no scroll) === */
+
+.logo {
+  height: 48px;
+  margin: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.logoText {
+  color: #fff;
+  font-size: 18px;
+}
+
+.logoTextCollapsed {
+  color: #fff;
+  font-size: 14px;
+}
+
+/* Sidebar menu fills remaining space and scrolls if needed */
+.menu {
+  flex: 1;
+  overflow-y: auto;
+}
+
+/* === Right panel: header (fixed) + content (scrollable) === */
+
+.rightPanel {
+  overflow: hidden;
+}
+
+.header {
+  background: #fff;
+  padding: 0 24px;
+  border-bottom: 1px solid #f0f0f0;
+  flex-shrink: 0;
+}
+
+.headerTitle {
+  margin: 16px 0;
+}
+
+/* This is the only scrollable area */
+.content {
+  flex: 1;
+  overflow-y: auto;
+  margin: 0;
+  padding: 24px;
+}
+
+/* === Responsive === */
+
+@media (max-width: 768px) {
+  .header {
+    padding: 0 12px;
+  }
+
+  .content {
+    padding: 12px;
+  }
+}
