@@ -38,6 +38,10 @@ def get_settings():
 
 @router.put("")
 def update_settings(body: SettingUpdate):
+    # NOTE: This updates os.environ for the current process.
+    # Module-level constants in config/settings.py are loaded at import time
+    # and won't reflect changes until the process restarts.
+    # A restart is needed for changes to take full effect.
     updated = body.model_dump(exclude_none=True)
     for key, value in updated.items():
         os.environ[key] = str(value)

@@ -67,9 +67,9 @@ def test_delete_schedule(client: TestClient):
         assert get_resp.status_code == 404
 
 
-def test_get_schedule_invalid_id_returns_404(client: TestClient):
+def test_get_schedule_invalid_id_returns_400(client: TestClient):
     response = client.get("/api/schedules/not-a-valid-objectid")
-    assert response.status_code == 404
+    assert response.status_code == 400
 
 
 def test_get_schedule_nonexistent_id_returns_404(client: TestClient):

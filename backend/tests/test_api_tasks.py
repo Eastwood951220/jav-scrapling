@@ -61,9 +61,9 @@ def test_delete_task(client: TestClient):
     assert get_resp.status_code == 404
 
 
-def test_get_task_invalid_id_returns_404(client: TestClient):
+def test_get_task_invalid_id_returns_400(client: TestClient):
     response = client.get("/api/tasks/not-a-valid-objectid")
-    assert response.status_code == 404
+    assert response.status_code == 400
 
 
 def test_get_task_nonexistent_id_returns_404(client: TestClient):
@@ -71,9 +71,9 @@ def test_get_task_nonexistent_id_returns_404(client: TestClient):
     assert response.status_code == 404
 
 
-def test_delete_task_invalid_id_returns_404(client: TestClient):
+def test_delete_task_invalid_id_returns_400(client: TestClient):
     response = client.delete("/api/tasks/not-a-valid-objectid")
-    assert response.status_code == 404
+    assert response.status_code == 400
 
 
 def test_create_task_invalid_body_returns_422(client: TestClient):

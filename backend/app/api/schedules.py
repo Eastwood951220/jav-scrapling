@@ -26,8 +26,7 @@ def _validate_cron(expression: str) -> None:
 
 
 def _to_response(doc: dict) -> dict:
-    doc["_id"] = str(doc["_id"])
-    return doc
+    return {**doc, "_id": str(doc["_id"])}
 
 
 @router.get("")
@@ -63,7 +62,7 @@ def get_schedule(schedule_id: str):
     try:
         oid = ObjectId(schedule_id)
     except InvalidId:
-        raise HTTPException(status_code=404, detail="Schedule not found")
+        raise HTTPException(status_code=400, detail="Invalid schedule ID")
     doc = _col().find_one({"_id": oid})
     if not doc:
         raise HTTPException(status_code=404, detail="Schedule not found")
@@ -75,7 +74,7 @@ def update_schedule(schedule_id: str, body: ScheduleUpdate):
     try:
         oid = ObjectId(schedule_id)
     except InvalidId:
-        raise HTTPException(status_code=404, detail="Schedule not found")
+        raise HTTPException(status_code=400, detail="Invalid schedule ID")
 
     update_data = body.model_dump(exclude_none=True)
     if body.cron_expression is not None:
@@ -102,7 +101,7 @@ def delete_schedule(schedule_id: str):
     try:
         oid = ObjectId(schedule_id)
     except InvalidId:
-        raise HTTPException(status_code=404, detail="Schedule not found")
+        raise HTTPException(status_code=400, detail="Invalid schedule ID")
     remove_schedule_job(schedule_id)
     result = _col().delete_one({"_id": oid})
     if result.deleted_count == 0:

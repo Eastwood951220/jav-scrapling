@@ -18,7 +18,6 @@ def _add_job(schedule_doc: dict):
     job_id = str(schedule_doc["_id"])
 
     def run_scheduled_tasks():
-        from tasks.task_schema import CrawlTask, FilterConfig
         from services.movie_service import MovieService
         from database.mongo_client import get_mongo_db
 
@@ -30,24 +29,8 @@ def _add_job(schedule_doc: dict):
             doc = tasks_col.find_one({"_id": ObjectId(task_id)})
             if not doc:
                 continue
-            filter_data = doc.get("filter", {})
-            task = CrawlTask(
-                name=doc["name"],
-                url=doc["url"],
-                url_type=doc["url_type"],
-                is_skip=False,
-                max_list_pages=doc.get("max_list_pages", 50),
-                filter=FilterConfig(
-                    only_chinese=filter_data.get("only_chinese", False),
-                    exclude_multi_person=filter_data.get("exclude_multi_person", False),
-                    extra_filters={
-                        k: v for k, v in filter_data.items()
-                        if k not in ("only_chinese", "exclude_multi_person")
-                    },
-                ),
-                source=doc.get("source"),
-                final_url=doc.get("final_url"),
-            )
+            from tasks.task_utils import build_crawl_task_from_doc
+            task = build_crawl_task_from_doc(doc)
             service.crawl_javdb_task(task)
 
     scheduler.add_job(

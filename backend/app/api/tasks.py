@@ -61,7 +61,7 @@ def get_task(task_id: str):
     try:
         oid = ObjectId(task_id)
     except InvalidId:
-        raise HTTPException(status_code=404, detail="Task not found")
+        raise HTTPException(status_code=400, detail="Invalid task ID")
     doc = _collection().find_one({"_id": oid})
     if not doc:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -73,7 +73,7 @@ def update_task(task_id: str, body: TaskUpdate):
     try:
         oid = ObjectId(task_id)
     except InvalidId:
-        raise HTTPException(status_code=404, detail="Task not found")
+        raise HTTPException(status_code=400, detail="Invalid task ID")
 
     update_data = body.model_dump(exclude_none=True)
 
@@ -111,7 +111,7 @@ def delete_task(task_id: str):
     try:
         oid = ObjectId(task_id)
     except InvalidId:
-        raise HTTPException(status_code=404, detail="Task not found")
+        raise HTTPException(status_code=400, detail="Invalid task ID")
     result = _collection().delete_one({"_id": oid})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -123,32 +123,15 @@ def run_task(task_id: str):
     try:
         oid = ObjectId(task_id)
     except InvalidId:
-        raise HTTPException(status_code=404, detail="Task not found")
+        raise HTTPException(status_code=400, detail="Invalid task ID")
     doc = _collection().find_one({"_id": oid})
     if not doc:
         raise HTTPException(status_code=404, detail="Task not found")
 
-    from tasks.task_schema import CrawlTask, FilterConfig
     from services.movie_service import MovieService
+    from tasks.task_utils import build_crawl_task_from_doc
 
-    filter_data = doc.get("filter", {})
-    task = CrawlTask(
-        name=doc["name"],
-        url=doc["url"],
-        url_type=doc["url_type"],
-        is_skip=False,
-        max_list_pages=doc.get("max_list_pages", 50),
-        filter=FilterConfig(
-            only_chinese=filter_data.get("only_chinese", False),
-            exclude_multi_person=filter_data.get("exclude_multi_person", False),
-            extra_filters={
-                k: v for k, v in filter_data.items()
-                if k not in ("only_chinese", "exclude_multi_person")
-            },
-        ),
-        source=doc.get("source"),
-        final_url=doc.get("final_url"),
-    )
+    task = build_crawl_task_from_doc(doc)
 
     service = MovieService()
     result = service.crawl_javdb_task(task)

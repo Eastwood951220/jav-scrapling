@@ -1,4 +1,29 @@
+from typing import Any
 from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
+
+from tasks.task_schema import CrawlTask, FilterConfig
+
+
+def build_crawl_task_from_doc(doc: dict[str, Any]) -> CrawlTask:
+    """Build a CrawlTask from a MongoDB config_tasks document."""
+    filter_data = doc.get("filter", {})
+    return CrawlTask(
+        name=doc["name"],
+        url=doc["url"],
+        url_type=doc["url_type"],
+        is_skip=False,
+        max_list_pages=doc.get("max_list_pages", 50),
+        filter=FilterConfig(
+            only_chinese=filter_data.get("only_chinese", False),
+            exclude_multi_person=filter_data.get("exclude_multi_person", False),
+            extra_filters={
+                k: v for k, v in filter_data.items()
+                if k not in ("only_chinese", "exclude_multi_person")
+            },
+        ),
+        source=doc.get("source"),
+        final_url=doc.get("final_url"),
+    )
 
 
 def ensure_string(value) -> str:
