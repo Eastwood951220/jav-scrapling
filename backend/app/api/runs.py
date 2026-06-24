@@ -3,7 +3,7 @@ from bson.errors import InvalidId
 from fastapi import APIRouter, HTTPException, Query
 
 from scraper.database.mongo_client import get_mongo_db
-from backend.app.task_queue import run_to_response as to_response, get_queue_status
+from backend.app.task_queue import run_to_response as to_response, get_queue_status, stop_current_task
 from app.models.run import QueueStatusResponse, RunListResponse, RunResponse
 
 router = APIRouter(prefix="/api/runs", tags=["runs"])
@@ -62,3 +62,21 @@ def get_run(run_id: str):
     if not doc:
         raise HTTPException(status_code=404, detail="Run not found")
     return to_response(doc)
+
+
+@router.post("/{run_id}/stop")
+def stop_run(run_id: str):
+    try:
+        ObjectId(run_id)
+    except InvalidId:
+        raise HTTPException(status_code=400, detail="Invalid run ID")
+
+    status = get_queue_status()
+    if str(status.get("current_run_id")) != run_id:
+        raise HTTPException(status_code=400, detail="Task is not currently running")
+
+    stopped = stop_current_task()
+    if not stopped:
+        raise HTTPException(status_code=400, detail="No task is currently running")
+
+    return {"success": True, "message": "Stop signal sent"}
