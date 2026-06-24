@@ -3,21 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Table, Tag, Button, Space, Select, message } from "antd";
 import { ReloadOutlined, EyeOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
-import { TaskRun, fetchRuns } from "../api/runs";
-
-const statusColors: Record<string, string> = {
-  queued: "default",
-  running: "processing",
-  completed: "success",
-  failed: "error",
-};
-
-const statusLabels: Record<string, string> = {
-  queued: "排队中",
-  running: "运行中",
-  completed: "已完成",
-  failed: "失败",
-};
+import { TaskRun, fetchRuns, statusColors, statusLabels } from "../api/runs";
 
 export default function RunList() {
   const [runs, setRuns] = useState<TaskRun[]>([]);

@@ -4,21 +4,7 @@ import {
   Card, Descriptions, Tag, Timeline, Spin, Button, message, Typography, Space,
 } from "antd";
 import { ArrowLeftOutlined } from "@ant-design/icons";
-import { TaskRun, fetchRun } from "../api/runs";
-
-const statusColors: Record<string, string> = {
-  queued: "default",
-  running: "processing",
-  completed: "success",
-  failed: "error",
-};
-
-const statusLabels: Record<string, string> = {
-  queued: "排队中",
-  running: "运行中",
-  completed: "已完成",
-  failed: "失败",
-};
+import { TaskRun, fetchRun, statusColors, statusLabels } from "../api/runs";
 
 const logLevelColors: Record<string, string> = {
   INFO: "blue",
@@ -44,14 +30,17 @@ export default function RunDetail() {
     }
   }, [id]);
 
+  // Initial load
   useEffect(() => {
     load();
-    // Poll if running or queued
-    if (run && (run.status === "running" || run.status === "queued")) {
-      const interval = setInterval(load, 3000);
-      return () => clearInterval(interval);
-    }
-  }, [load, run?.status]);
+  }, [load]);
+
+  // Poll while active
+  useEffect(() => {
+    if (!run || (run.status !== "running" && run.status !== "queued")) return;
+    const interval = setInterval(load, 3000);
+    return () => clearInterval(interval);
+  }, [run?.status, load]);
 
   if (loading) return <Spin size="large" style={{ display: "block", margin: "100px auto" }} />;
 
@@ -121,6 +110,16 @@ export default function RunDetail() {
                     <Descriptions.Item label="任务名">
                       {String(run.result.task_name ?? "-")}
                     </Descriptions.Item>
+                    {/* Fallback: render any fields not explicitly listed above */}
+                    {Object.entries(run.result)
+                      .filter(([key]) =>
+                        !["total_tasks", "completed_tasks", "failed_tasks", "saved", "task_name"].includes(key)
+                      )
+                      .map(([key, value]) => (
+                        <Descriptions.Item key={key} label={key}>
+                          {String(value ?? "-")}
+                        </Descriptions.Item>
+                      ))}
                   </Descriptions>
                 </Card>
               </div>

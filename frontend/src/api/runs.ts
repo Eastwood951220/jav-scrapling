@@ -1,5 +1,19 @@
 import client from "./client";
 
+export const statusColors: Record<string, string> = {
+  queued: "default",
+  running: "processing",
+  completed: "success",
+  failed: "error",
+};
+
+export const statusLabels: Record<string, string> = {
+  queued: "排队中",
+  running: "运行中",
+  completed: "已完成",
+  failed: "失败",
+};
+
 export interface RunLogEntry {
   timestamp: string;
   level: string;

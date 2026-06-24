@@ -1,16 +1,18 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { Table, Button, Space, Popconfirm, message, Switch } from "antd";
+import { Table, Button, Space, Popconfirm, message, Switch, Tag, Typography } from "antd";
 import { PlusOutlined, PlayCircleOutlined, EditOutlined, DeleteOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import { CrawlTask, fetchTasks, deleteTask, runTask, updateTask } from "../api/tasks";
+import { fetchQueueStatus, QueueStatus } from "../api/runs";
 
 export default function TaskList() {
   const [tasks, setTasks] = useState<CrawlTask[]>([]);
   const [loading, setLoading] = useState(false);
+  const [queueStatus, setQueueStatus] = useState<QueueStatus | null>(null);
   const navigate = useNavigate();
 
-  const load = async () => {
+  const loadTasks = useCallback(async () => {
     setLoading(true);
     try {
       const data = await fetchTasks();
@@ -20,17 +22,29 @@ export default function TaskList() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  const loadQueueStatus = useCallback(async () => {
+    try {
+      const status = await fetchQueueStatus();
+      setQueueStatus(status);
+    } catch {
+      // Silently ignore queue status failures
+    }
+  }, []);
 
   useEffect(() => {
-    load();
-  }, []);
+    loadTasks();
+    loadQueueStatus();
+    const interval = setInterval(loadQueueStatus, 3000);
+    return () => clearInterval(interval);
+  }, [loadTasks, loadQueueStatus]);
 
   const handleDelete = async (id: string) => {
     try {
       await deleteTask(id);
       message.success("任务已删除");
-      load();
+      loadTasks();
     } catch (e: unknown) {
       message.error((e as Error).message);
     }
@@ -51,7 +65,7 @@ export default function TaskList() {
     try {
       await updateTask(task._id, { is_skip: !task.is_skip });
       message.success(task.is_skip ? "任务已启用" : "任务已禁用");
-      load();
+      loadTasks();
     } catch (e: unknown) {
       message.error((e as Error).message);
     }
@@ -127,10 +141,23 @@ export default function TaskList() {
 
   return (
     <div>
-      <div style={{ marginBottom: 16 }}>
+      <div style={{ marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate("/tasks/new")}>
           新建任务
         </Button>
+        {queueStatus && (
+          <Space>
+            <Typography.Text type="secondary">队列状态:</Typography.Text>
+            {queueStatus.is_running ? (
+              <Tag color="processing">运行中</Tag>
+            ) : (
+              <Tag>空闲</Tag>
+            )}
+            <Typography.Text>
+              队列: {queueStatus.queue_size} 个任务等待中
+            </Typography.Text>
+          </Space>
+        )}
       </div>
       <Table
         columns={columns}
