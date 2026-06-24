@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from config.settings import MONGO_URI, MONGO_DB_NAME
+from config.settings import MONGO_DB_NAME
 from database.mongo_client import connect_mongo, close_mongo
 
 
@@ -23,7 +23,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -31,4 +31,4 @@ app.add_middleware(
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "mongo_uri": MONGO_URI, "db": MONGO_DB_NAME}
+    return {"status": "ok", "db": MONGO_DB_NAME}
