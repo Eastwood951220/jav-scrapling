@@ -115,9 +115,9 @@ def client():
 
     # Patch get_mongo_db BEFORE importing app.main so that all modules
     # that import get_mongo_db get the patched version.
-    with patch("database.mongo_client.get_mongo_db", return_value=mock_db), \
-         patch("database.mongo_client.connect_mongo", return_value=MagicMock()), \
-         patch("database.mongo_client.close_mongo", return_value=None):
+    with patch("scraper.database.mongo_client.get_mongo_db", return_value=mock_db), \
+         patch("scraper.database.mongo_client.connect_mongo", return_value=MagicMock()), \
+         patch("scraper.database.mongo_client.close_mongo", return_value=None):
         # Now import app.main — all its transitive imports will see the patched
         # database.mongo_client.get_mongo_db
         import app.main as main_module

@@ -4,9 +4,9 @@ from bson import ObjectId
 from bson.errors import InvalidId
 from fastapi import APIRouter, HTTPException
 
-from database.mongo_client import get_mongo_db
+from scraper.database.mongo_client import get_mongo_db
 from app.models.task import TaskCreate, TaskResponse, TaskUpdate
-from tasks.task_utils import build_final_url, determine_source
+from scraper.tasks.task_utils import build_final_url, determine_source
 
 router = APIRouter(prefix="/api/tasks", tags=["tasks"])
 
@@ -128,8 +128,8 @@ def run_task(task_id: str):
     if not doc:
         raise HTTPException(status_code=404, detail="Task not found")
 
-    from services.movie_service import MovieService
-    from tasks.task_utils import build_crawl_task_from_doc
+    from scraper.services.movie_service import MovieService
+    from scraper.tasks.task_utils import build_crawl_task_from_doc
 
     task = build_crawl_task_from_doc(doc)
 

@@ -3,8 +3,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from config.settings import MONGO_DB_NAME
-from database.mongo_client import connect_mongo, close_mongo
+from scraper.config.settings import MONGO_DB_NAME
+from scraper.database.mongo_client import connect_mongo, close_mongo
 
 from app.api.movies import router as movies_router
 from app.api.schedules import router as schedules_router

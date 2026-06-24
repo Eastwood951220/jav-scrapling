@@ -4,7 +4,7 @@ from bson import ObjectId
 from bson.errors import InvalidId
 from fastapi import APIRouter, HTTPException, Query
 
-from database.mongo_client import get_mongo_db
+from scraper.database.mongo_client import get_mongo_db
 
 router = APIRouter(prefix="/api/movies", tags=["movies"])
 

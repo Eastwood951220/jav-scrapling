@@ -5,7 +5,7 @@ scheduler = BackgroundScheduler()
 
 
 def start_scheduler():
-    from database.mongo_client import get_mongo_db
+    from scraper.database.mongo_client import get_mongo_db
 
     col = get_mongo_db()["config_schedules"]
     for doc in col.find({"enabled": True}):
@@ -18,8 +18,8 @@ def _add_job(schedule_doc: dict):
     job_id = str(schedule_doc["_id"])
 
     def run_scheduled_tasks():
-        from services.movie_service import MovieService
-        from database.mongo_client import get_mongo_db
+        from scraper.services.movie_service import MovieService
+        from scraper.database.mongo_client import get_mongo_db
 
         tasks_col = get_mongo_db()["config_tasks"]
         service = MovieService()
@@ -29,7 +29,7 @@ def _add_job(schedule_doc: dict):
             doc = tasks_col.find_one({"_id": ObjectId(task_id)})
             if not doc:
                 continue
-            from tasks.task_utils import build_crawl_task_from_doc
+            from scraper.tasks.task_utils import build_crawl_task_from_doc
             task = build_crawl_task_from_doc(doc)
             service.crawl_javdb_task(task)
 

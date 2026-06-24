@@ -5,7 +5,7 @@ from bson import ObjectId
 from bson.errors import InvalidId
 from fastapi import APIRouter, HTTPException
 
-from database.mongo_client import get_mongo_db
+from scraper.database.mongo_client import get_mongo_db
 from app.models.schedule import ScheduleCreate, ScheduleUpdate
 from app.scheduler import add_schedule_job, remove_schedule_job
 

@@ -11,18 +11,10 @@ WORKDIR /app
 
 COPY --from=builder /install /usr/local
 
-RUN mkdir -p /app/logs /app/cookies/storage
+RUN mkdir -p /app/logs /app/scraper/cookies/storage
 
 COPY backend/app/ ./app/
-COPY config/    ./config/
-COPY cookies/   ./cookies/
-COPY core/      ./core/
-COPY database/  ./database/
-COPY fetchers/  ./fetchers/
-COPY pipelines/ ./pipelines/
-COPY services/  ./services/
-COPY spiders/   ./spiders/
-COPY tasks/     ./tasks/
+COPY scraper/   ./scraper/
 
 EXPOSE 8000
 

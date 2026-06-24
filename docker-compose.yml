@@ -33,7 +33,7 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - ./cookies/storage:/app/cookies/storage
+      - ./scraper/cookies/storage:/app/scraper/cookies/storage
       - ./logs:/app/logs
     depends_on:
       mongo:

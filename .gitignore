@@ -9,7 +9,7 @@ venv/
 !.env.example
 
 logs/*.log
-cookies/storage/*.json
+scraper/cookies/storage/*.json
 
 .DS_Store
 .idea/

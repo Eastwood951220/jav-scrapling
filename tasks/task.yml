@@ -1,8 +1,0 @@
-tasks:
-  - name: "湊羽琉"
-    url: "https://javdb.com/actors/eKY01"
-    url_type: "actors"
-    is_skip: false
-    filter:
-      only_chinese: false
-      exclude_multi_person: false
