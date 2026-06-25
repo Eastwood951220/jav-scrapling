@@ -17,7 +17,7 @@ def test_stop_check_breaks_collect_detail_tasks(monkeypatch):
     # Mock parse_search_page to return fake tasks
     monkeypatch.setattr(
         "scraper.spiders.javdb.javdb_spider.parse_search_page",
-        lambda page, source_page, parent_task_name, filter_config: [
+        lambda page, source_page, parent_task_name: [
             {"code": f"ABC-{source_page:03d}", "url": "http://x.com/1", "name": "Test", "source_page": source_page, "parent_task_name": parent_task_name, "status": "pending"}
         ]
     )
@@ -33,9 +33,9 @@ def test_stop_check_breaks_collect_detail_tasks(monkeypatch):
         lambda page: False
     )
 
-    from scraper.tasks.task_schema import CrawlTask, FilterConfig
+    from scraper.tasks.task_schema import CrawlTask
     task = CrawlTask(name="test", source="javdb", url="http://x.com", url_type="javdb",
-                     final_url="http://x.com", max_list_pages=10, filter=FilterConfig(), is_skip=False)
+                     final_url="http://x.com", max_list_pages=10, is_skip=False)
 
     result = spider.collect_detail_tasks(task, stop_check=stop_check)
     # stop_check is checked before fetching each page; when it fires at page 2

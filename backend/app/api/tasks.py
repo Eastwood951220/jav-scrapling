@@ -41,11 +41,9 @@ def list_tasks():
 @router.post("", status_code=201)
 def create_task(body: TaskCreate):
     source = determine_source(body.url)
-    filter_dict = body.filter.model_dump()
     final_url = build_final_url(
         url=body.url,
         url_type=body.url_type,
-        filter_config=filter_dict,
         source=source,
     )
 
@@ -55,7 +53,6 @@ def create_task(body: TaskCreate):
         "url_type": body.url_type,
         "is_skip": body.is_skip,
         "max_list_pages": body.max_list_pages,
-        "filter": filter_dict,
         "source": source,
         "final_url": final_url,
         "created_at": datetime.now(),
@@ -95,10 +92,6 @@ def update_task(task_id: str, body: TaskUpdate):
 
     update_data = body.model_dump(exclude_none=True)
 
-    if "filter" in update_data and update_data["filter"] is not None:
-        if hasattr(update_data["filter"], "model_dump"):
-            update_data["filter"] = update_data["filter"].model_dump()
-
     if "url" in update_data or "url_type" in update_data:
         current = _collection().find_one({"_id": oid})
         if not current:
@@ -106,10 +99,9 @@ def update_task(task_id: str, body: TaskUpdate):
         url = update_data.get("url", current["url"])
         url_type = update_data.get("url_type", current["url_type"])
         source = determine_source(url)
-        filter_dict = update_data.get("filter", current.get("filter", {}))
         update_data["source"] = source
         update_data["final_url"] = build_final_url(
-            url=url, url_type=url_type, filter_config=filter_dict, source=source
+            url=url, url_type=url_type, source=source
         )
 
     update_data["updated_at"] = datetime.now()

@@ -78,7 +78,6 @@ class JavdbSpider(BaseSpider):
                 page=page,
                 source_page=page_no,
                 parent_task_name=task.name,
-                filter_config=task.filter.to_dict(),
             )
 
             if not page_tasks:

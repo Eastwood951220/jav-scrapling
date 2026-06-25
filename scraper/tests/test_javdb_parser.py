@@ -2,7 +2,6 @@ from scrapling import Selector
 
 from scraper.spiders.javdb.javdb_constants import TASK_STATUS_PENDING, TASK_STATUS_SKIPPED
 from scraper.spiders.javdb.javdb_parser import (
-    has_chinese_text,
     is_fc2_task,
     parse_detail_page,
     parse_search_page,
@@ -68,32 +67,6 @@ def test_is_fc2_task_by_url():
 def test_is_fc2_task_false():
     assert is_fc2_task("SSIS-001", "https://example.com/v/abc", "SSIS-001") is False
 
-
-def test_has_chinese_text():
-    assert has_chinese_text("中文字幕") is True
-    assert has_chinese_text("SSIS-001") is False
-
-
-def test_parse_search_page_only_chinese_filter():
-    page = Selector(
-        """
-        <div class="item">
-          <a class="box" href="/v/abc" title="ABC-001">
-            <div class="video-title"><strong>ABC-001</strong></div>
-          </a>
-        </div>
-        """
-    )
-
-    tasks = parse_search_page(
-        page,
-        source_page=1,
-        parent_task_name="VR",
-        filter_config={"only_chinese": True},
-    )
-
-    assert tasks[0]["status"] == TASK_STATUS_SKIPPED
-    assert tasks[0]["reason"] == "filtered_not_chinese"
 
 
 def test_parse_detail_page_fields_and_best_magnet():

@@ -59,17 +59,11 @@ def is_fc2_task(name: str | None, url: str | None, code: str | None = None) -> b
     return FILTER_KEYWORD_FC2 in joined
 
 
-def has_chinese_text(value: str | None) -> bool:
-    return any("\u4e00" <= char <= "\u9fff" for char in value or "")
-
-
 def parse_search_page(
     page,
     source_page: int,
     parent_task_name: str | None = None,
-    filter_config: dict | None = None,
 ) -> list[dict]:
-    filter_config = filter_config or {}
     tasks: list[dict] = []
 
     for node in page.css("div.item a.box"):
@@ -105,14 +99,6 @@ def parse_search_page(
         if is_fc2_task(task.get("name"), task.get("url"), task.get("code")):
             task["status"] = TASK_STATUS_SKIPPED
             task["reason"] = "filtered_fc2"
-        elif filter_config.get("only_chinese") and not has_chinese_text(
-            " ".join([task.get("name") or "", task.get("code") or ""])
-        ):
-            task["status"] = TASK_STATUS_SKIPPED
-            task["reason"] = "filtered_not_chinese"
-
-        # exclude_multi_person is preserved on CrawlTask. JavDB list pages do not
-        # expose reliable actor counts, so that filter must be applied after detail parsing.
 
         tasks.append(task)
 
@@ -195,21 +181,12 @@ def parse_magnets(page) -> list[dict]:
     return magnets
 
 
-def get_best_magnet(page, only_chinese: bool = False) -> dict | None:
+def get_best_magnet(page) -> dict | None:
     magnets = parse_magnets(page)
     if not magnets:
         return None
 
-    filtered = _prefilter_magnets(magnets, only_chinese)
-    return max(filtered, key=_calculate_magnet_weight)
-
-
-def _prefilter_magnets(magnets: list[dict], only_chinese: bool) -> list[dict]:
-    if not only_chinese:
-        return magnets
-
-    chinese = [item for item in magnets if item.get("has_chinese_sub")]
-    return chinese if chinese else magnets
+    return max(magnets, key=_calculate_magnet_weight)
 
 
 def _calculate_magnet_weight(magnet: dict) -> float:
