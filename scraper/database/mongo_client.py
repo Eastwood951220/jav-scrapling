@@ -61,3 +61,8 @@ def close_mongo() -> None:
 def get_mongo_db():
     client = connect_mongo()
     return client[MONGO_DB_NAME]
+
+
+def sanitize_collection_name(name: str) -> str:
+    """Sanitize a string for use as a MongoDB collection name."""
+    return name.replace(" ", "_").replace(".", "_").replace("$", "_")

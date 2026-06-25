@@ -4,7 +4,7 @@ from bson import ObjectId
 from bson.errors import InvalidId
 from fastapi import APIRouter, HTTPException
 
-from scraper.database.mongo_client import get_mongo_db
+from scraper.database.mongo_client import get_mongo_db, sanitize_collection_name
 from app.models.run import RunResponse
 from app.models.task import TaskCreate, TaskResponse, TaskUpdate
 from scraper.tasks.task_utils import build_final_url, determine_source
@@ -16,10 +16,6 @@ TASKS_COLLECTION = "config_tasks"
 
 def _collection():
     return get_mongo_db()[TASKS_COLLECTION]
-
-
-def _sanitize_collection_name(name: str) -> str:
-    return name.replace(" ", "_").replace(".", "_").replace("$", "_")
 
 
 def _task_to_response(doc: dict) -> dict:
@@ -60,7 +56,7 @@ def create_task(body: TaskCreate):
     doc["_id"] = str(result.inserted_id)
 
     # 创建该任务对应的电影集合
-    collection_name = _sanitize_collection_name(body.name)
+    collection_name = sanitize_collection_name(body.name)
     db = get_mongo_db()
     if collection_name not in db.list_collection_names():
         db.create_collection(collection_name)
@@ -135,12 +131,21 @@ def delete_task(task_id: str):
 
     task_name = task_doc.get("name", "")
 
+    # 检查是否有正在运行或排队中的任务
+    runs_col = get_mongo_db()["task_runs"]
+    active_run = runs_col.find_one({
+        "task_id": str(oid),
+        "status": {"$in": ["running", "queued"]},
+    })
+    if active_run:
+        raise HTTPException(status_code=400, detail="不能删除有运行中或排队中任务的配置")
+
     # 删除任务文档
     _collection().delete_one({"_id": oid})
 
     # 删除关联的电影集合
     if task_name:
-        collection_name = _sanitize_collection_name(task_name)
+        collection_name = sanitize_collection_name(task_name)
         db = get_mongo_db()
         if collection_name in db.list_collection_names():
             db.drop_collection(collection_name)
@@ -148,12 +153,14 @@ def delete_task(task_id: str):
 
     # 删除关联的运行记录及文件存储
     from app.run_storage import delete_run_dir
-    runs_col = get_mongo_db()["task_runs"]
     run_ids = [str(r["_id"]) for r in runs_col.find({"task_id": str(oid)}, {"_id": 1})]
     if run_ids:
         runs_col.delete_many({"task_id": str(oid)})
         for run_id in run_ids:
-            delete_run_dir(run_id)
+            try:
+                delete_run_dir(run_id)
+            except Exception as e:
+                logger.warning("删除运行文件失败 %s: %s", run_id, e)
         logger.info("已删除 %d 条运行记录 (任务: '%s')", len(run_ids), task_name)
 
     return {"deleted": True}

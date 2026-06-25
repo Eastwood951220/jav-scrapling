@@ -151,8 +151,11 @@ def delete_run(run_id: str):
         raise HTTPException(status_code=404, detail="Run not found")
 
     # 删除文件存储
-    deleted_files = delete_run_dir(run_id)
-    if deleted_files:
-        logger.info("Deleted run files for %s", run_id)
+    try:
+        deleted_files = delete_run_dir(run_id)
+        if deleted_files:
+            logger.info("已删除运行文件 %s", run_id)
+    except Exception as e:
+        logger.warning("删除运行文件失败 %s: %s", run_id, e)
 
     return {"deleted": True}

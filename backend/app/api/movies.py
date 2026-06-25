@@ -4,13 +4,9 @@ from bson import ObjectId
 from bson.errors import InvalidId
 from fastapi import APIRouter, HTTPException, Query
 
-from scraper.database.mongo_client import get_mongo_db
+from scraper.database.mongo_client import get_mongo_db, sanitize_collection_name
 
 router = APIRouter(prefix="/api/movies", tags=["movies"])
-
-
-def _sanitize_collection_name(name: str) -> str:
-    return name.replace(" ", "_").replace(".", "_").replace("$", "_")
 
 
 def _escape_regex(value: str) -> str:
@@ -28,7 +24,7 @@ def list_collections():
 @router.delete("/collections/{collection_name}")
 def delete_collection(collection_name: str):
     db = get_mongo_db()
-    safe_name = _sanitize_collection_name(collection_name)
+    safe_name = sanitize_collection_name(collection_name)
     excluded = {"config_tasks", "config_schedules", "config_settings", "task_runs"}
     if safe_name in excluded:
         raise HTTPException(status_code=400, detail="不能删除系统集合")
@@ -49,7 +45,7 @@ def list_movies(
     sort_order: int = Query(default=-1, ge=-1, le=1),
     rating_min: float | None = Query(default=None, ge=0, le=5),
 ):
-    col = get_mongo_db()[_sanitize_collection_name(collection)]
+    col = get_mongo_db()[sanitize_collection_name(collection)]
 
     query = {}
     if search:
@@ -93,7 +89,7 @@ def get_movie(movie_id: str, collection: str = Query(default="movies")):
         oid = ObjectId(movie_id)
     except InvalidId:
         raise HTTPException(status_code=400, detail="Invalid movie ID")
-    col = get_mongo_db()[_sanitize_collection_name(collection)]
+    col = get_mongo_db()[sanitize_collection_name(collection)]
     doc = col.find_one({"_id": oid})
     if not doc:
         raise HTTPException(status_code=404, detail="Movie not found")
