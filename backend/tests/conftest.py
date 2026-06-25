@@ -82,9 +82,16 @@ class InMemoryCollection:
                 return False
         return True
 
-    def find(self, query=None):
-        """Return a cursor-like object that supports .sort() and iteration, with query filtering."""
+    def find(self, query=None, projection=None):
+        """Return a cursor-like object that supports .sort() and iteration, with query filtering.
+
+        Supports exclusion projections like {"logs": 0} to strip keys from docs.
+        """
         docs = [d for d in self._docs.values() if self._match_query(d, query)]
+        if projection:
+            excluded_keys = {k for k, v in projection.items() if v == 0}
+            if excluded_keys:
+                docs = [{k: v for k, v in d.items() if k not in excluded_keys} for d in docs]
         return InMemoryCursor(docs)
 
     def find_one(self, query: dict | None = None):

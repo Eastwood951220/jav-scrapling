@@ -27,6 +27,9 @@ def list_runs(
     limit: int = Query(default=20, ge=1, le=100),
 ):
     import logging
+
+    from app.run_storage import get_result_summary
+
     logger = logging.getLogger("runs")
 
     query = {}
@@ -36,9 +39,10 @@ def list_runs(
     total = _col().count_documents(query)
     total_pages = max(1, (total + limit - 1) // limit)
 
+    # Exclude heavy fields from the list query projection
     cursor = (
         _col()
-        .find(query)
+        .find(query, {"logs": 0})
         .sort("queued_at", -1)
         .skip((page - 1) * limit)
         .limit(limit)
@@ -48,6 +52,11 @@ def list_runs(
     for doc in cursor:
         item = to_response(doc)
         if item is not None:
+            # Ensure result does not contain items (defensive for old data)
+            if item.get("result"):
+                item["result"] = get_result_summary(item["result"])
+            # Set logs to empty list (not loaded in list view)
+            item["logs"] = []
             items.append(item)
         else:
             logger.warning("Skipped unserializable run doc: %s", doc.get("_id"))

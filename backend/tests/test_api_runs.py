@@ -68,6 +68,57 @@ def _create_run(client: TestClient) -> str:
         return run_resp.json()["_id"]
 
 
+class TestListRunsLightweight:
+    """Verify list endpoint returns lightweight documents."""
+
+    def test_list_excludes_items_from_result(self, client: TestClient):
+        from bson import ObjectId
+
+        from scraper.database.mongo_client import get_mongo_db
+
+        payload = {
+            "name": "Test",
+            "url": "https://javdb.com/actors/x",
+            "url_type": "actors",
+            "is_skip": False,
+            "max_list_pages": 5,
+            "filter": {"only_chinese": False, "exclude_multi_person": False},
+        }
+        with patch("backend.app.task_queue._worker_running", True):
+            create_resp = client.post("/api/tasks", json=payload)
+            task_id = create_resp.json()["_id"]
+            run_resp = client.post(f"/api/tasks/{task_id}/run")
+            run_id = run_resp.json()["_id"]
+
+        # Manually set a result with items in MongoDB (simulating old data)
+        get_mongo_db()["task_runs"].update_one(
+            {"_id": ObjectId(run_id)},
+            {"$set": {
+                "status": "completed",
+                "result": {
+                    "total_tasks": 5,
+                    "saved": 3,
+                    "items": [{"code": "A"}, {"code": "B"}],
+                },
+                "logs": [
+                    {"timestamp": "2026-01-01T00:00:00Z", "level": "INFO", "message": "log 1"},
+                ],
+            }},
+        )
+
+        resp = client.get("/api/runs")
+        assert resp.status_code == 200
+        items = resp.json()["items"]
+        assert len(items) >= 1
+
+        run = next(r for r in items if r["_id"] == run_id)
+        # The list view should not include items in result
+        if run.get("result"):
+            assert "items" not in run["result"]
+        # The list view should not include logs
+        assert run.get("logs", []) == []
+
+
 class TestRunDetailFromFiles:
     """Verify detail endpoint loads logs/result from files with MongoDB fallback."""
 
