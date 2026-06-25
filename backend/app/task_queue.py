@@ -152,20 +152,23 @@ def _worker_loop():
             def log_callback(message: str, level: str = "INFO"):
                 _append_log(run_id, message, level)
 
-            def on_detail_created(detail_task: dict) -> None:
-                detail_col.insert_one({
+            def on_tasks_batch_created(batch_tasks: list[dict]) -> None:
+                if not batch_tasks:
+                    return
+                docs = [{
                     "run_id": run_id,
                     "task_name": task.name,
-                    "code": detail_task.get("code"),
-                    "source_url": detail_task.get("url"),
-                    "source_name": detail_task.get("name"),
+                    "code": t.get("code"),
+                    "source_url": t.get("url"),
+                    "source_name": t.get("name"),
                     "status": "pending_crawl",
                     "error": None,
                     "item_data": None,
                     "created_at": datetime.now(timezone.utc),
                     "crawled_at": None,
                     "saved_at": None,
-                })
+                } for t in batch_tasks]
+                detail_col.insert_many(docs)
 
             def on_detail_failed(detail_task: dict, error: str) -> None:
                 detail_col.update_one(
@@ -209,7 +212,7 @@ def _worker_loop():
                 stop_check=lambda: _stop_event.is_set(),
                 log_callback=log_callback,
                 on_item_saved=on_item_saved,
-                on_detail_created=on_detail_created,
+                on_tasks_batch_created=on_tasks_batch_created,
                 on_detail_failed=on_detail_failed,
             )
 

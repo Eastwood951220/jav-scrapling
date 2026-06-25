@@ -29,7 +29,7 @@ class JavdbSpider(BaseSpider):
         super().__init__(fetcher)
         self.logger = get_logger(self.name)
 
-    def collect_detail_tasks(self, task: CrawlTask, stop_check=None, log_callback=None) -> list[dict]:
+    def collect_detail_tasks(self, task: CrawlTask, stop_check=None, log_callback=None, on_tasks_batch_created=None) -> list[dict]:
         max_pages = min(task.max_list_pages, MAX_LIST_PAGES)
         detail_tasks: list[dict] = []
         verification_count = 0
@@ -94,6 +94,9 @@ class JavdbSpider(BaseSpider):
 
             detail_tasks.extend(page_tasks)
 
+            if on_tasks_batch_created:
+                on_tasks_batch_created(page_tasks)
+
             total_count = len(detail_tasks)
             skipped_count = sum(
                 1 for t in detail_tasks if t.get("status") == TASK_STATUS_SKIPPED
@@ -125,7 +128,6 @@ class JavdbSpider(BaseSpider):
         tasks: list[dict],
         task_name: str | None = None,
         on_detail_completed=None,
-        on_detail_created=None,
         on_detail_failed=None,
         stop_check=None,
         log_callback=None,
@@ -192,9 +194,6 @@ class JavdbSpider(BaseSpider):
             if log_callback:
                 log_callback(msg, "INFO")
             self.logger.info("Detail page: %s", url)
-
-            if on_detail_created:
-                on_detail_created(task)
 
             task["status"] = TASK_STATUS_RUNNING
 
@@ -273,7 +272,7 @@ class JavdbSpider(BaseSpider):
 
         return tasks
 
-    def run_task(self, task: CrawlTask, on_detail_completed=None, on_detail_created=None, on_detail_failed=None, stop_check=None, log_callback=None) -> list[dict]:
+    def run_task(self, task: CrawlTask, on_detail_completed=None, on_detail_failed=None, on_tasks_batch_created=None, stop_check=None, log_callback=None) -> list[dict]:
         if task.is_skip:
             print(f"[Task:{task.name}] skipped by config")
             return []
@@ -282,12 +281,16 @@ class JavdbSpider(BaseSpider):
             print(f"[Task:{task.name}] skipped: missing final_url")
             return []
 
-        detail_tasks = self.collect_detail_tasks(task, stop_check=stop_check, log_callback=log_callback)
+        detail_tasks = self.collect_detail_tasks(
+            task,
+            stop_check=stop_check,
+            log_callback=log_callback,
+            on_tasks_batch_created=on_tasks_batch_created,
+        )
         return self.run_detail_tasks(
             detail_tasks,
             task_name=task.name,
             on_detail_completed=on_detail_completed,
-            on_detail_created=on_detail_created,
             on_detail_failed=on_detail_failed,
             stop_check=stop_check,
             log_callback=log_callback,
