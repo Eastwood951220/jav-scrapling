@@ -24,3 +24,7 @@ export function fetchQueueStatus(): Promise<QueueStatus> {
 export function stopRun(id: string): Promise<{ success: boolean; message: string }> {
   return client.post(`/runs/${id}/stop`).then((res) => res.data);
 }
+
+export function deleteRun(id: string): Promise<{ deleted: boolean }> {
+  return client.delete(`/runs/${id}`).then((res) => res.data);
+}

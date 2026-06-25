@@ -124,3 +124,35 @@ def stop_run(run_id: str):
 
     # 不在此处写入 MongoDB — 仅设置停止信号，由 worker 通过原子更新设置最终状态
     return {"success": True, "message": "停止信号已发送"}
+
+
+@router.delete("/{run_id}")
+def delete_run(run_id: str):
+    import logging
+
+    from app.run_storage import delete_run_dir
+
+    logger = logging.getLogger("runs")
+
+    try:
+        oid = ObjectId(run_id)
+    except InvalidId:
+        raise HTTPException(status_code=400, detail="Invalid run ID")
+
+    # 不能删除正在运行的任务
+    status = get_queue_status()
+    current_id = status.get("current_run_id")
+    if current_id and str(current_id) == run_id:
+        raise HTTPException(status_code=400, detail="不能删除正在运行的任务")
+
+    # 从 MongoDB 删除记录
+    result = _col().delete_one({"_id": oid})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Run not found")
+
+    # 删除文件存储
+    deleted_files = delete_run_dir(run_id)
+    if deleted_files:
+        logger.info("Deleted run files for %s", run_id)
+
+    return {"deleted": True}

@@ -54,3 +54,14 @@ def get_result_summary(result: dict[str, Any] | None) -> dict[str, Any] | None:
     if result is None:
         return None
     return {k: v for k, v in result.items() if k != "items"}
+
+
+def delete_run_dir(run_id: str) -> bool:
+    """Delete the run's data directory. Returns True if deleted."""
+    import shutil
+
+    run_path = _run_dir(run_id)
+    if run_path.exists():
+        shutil.rmtree(run_path)
+        return True
+    return False

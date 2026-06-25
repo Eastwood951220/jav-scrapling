@@ -1,9 +1,9 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { Table, Tag, Button, Space, Select, message, Modal } from "antd";
-import { ReloadOutlined } from "@ant-design/icons";
+import { Table, Tag, Button, Space, Select, message, Modal, Popconfirm } from "antd";
+import { ReloadOutlined, DeleteOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
-import { TaskRun, fetchRuns, stopRun, statusColors, statusLabels } from "./api";
+import { TaskRun, fetchRuns, stopRun, deleteRun, statusColors, statusLabels } from "./api";
 import type { RunStatus } from "@/shared/types/common";
 import { getErrorMessage } from "@/shared/hooks/useErrorMessage";
 import { usePolling } from "@/shared/hooks/usePolling";
@@ -120,6 +120,28 @@ export default function RunList() {
               >
                 停止
               </Button>
+            )}
+            {record.status !== "running" && record.status !== "queued" && (
+              <Popconfirm
+                title="确认删除此运行记录？"
+                description="将同时删除日志和结果文件"
+                onConfirm={async () => {
+                  try {
+                    await deleteRun(record._id);
+                    message.success("已删除");
+                    load();
+                  } catch (e) {
+                    message.error(getErrorMessage(e));
+                  }
+                }}
+                okText="删除"
+                cancelText="取消"
+                okButtonProps={{ danger: true }}
+              >
+                <Button type="link" danger icon={<DeleteOutlined />} size="small">
+                  删除
+                </Button>
+              </Popconfirm>
             )}
           </Space>
         ),
