@@ -168,7 +168,7 @@ def _worker_loop():
                     "crawled_at": None,
                     "saved_at": None,
                 } for t in batch_tasks]
-                detail_col.insert_many(docs)
+                detail_col.insert_many(docs, ordered=False)
 
             def on_detail_failed(detail_task: dict, error: str) -> None:
                 detail_col.update_one(
