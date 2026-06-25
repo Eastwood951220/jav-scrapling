@@ -63,6 +63,26 @@ def stop_current_task(run_id: str | None = None) -> bool:
     return True
 
 
+def recover_orphaned_runs() -> int:
+    """Find runs stuck in 'queued' status from a previous crash and re-enqueue them.
+
+    Returns the number of runs recovered.
+    """
+    from scraper.database.mongo_client import get_mongo_db
+
+    runs_col = get_mongo_db()["task_runs"]
+    orphaned = list(runs_col.find({"status": "queued"}))
+
+    for run_doc in orphaned:
+        run_id = str(run_doc["_id"])
+        _task_queue.put(run_id)
+
+    if orphaned:
+        _ensure_worker()
+
+    return len(orphaned)
+
+
 def _ensure_worker():
     global _worker_running
     with _worker_lock:

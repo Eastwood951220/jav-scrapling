@@ -55,6 +55,14 @@ async def lifespan(app: FastAPI):
         _startup_logger.exception("FATAL: Failed to start scheduler")
         raise
 
+    try:
+        from app.task_queue import recover_orphaned_runs
+        recovered = recover_orphaned_runs()
+        if recovered > 0:
+            _startup_logger.info("Recovered %d orphaned queued runs", recovered)
+    except Exception:
+        _startup_logger.exception("WARNING: Failed to recover orphaned runs")
+
     _startup_logger.info("Backend startup complete, listening on port 18642")
     yield
     _startup_logger.info("Shutting down...")
