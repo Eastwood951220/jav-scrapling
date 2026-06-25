@@ -128,34 +128,44 @@ def _worker_loop():
             def log_callback(message: str, level: str = "INFO"):
                 _append_log(run_id, message, level)
 
-            def on_item_saved(detail_task: dict, cleaned_item: dict) -> None:
-                detail_doc = detail_col.find_one({
+            def on_detail_created(detail_task: dict) -> None:
+                detail_col.insert_one({
                     "run_id": run_id,
+                    "task_name": task.name,
+                    "code": detail_task.get("code"),
                     "source_url": detail_task.get("url"),
+                    "source_name": detail_task.get("name"),
+                    "status": "pending_crawl",
+                    "error": None,
+                    "item_data": None,
+                    "created_at": datetime.now(timezone.utc),
+                    "crawled_at": None,
+                    "saved_at": None,
                 })
-                if not detail_doc:
-                    return
 
+            def on_item_saved(detail_task: dict, cleaned_item: dict) -> None:
                 try:
                     repository.upsert_movie(cleaned_item)
                     detail_col.update_one(
-                        {"_id": detail_doc["_id"]},
+                        {"run_id": run_id, "source_url": detail_task.get("url")},
                         {"$set": {
                             "status": "saved",
                             "crawled_at": datetime.now(timezone.utc),
                             "saved_at": datetime.now(timezone.utc),
                             "item_data": cleaned_item,
                         }},
+                        upsert=True,
                     )
                 except Exception as save_exc:
                     detail_col.update_one(
-                        {"_id": detail_doc["_id"]},
+                        {"run_id": run_id, "source_url": detail_task.get("url")},
                         {"$set": {
                             "status": "save_failed",
                             "crawled_at": datetime.now(timezone.utc),
                             "error": str(save_exc),
                             "item_data": cleaned_item,
                         }},
+                        upsert=True,
                     )
 
             service = MovieService()
@@ -164,6 +174,7 @@ def _worker_loop():
                 stop_check=lambda: _stop_event.is_set(),
                 log_callback=log_callback,
                 on_item_saved=on_item_saved,
+                on_detail_created=on_detail_created,
             )
 
             stop_requested = result.get("stopped", False) or _stop_event.is_set()
@@ -171,10 +182,11 @@ def _worker_loop():
             total_detail = detail_col.count_documents({"run_id": run_id})
             saved_count = detail_col.count_documents({"run_id": run_id, "status": "saved"})
             save_failed = detail_col.count_documents({"run_id": run_id, "status": "save_failed"})
+            crawl_failed = detail_col.count_documents({"run_id": run_id, "status": "crawl_failed"})
 
             _append_log(
                 run_id,
-                f"任务完成: 总计={total_detail}, 已保存={saved_count}, 入库失败={save_failed}",
+                f"任务完成: 总计={total_detail}, 已保存={saved_count}, 入库失败={save_failed}, 爬取失败={crawl_failed}",
                 "INFO",
             )
 
@@ -192,6 +204,7 @@ def _worker_loop():
                             "total_tasks": total_detail,
                             "saved": saved_count,
                             "save_failed": save_failed,
+                            "crawl_failed": crawl_failed,
                         },
                     }
                 },
