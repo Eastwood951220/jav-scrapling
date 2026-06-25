@@ -121,3 +121,42 @@ def get_movie(movie_id: str):
 
     doc["_id"] = str(doc["_id"])
     return _stringify_objectids(doc)
+
+
+@router.delete("/batch")
+def delete_movies_batch(body: dict):
+    """Delete multiple movies by IDs."""
+    ids = body.get("ids", [])
+    if not ids:
+        raise HTTPException(status_code=400, detail="ids 不能为空")
+
+    oids = []
+    for mid in ids:
+        try:
+            oids.append(ObjectId(mid))
+        except InvalidId:
+            raise HTTPException(status_code=400, detail=f"Invalid movie ID: {mid}")
+
+    db = get_mongo_db()
+    col = db[MOVIE_COLLECTION]
+    result = col.delete_many({"_id": {"$in": oids}})
+
+    return {"deleted": result.deleted_count}
+
+
+@router.delete("/{movie_id}")
+def delete_movie(movie_id: str):
+    """Delete a single movie by ID."""
+    try:
+        oid = ObjectId(movie_id)
+    except InvalidId:
+        raise HTTPException(status_code=400, detail="Invalid movie ID")
+
+    db = get_mongo_db()
+    col = db[MOVIE_COLLECTION]
+    result = col.delete_one({"_id": oid})
+
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Movie not found")
+
+    return {"deleted": True}

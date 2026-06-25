@@ -22,3 +22,11 @@ export function fetchMovies(params: {
 export function fetchMovie(id: string): Promise<Record<string, unknown>> {
   return client.get(`/movies/${id}`).then((res) => res.data);
 }
+
+export function deleteMovie(id: string): Promise<{ deleted: boolean }> {
+  return client.delete(`/movies/${id}`).then((res) => res.data);
+}
+
+export function deleteMovies(ids: string[]): Promise<{ deleted: number }> {
+  return client.delete("/movies/batch", { data: { ids } }).then((res) => res.data);
+}

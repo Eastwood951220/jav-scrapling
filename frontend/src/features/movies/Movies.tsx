@@ -1,10 +1,10 @@
 import { useEffect, useState, useCallback } from "react";
 import {
-  Table, Input, Select, Button, Space, Card, message, Drawer, Descriptions, Tag, Typography, InputNumber, Image,
+  Table, Input, Select, Button, Space, Card, message, Drawer, Descriptions, Tag, Typography, InputNumber, Image, Popconfirm,
 } from "antd";
-import { SearchOutlined, ReloadOutlined, DownloadOutlined } from "@ant-design/icons";
+import { SearchOutlined, ReloadOutlined, DownloadOutlined, DeleteOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
-import { fetchTaskNames, fetchMovies, fetchMovie } from "./api";
+import { fetchTaskNames, fetchMovies, fetchMovie, deleteMovie, deleteMovies } from "./api";
 import type { Movie, MovieListResponse } from "./types";
 import { getErrorMessage } from "@/shared/hooks/useErrorMessage";
 
@@ -95,6 +95,28 @@ export default function Movies() {
     message.success(`已导出 ${magnets.length} 条磁力链接`);
   };
 
+  const handleDelete = useCallback(async (id: string) => {
+    try {
+      await deleteMovie(id);
+      message.success("已删除");
+      loadMovies(data.page);
+    } catch (e: unknown) {
+      message.error(getErrorMessage(e));
+    }
+  }, [loadMovies, data.page]);
+
+  const handleBatchDelete = useCallback(async () => {
+    if (selectedRowKeys.length === 0) return;
+    try {
+      const result = await deleteMovies(selectedRowKeys as string[]);
+      message.success(`已删除 ${result.deleted} 条`);
+      setSelectedRowKeys([]);
+      loadMovies(data.page);
+    } catch (e: unknown) {
+      message.error(getErrorMessage(e));
+    }
+  }, [selectedRowKeys, loadMovies, data.page]);
+
   const columns: ColumnsType<Movie> = [
     { title: "番号", dataIndex: "code", key: "code", width: 120 },
     {
@@ -168,11 +190,25 @@ export default function Movies() {
     {
       title: "操作",
       key: "actions",
-      width: 80,
+      width: 140,
       render: (_: unknown, record: Movie) => (
-        <Button type="link" size="small" onClick={() => handleViewDetail(record._id)}>
-          详情
-        </Button>
+        <Space size="small">
+          <Button type="link" size="small" onClick={() => handleViewDetail(record._id)}>
+            详情
+          </Button>
+          <Popconfirm
+            title="确认删除此影片？"
+            description="删除后不可恢复"
+            onConfirm={() => handleDelete(record._id)}
+            okText="删除"
+            cancelText="取消"
+            okButtonProps={{ danger: true }}
+          >
+            <Button type="link" danger size="small" icon={<DeleteOutlined />}>
+              删除
+            </Button>
+          </Popconfirm>
+        </Space>
       ),
     },
   ];
@@ -236,6 +272,20 @@ export default function Movies() {
           >
             导出磁力{selectedRowKeys.length > 0 ? ` (${selectedRowKeys.length})` : ""}
           </Button>
+          {selectedRowKeys.length > 0 && (
+            <Popconfirm
+              title={`确认删除选中的 ${selectedRowKeys.length} 条影片？`}
+              description="删除后不可恢复"
+              onConfirm={handleBatchDelete}
+              okText="删除"
+              cancelText="取消"
+              okButtonProps={{ danger: true }}
+            >
+              <Button danger icon={<DeleteOutlined />}>
+                批量删除 ({selectedRowKeys.length})
+              </Button>
+            </Popconfirm>
+          )}
         </Space>
       </Card>
 
