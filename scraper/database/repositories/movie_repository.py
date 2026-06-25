@@ -1,25 +1,33 @@
 from datetime import datetime
 
-from pymongo import ASCENDING
 from pymongo.errors import DuplicateKeyError, PyMongoError
 
 from scraper.config.logging import get_logger
+from scraper.database.indexes import ensure_indexes
 from scraper.database.mongo_client import get_mongo_db
 
 
 class MovieRepository:
+    COLLECTION_NAME = "movies"
+
     def __init__(self):
         self.logger = get_logger("movie_repository")
         self.db = get_mongo_db()
         self.available = True
+        self._indexes_ensured = False
 
-    def get_collection(self, name: str):
-        safe_name = (name or "movies").replace(" ", "_").replace(".", "_").replace("$", "_")
-        return self.db[safe_name]
+    def _ensure_indexes(self) -> None:
+        """Ensure indexes are created (lazy initialization)."""
+        if not self._indexes_ensured:
+            ensure_indexes(self.db, self.COLLECTION_NAME)
+            self._indexes_ensured = True
+
+    def get_collection(self):
+        """Get the unified movies collection."""
+        return self.db[self.COLLECTION_NAME]
 
     def insert_if_not_exists(
         self,
-        collection_name: str,
         document: dict,
         unique_field: str = "code",
     ):
@@ -27,8 +35,8 @@ class MovieRepository:
             return None
 
         try:
-            collection = self.get_collection(collection_name)
-            collection.create_index([(unique_field, ASCENDING)], unique=True, sparse=True)
+            self._ensure_indexes()
+            collection = self.get_collection()
 
             existing = collection.find_one({unique_field: document.get(unique_field)})
             if existing:
@@ -41,7 +49,7 @@ class MovieRepository:
             result = collection.insert_one(document)
             return result.inserted_id
         except DuplicateKeyError:
-            existing = self.get_collection(collection_name).find_one(
+            existing = self.get_collection().find_one(
                 {unique_field: document.get(unique_field)}
             )
             return existing["_id"] if existing else None
@@ -54,12 +62,10 @@ class MovieRepository:
         if not self.available:
             return None
 
-        collection_name = item.get("config_task_name") or item.get("parent_task_name") or "movies"
         code = item.get("code")
         unique_field = "code" if code else "source_url"
 
         return self.insert_if_not_exists(
-            collection_name=collection_name,
             document=item,
             unique_field=unique_field,
         )

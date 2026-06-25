@@ -1,3 +1,5 @@
+from unittest.mock import MagicMock, patch
+
 from scraper.database.repositories.movie_repository import MovieRepository
 
 
@@ -11,8 +13,9 @@ class FakeCollection:
         self.documents = []
         self.queries = []
 
-    def create_index(self, fields, unique=False, sparse=False):
-        self.indexes.append((fields, unique, sparse))
+    def create_indexes(self, indexes, background=False):
+        for idx in indexes:
+            self.indexes.append(idx)
 
     def find_one(self, query):
         self.queries.append(query)
@@ -32,24 +35,31 @@ class FakeDb:
         return self.collections[name]
 
 
-def test_repository_inserts_into_task_collection(monkeypatch):
+def test_repository_inserts_into_unified_movies_collection(monkeypatch):
     fake_db = FakeDb()
-    monkeypatch.setattr("scraper.database.repositories.movie_repository.get_mongo_db", lambda: fake_db)
+    monkeypatch.setattr(
+        "scraper.database.repositories.movie_repository.get_mongo_db",
+        lambda: fake_db,
+    )
+    monkeypatch.setattr(
+        "scraper.database.repositories.movie_repository.ensure_indexes",
+        lambda db, name: None,
+    )
 
     repository = MovieRepository()
     result = repository.upsert_movie(
         {
-            "config_task_name": "Task.Name $1",
+            "source_task_name": "Task.Name $1",
             "code": "ABC-001",
             "title": "Title",
         }
     )
 
-    collection = fake_db.collections["Task_Name__1"]
+    collection = fake_db.collections["movies"]
 
     assert result == "new-id"
-    assert collection.indexes == [([("code", 1)], True, True)]
     assert collection.queries == [{"code": "ABC-001"}]
     assert collection.documents[0]["code"] == "ABC-001"
+    assert collection.documents[0]["source_task_name"] == "Task.Name $1"
     assert "created_at" in collection.documents[0]
     assert "updated_at" in collection.documents[0]
