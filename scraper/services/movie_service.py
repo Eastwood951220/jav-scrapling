@@ -25,7 +25,7 @@ class MovieService:
 
         return JavdbSpider(fetcher=fetcher)
 
-    def crawl_javdb_task(self, task: CrawlTask, stop_check=None, log_callback=None, on_item_saved=None, on_detail_created=None) -> dict:
+    def crawl_javdb_task(self, task: CrawlTask, stop_check=None, log_callback=None, on_item_saved=None, on_detail_created=None, on_detail_failed=None) -> dict:
         if task.is_skip:
             if log_callback:
                 log_callback(f"跳过任务: {task.name}", "INFO")
@@ -53,7 +53,7 @@ class MovieService:
             if not item:
                 return
 
-            cleaned = pipeline.process_item(item)
+            cleaned = pipeline.process_item(item, task_name=task.name)
             if cleaned is not None:
                 collected_items.append(cleaned)
                 msg = (
@@ -76,6 +76,7 @@ class MovieService:
             task,
             on_detail_completed=collect_completed_detail,
             on_detail_created=on_detail_created,
+            on_detail_failed=on_detail_failed,
             stop_check=stop_check,
             log_callback=log_callback,
         )
