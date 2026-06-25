@@ -16,6 +16,7 @@ export default function Movies() {
   const [sortBy, setSortBy] = useState("release_date");
   const [sortOrder, setSortOrder] = useState(-1);
   const [data, setData] = useState<MovieListResponse>({ items: [], total: 0, page: 1, limit: 20, total_pages: 1 });
+  const [pageSize, setPageSize] = useState(20);
   const [loading, setLoading] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
   const [detail, setDetail] = useState<Record<string, unknown> | null>(null);
@@ -38,7 +39,7 @@ export default function Movies() {
         source_task_name: selectedTask,
         search: search || undefined,
         page,
-        limit: 20,
+        limit: pageSize,
         sort_by: sortBy,
         sort_order: sortOrder,
         rating_min: ratingMin,
@@ -49,7 +50,7 @@ export default function Movies() {
     } finally {
       setLoading(false);
     }
-  }, [selectedTask, search, sortBy, sortOrder, ratingMin]);
+  }, [selectedTask, search, sortBy, sortOrder, ratingMin, pageSize]);
 
   useEffect(() => {
     loadTasks();
@@ -247,9 +248,19 @@ export default function Movies() {
         pagination={{
           current: data.page,
           total: data.total,
-          pageSize: data.limit,
-          onChange: (page) => loadMovies(page),
+          pageSize: pageSize,
+          showSizeChanger: true,
+          pageSizeOptions: ["20", "50", "100"],
           showTotal: (total) => `共 ${total} 条`,
+          onChange: (page, size) => {
+            if (size !== pageSize) {
+              setPageSize(size);
+            }
+            loadMovies(page);
+          },
+          onShowSizeChange: (_current, size) => {
+            setPageSize(size);
+          },
         }}
         onChange={(_pagination, _filters, sorter) => {
           if (!Array.isArray(sorter) && sorter.column) {
