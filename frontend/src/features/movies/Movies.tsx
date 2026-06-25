@@ -4,7 +4,7 @@ import {
 } from "antd";
 import { SearchOutlined, ReloadOutlined, DownloadOutlined, DeleteOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
-import { fetchTaskNames, fetchMovies, fetchMovie, deleteMovie, deleteMovies } from "./api";
+import { fetchTaskNames, fetchMovies, fetchMovie, deleteMovie, deleteMovies, fetchActors, fetchTags } from "./api";
 import type { Movie, MovieListResponse } from "./types";
 import { getErrorMessage } from "@/shared/hooks/useErrorMessage";
 
@@ -13,7 +13,7 @@ export default function Movies() {
   const [selectedTask, setSelectedTask] = useState<string | undefined>(undefined);
   const [search, setSearch] = useState("");
   const [ratingMin, setRatingMin] = useState<number | undefined>(undefined);
-  const [sortBy, setSortBy] = useState("release_date");
+  const [sortBy, setSortBy] = useState("code");
   const [sortOrder, setSortOrder] = useState(-1);
   const [data, setData] = useState<MovieListResponse>({ items: [], total: 0, page: 1, limit: 20, total_pages: 1 });
   const [pageSize, setPageSize] = useState(20);
@@ -21,6 +21,24 @@ export default function Movies() {
   const [detailOpen, setDetailOpen] = useState(false);
   const [detail, setDetail] = useState<Record<string, unknown> | null>(null);
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
+  const [actorOptions, setActorOptions] = useState<{ value: string; label: string }[]>([]);
+  const [tagOptions, setTagOptions] = useState<{ value: string; label: string }[]>([]);
+  const [selectedActors, setSelectedActors] = useState<string[]>([]);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [filtersLoading, setFiltersLoading] = useState(false);
+
+  const loadFilters = useCallback(async () => {
+    setFiltersLoading(true);
+    try {
+      const [actors, tags] = await Promise.all([fetchActors(), fetchTags()]);
+      setActorOptions(actors.map((a) => ({ value: a, label: a })));
+      setTagOptions(tags.map((t) => ({ value: t, label: t })));
+    } catch (e: unknown) {
+      message.error(getErrorMessage(e));
+    } finally {
+      setFiltersLoading(false);
+    }
+  }, []);
 
   const loadTasks = useCallback(async () => {
     try {
@@ -43,6 +61,8 @@ export default function Movies() {
         sort_by: sortBy,
         sort_order: sortOrder,
         rating_min: ratingMin,
+        actors: selectedActors.length > 0 ? selectedActors.join(",") : undefined,
+        tags: selectedTags.length > 0 ? selectedTags.join(",") : undefined,
       });
       setData(result);
     } catch (e: unknown) {
@@ -50,11 +70,12 @@ export default function Movies() {
     } finally {
       setLoading(false);
     }
-  }, [selectedTask, search, sortBy, sortOrder, ratingMin, pageSize]);
+  }, [selectedTask, search, sortBy, sortOrder, ratingMin, pageSize, selectedActors, selectedTags]);
 
   useEffect(() => {
     loadTasks();
-  }, [loadTasks]);
+    loadFilters();
+  }, [loadTasks, loadFilters]);
 
   useEffect(() => {
     loadMovies();
@@ -119,16 +140,6 @@ export default function Movies() {
 
   const columns: ColumnsType<Movie> = [
     { title: "番号", dataIndex: "code", key: "code", width: 120 },
-    {
-      title: "封面",
-      dataIndex: "cover",
-      key: "cover",
-      width: 80,
-      render: (url: string) =>
-        url ? (
-          <Image src={url} width={60} referrerPolicy="no-referrer" placeholder />
-        ) : null,
-    },
     {
       title: "标题",
       dataIndex: "title",
@@ -234,6 +245,28 @@ export default function Movies() {
             onPressEnter={() => loadMovies()}
             allowClear
           />
+          <Select
+            mode="tags"
+            style={{ width: 200 }}
+            placeholder="筛选演员"
+            value={selectedActors}
+            onChange={setSelectedActors}
+            options={actorOptions}
+            loading={filtersLoading}
+            maxTagCount="responsive"
+            allowClear
+          />
+          <Select
+            mode="tags"
+            style={{ width: 200 }}
+            placeholder="筛选标签"
+            value={selectedTags}
+            onChange={setSelectedTags}
+            options={tagOptions}
+            loading={filtersLoading}
+            maxTagCount="responsive"
+            allowClear
+          />
           <InputNumber
             style={{ width: 120 }}
             placeholder="最低评分"
@@ -252,6 +285,8 @@ export default function Movies() {
               setSortOrder(Number(order));
             }}
             options={[
+              { value: "code:1", label: "番号 ↑" },
+              { value: "code:-1", label: "番号 ↓" },
               { value: "release_date:-1", label: "发行日期 ↓" },
               { value: "release_date:1", label: "发行日期 ↑" },
               { value: "rating:-1", label: "评分 ↓" },
@@ -263,7 +298,7 @@ export default function Movies() {
           <Button type="primary" onClick={() => loadMovies()}>
             搜索
           </Button>
-          <Button icon={<ReloadOutlined />} onClick={() => { setSearch(""); setRatingMin(undefined); setSortBy("release_date"); setSortOrder(-1); loadMovies(1); }}>
+          <Button icon={<ReloadOutlined />} onClick={() => { setSearch(""); setRatingMin(undefined); setSortBy("code"); setSortOrder(-1); setSelectedActors([]); setSelectedTags([]); loadMovies(1); }}>
             刷新
           </Button>
           <Button
@@ -328,12 +363,12 @@ export default function Movies() {
               setSortOrder(-1);
             } else {
               // Neutral (third click) — reset to default
-              setSortBy("release_date");
+              setSortBy("code");
               setSortOrder(-1);
             }
           }
         }}
-        scroll={{ x: 1200 }}
+        scroll={{ x: 1100 }}
       />
 
       <Drawer
