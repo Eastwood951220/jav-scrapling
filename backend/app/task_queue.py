@@ -171,13 +171,18 @@ def _worker_loop():
 
             # 原子条件更新: 仅在状态仍为 "running" 时写入，
             # 防止覆盖已由 stop 端点设置的 "stopped" 状态
+            # Write full result to file, summary to MongoDB
+            from app.run_storage import save_result, get_result_summary
+            save_result(run_id, result)
+            result_summary = get_result_summary(result)
+
             update_result = runs_col.update_one(
                 {"_id": ObjectId(run_id), "status": "running"},
                 {
                     "$set": {
                         "status": final_status,
                         "finished_at": datetime.now(timezone.utc),
-                        "result": result,
+                        "result": result_summary,
                     }
                 },
             )
