@@ -233,5 +233,13 @@ def get_queue_status() -> dict:
     }
 
 
-def run_to_response(doc: dict) -> dict:
-    return {**doc, "_id": str(doc["_id"])}
+def run_to_response(doc: dict) -> dict | None:
+    """Convert MongoDB doc to JSON-safe response dict. Returns None on failure."""
+    try:
+        return {**doc, "_id": str(doc["_id"])}
+    except Exception as e:
+        print(
+            f"[ERROR] Failed to convert run doc: {e} (keys={list(doc.keys())})",
+            file=sys.stderr,
+        )
+        return None

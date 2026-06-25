@@ -26,6 +26,9 @@ def list_runs(
     page: int = Query(default=1, ge=1),
     limit: int = Query(default=20, ge=1, le=100),
 ):
+    import logging
+    logger = logging.getLogger("runs")
+
     query = {}
     if status:
         query["status"] = status
@@ -41,7 +44,13 @@ def list_runs(
         .limit(limit)
     )
 
-    items = [to_response(d) for d in cursor]
+    items = []
+    for doc in cursor:
+        item = to_response(doc)
+        if item is not None:
+            items.append(item)
+        else:
+            logger.warning("Skipped unserializable run doc: %s", doc.get("_id"))
 
     return {
         "items": items,
@@ -54,6 +63,9 @@ def list_runs(
 
 @router.get("/{run_id}", response_model=RunResponse)
 def get_run(run_id: str):
+    import logging
+    logger = logging.getLogger("runs")
+
     try:
         oid = ObjectId(run_id)
     except InvalidId:
@@ -61,7 +73,13 @@ def get_run(run_id: str):
     doc = _col().find_one({"_id": oid})
     if not doc:
         raise HTTPException(status_code=404, detail="Run not found")
-    return to_response(doc)
+
+    result = to_response(doc)
+    if result is None:
+        logger.error("Failed to serialize run doc: %s", run_id)
+        raise HTTPException(status_code=500, detail="Failed to serialize run data")
+
+    return result
 
 
 @router.post("/{run_id}/stop")
