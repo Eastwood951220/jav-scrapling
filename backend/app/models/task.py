@@ -1,12 +1,4 @@
-from typing import Any
-
 from pydantic import BaseModel, Field
-
-
-class FilterConfigModel(BaseModel):
-    only_chinese: bool = False
-    exclude_multi_person: bool = False
-    extra_filters: dict[str, Any] = Field(default_factory=dict)
 
 
 class TaskCreate(BaseModel):
@@ -15,7 +7,6 @@ class TaskCreate(BaseModel):
     url_type: str
     is_skip: bool = False
     max_list_pages: int = Field(default=50, ge=1, le=100)
-    filter: FilterConfigModel = Field(default_factory=FilterConfigModel)
 
 
 class TaskUpdate(BaseModel):
@@ -24,5 +15,4 @@ class TaskUpdate(BaseModel):
     url_type: str | None = None
     is_skip: bool | None = None
     max_list_pages: int | None = Field(None, ge=1, le=100)
-    filter: FilterConfigModel | None = None
 
