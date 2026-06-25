@@ -6,6 +6,9 @@ export interface CrawlTask {
   url_type: string;
   is_skip: boolean;
   max_list_pages: number;
+  has_magnet?: boolean;
+  has_chinese_sub?: boolean;
+  sort_type?: number;
   source?: string;
   final_url?: string;
   created_at?: string;
@@ -19,4 +22,8 @@ export interface TaskCreatePayload {
   url_type: string;
   is_skip?: boolean;
   max_list_pages?: number;
+  has_magnet?: boolean;
+  has_chinese_sub?: boolean;
+  sort_type?: number;
+  final_url?: string;
 }
