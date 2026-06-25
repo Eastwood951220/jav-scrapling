@@ -207,13 +207,14 @@ def _worker_loop():
                 except Exception as save_exc:
                     _append_log(run_id, f"保存崩溃数据失败: {save_exc}", "ERROR")
 
+            error_status = "stopped" if stop_requested else "failed"
             runs_col.update_one(
-                {"_id": ObjectId(run_id)},
+                {"_id": ObjectId(run_id), "status": "running"},
                 {
                     "$set": {
-                        "status": "failed",
+                        "status": error_status,
                         "finished_at": datetime.now(timezone.utc),
-                        "error": str(exc),
+                        "error": str(exc) if error_status == "failed" else None,
                     }
                 },
             )
