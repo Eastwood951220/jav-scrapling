@@ -71,13 +71,17 @@ export default function Movies() {
   };
 
   const handleExportMagnets = () => {
-    const selectedItems = data.items.filter((item) => selectedRowKeys.includes(item._id));
-    const magnets = selectedItems
+    // 有勾选则导出勾选项，无勾选则导出当前页全部
+    const itemsToExport = selectedRowKeys.length > 0
+      ? data.items.filter((item) => selectedRowKeys.includes(item._id))
+      : data.items;
+
+    const magnets = itemsToExport
       .map((item) => item.magnet)
       .filter((m): m is string => Boolean(m));
 
     if (magnets.length === 0) {
-      message.warning("选中项无磁力链接");
+      message.warning("无可导出的磁力链接");
       return;
     }
 
@@ -228,10 +232,9 @@ export default function Movies() {
           </Button>
           <Button
             icon={<DownloadOutlined />}
-            disabled={selectedRowKeys.length === 0}
             onClick={handleExportMagnets}
           >
-            导出磁力 ({selectedRowKeys.length})
+            导出磁力{selectedRowKeys.length > 0 ? ` (${selectedRowKeys.length})` : ""}
           </Button>
         </Space>
       </Card>
