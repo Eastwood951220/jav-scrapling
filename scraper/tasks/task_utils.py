@@ -67,10 +67,10 @@ def _build_filter_params(
         return {}
 
     filters: list[str] = []
-    if has_magnet:
-        filters.append("c" if url_type in ("actors", "actor") else "download")
     if has_chinese_sub:
-        filters.append("d" if url_type in ("actors", "actor") else "cnsub")
+        filters.append("c" if url_type in ("actors", "actor") else "cnsub")
+    if has_magnet:
+        filters.append("d" if url_type in ("actors", "actor") else "download")
 
     if url_type in ("actors", "actor"):
         return {"t": ",".join(filters)}
