@@ -4,8 +4,10 @@ from pydantic import BaseModel, Field
 
 
 class MovieListQuery(BaseModel):
-    collection: str = "movies"
+    """Movie list query parameters."""
+
     search: str | None = None
+    source_task_name: str | None = None
     page: int = Field(default=1, ge=1)
     limit: int = Field(default=20, ge=1, le=100)
     sort_by: str = "created_at"
@@ -13,6 +15,8 @@ class MovieListQuery(BaseModel):
 
 
 class MovieListResponse(BaseModel):
+    """Movie list response."""
+
     items: list[dict[str, Any]]
     total: int
     page: int

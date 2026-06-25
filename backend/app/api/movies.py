@@ -8,26 +8,29 @@ from scraper.database.mongo_client import get_mongo_db, sanitize_collection_name
 
 router = APIRouter(prefix="/api/movies", tags=["movies"])
 
+# Unified collection name for all movies
+MOVIE_COLLECTION = "movies"
+
 
 def _escape_regex(value: str) -> str:
+    """Escape regex special characters."""
     return re.escape(value)
 
 
 @router.get("/collections")
 def list_collections():
-    db = get_mongo_db()
-    names = db.list_collection_names()
-    excluded = {"config_tasks", "config_schedules", "config_settings", "task_runs"}
-    return [n for n in names if n not in excluded]
+    """List movie collections (backward-compatible, returns unified collection)."""
+    return [MOVIE_COLLECTION]
 
 
 @router.delete("/collections/{collection_name}")
 def delete_collection(collection_name: str):
+    """Delete a collection (backward-compatible). Blocks deletion of system and unified collections."""
     db = get_mongo_db()
     safe_name = sanitize_collection_name(collection_name)
-    excluded = {"config_tasks", "config_schedules", "config_settings", "task_runs"}
+    excluded = {"config_tasks", "config_schedules", "config_settings", "task_runs", MOVIE_COLLECTION}
     if safe_name in excluded:
-        raise HTTPException(status_code=400, detail="不能删除系统集合")
+        raise HTTPException(status_code=400, detail="不能删除系统集合或统一电影集合")
     names = db.list_collection_names()
     if safe_name not in names:
         raise HTTPException(status_code=404, detail="集合不存在")
@@ -37,23 +40,29 @@ def delete_collection(collection_name: str):
 
 @router.get("")
 def list_movies(
-    collection: str = Query(default="movies"),
     search: str | None = Query(default=None),
+    source_task_name: str | None = Query(default=None),
     page: int = Query(default=1, ge=1),
     limit: int = Query(default=20, ge=1, le=100),
-    sort_by: str = Query(default="release_date"),
+    sort_by: str = Query(default="created_at"),
     sort_order: int = Query(default=-1, ge=-1, le=1),
     rating_min: float | None = Query(default=None, ge=0, le=5),
 ):
-    col = get_mongo_db()[sanitize_collection_name(collection)]
+    """Get a paginated movie list with optional filters."""
+    db = get_mongo_db()
+    col = db[MOVIE_COLLECTION]
 
     query = {}
     if search:
+        escaped = _escape_regex(search)
         query["$or"] = [
-            {"title": {"$regex": _escape_regex(search), "$options": "i"}},
-            {"code": {"$regex": _escape_regex(search), "$options": "i"}},
-            {"name": {"$regex": _escape_regex(search), "$options": "i"}},
+            {"title": {"$regex": escaped, "$options": "i"}},
+            {"code": {"$regex": escaped, "$options": "i"}},
+            {"name": {"$regex": escaped, "$options": "i"}},
         ]
+
+    if source_task_name:
+        query["source_task_name"] = source_task_name
 
     if rating_min is not None:
         query["rating"] = {"$gte": rating_min}
@@ -63,7 +72,7 @@ def list_movies(
 
     allowed_sort = {"created_at", "updated_at", "code", "title", "name", "release_date", "rating"}
     if sort_by not in allowed_sort:
-        sort_by = "release_date"
+        sort_by = "created_at"
     if sort_order not in (-1, 1):
         sort_order = -1
 
@@ -84,14 +93,19 @@ def list_movies(
 
 
 @router.get("/{movie_id}")
-def get_movie(movie_id: str, collection: str = Query(default="movies")):
+def get_movie(movie_id: str):
+    """Get a single movie by ID."""
     try:
         oid = ObjectId(movie_id)
     except InvalidId:
         raise HTTPException(status_code=400, detail="Invalid movie ID")
-    col = get_mongo_db()[sanitize_collection_name(collection)]
+
+    db = get_mongo_db()
+    col = db[MOVIE_COLLECTION]
     doc = col.find_one({"_id": oid})
+
     if not doc:
         raise HTTPException(status_code=404, detail="Movie not found")
+
     doc["_id"] = str(doc["_id"])
     return doc
