@@ -6,7 +6,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from scraper.config.settings import MONGO_DB_NAME
-from scraper.database.mongo_client import connect_mongo, close_mongo
+from scraper.database.mongo_client import connect_mongo, close_mongo, get_mongo_db
+from scraper.database.indexes import ensure_indexes
 
 from app.api.movies import router as movies_router
 from app.api.schedules import router as schedules_router
@@ -35,6 +36,15 @@ async def lifespan(app: FastAPI):
         _startup_logger.info("MongoDB connected successfully")
     except Exception:
         _startup_logger.exception("FATAL: Failed to connect to MongoDB")
+        raise
+
+    try:
+        _startup_logger.info("Ensuring database indexes...")
+        db = get_mongo_db()
+        ensure_indexes(db, "movies")
+        _startup_logger.info("Database indexes ensured successfully")
+    except Exception:
+        _startup_logger.exception("FATAL: Failed to ensure database indexes")
         raise
 
     try:
