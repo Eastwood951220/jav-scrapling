@@ -1,10 +1,23 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "@tanstack/react-router";
 import {
-  Card, Descriptions, Tag, Timeline, Typography, Space, Button, message, Modal,
+  Card, Descriptions, Tag, Timeline, Typography, Space, Button, message, Modal, Table, Tooltip,
 } from "antd";
-import { ArrowLeftOutlined } from "@ant-design/icons";
-import { TaskRun, fetchRun, stopRun, statusColors, statusLabels } from "./api";
+import { ArrowLeftOutlined, RedoOutlined } from "@ant-design/icons";
+import type { ColumnsType } from "antd/es/table";
+import {
+  TaskRun,
+  RunDetailTask,
+  fetchRun,
+  fetchRunDetailTasks,
+  stopRun,
+  retryCrawl,
+  retrySave,
+  statusColors,
+  statusLabels,
+  detailTaskStatusColors,
+  detailTaskStatusLabels,
+} from "./api";
 import { getErrorMessage } from "@/shared/hooks/useErrorMessage";
 import { usePolling } from "@/shared/hooks/usePolling";
 import FullPageSpinner from "@/shared/components/FullPageSpinner";
@@ -16,18 +29,27 @@ const logLevelColors: Record<string, string> = {
   ERROR: "red",
 };
 
+function formatTime(value?: string | null): string {
+  return value ? new Date(value).toLocaleString() : "-";
+}
+
 export default function RunDetail() {
   const { id } = useParams({ strict: false }) as { id?: string };
   const navigate = useNavigate();
   const [run, setRun] = useState<TaskRun | null>(null);
+  const [tasks, setTasks] = useState<RunDetailTask[]>([]);
   const [loading, setLoading] = useState(true);
   const logEndRef = useRef<HTMLDivElement>(null);
 
   const load = useCallback(async () => {
     if (!id) return;
     try {
-      const data = await fetchRun(id);
-      setRun(data);
+      const [runData, taskData] = await Promise.all([
+        fetchRun(id),
+        fetchRunDetailTasks(id),
+      ]);
+      setRun(runData);
+      setTasks(taskData.items);
     } catch (e: unknown) {
       message.error(getErrorMessage(e));
     } finally {
@@ -50,6 +72,119 @@ export default function RunDetail() {
       logEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }
   }, [run?.logs?.length, isActive]);
+
+  const handleRetryCrawl = useCallback(async (taskId: string) => {
+    if (!id) return;
+    try {
+      await retryCrawl(id, taskId);
+      message.success("重新爬取已提交");
+      load();
+    } catch (e: unknown) {
+      message.error(getErrorMessage(e));
+    }
+  }, [id, load]);
+
+  const handleRetrySave = useCallback(async (taskId: string) => {
+    if (!id) return;
+    try {
+      await retrySave(id, taskId);
+      message.success("重新入库已提交");
+      load();
+    } catch (e: unknown) {
+      message.error(getErrorMessage(e));
+    }
+  }, [id, load]);
+
+  const taskColumns: ColumnsType<RunDetailTask> = [
+    {
+      title: "番号",
+      dataIndex: "code",
+      key: "code",
+      width: 120,
+      render: (val: string) => val || "-",
+    },
+    {
+      title: "名称",
+      dataIndex: "task_name",
+      key: "task_name",
+      ellipsis: true,
+    },
+    {
+      title: "状态",
+      dataIndex: "status",
+      key: "status",
+      width: 100,
+      render: (status: RunDetailTask["status"]) => (
+        <Tag color={detailTaskStatusColors[status]}>
+          {detailTaskStatusLabels[status]}
+        </Tag>
+      ),
+    },
+    {
+      title: "创建时间",
+      dataIndex: "created_at",
+      key: "created_at",
+      width: 170,
+      render: formatTime,
+    },
+    {
+      title: "爬取时间",
+      dataIndex: "crawled_at",
+      key: "crawled_at",
+      width: 170,
+      render: formatTime,
+    },
+    {
+      title: "入库时间",
+      dataIndex: "saved_at",
+      key: "saved_at",
+      width: 170,
+      render: formatTime,
+    },
+    {
+      title: "错误",
+      dataIndex: "error",
+      key: "error",
+      ellipsis: true,
+      render: (val: string | null) =>
+        val ? (
+          <Tooltip title={val}>
+            <Typography.Text type="danger" ellipsis style={{ maxWidth: 200 }}>
+              {val}
+            </Typography.Text>
+          </Tooltip>
+        ) : "-",
+    },
+    {
+      title: "操作",
+      key: "action",
+      width: 120,
+      render: (_: unknown, record: RunDetailTask) => (
+        <Space size="small">
+          {record.status === "crawl_failed" && (
+            <Button
+              type="link"
+              size="small"
+              icon={<RedoOutlined />}
+              onClick={() => handleRetryCrawl(record._id)}
+            >
+              重试爬取
+            </Button>
+          )}
+          {record.status === "save_failed" && (
+            <Button
+              type="link"
+              size="small"
+              icon={<RedoOutlined />}
+              onClick={() => handleRetrySave(record._id)}
+            >
+              重试入库
+            </Button>
+          )}
+        </Space>
+      ),
+    },
+  ];
 
   if (loading) return <FullPageSpinner />;
 
@@ -102,13 +237,13 @@ export default function RunDetail() {
                 </Space>
               </Descriptions.Item>
               <Descriptions.Item label="排队时间">
-                {run.queued_at ? new Date(run.queued_at).toLocaleString() : "-"}
+                {formatTime(run.queued_at)}
               </Descriptions.Item>
               <Descriptions.Item label="开始时间">
-                {run.started_at ? new Date(run.started_at).toLocaleString() : "-"}
+                {formatTime(run.started_at)}
               </Descriptions.Item>
               <Descriptions.Item label="完成时间">
-                {run.finished_at ? new Date(run.finished_at).toLocaleString() : "-"}
+                {formatTime(run.finished_at)}
               </Descriptions.Item>
               <Descriptions.Item label="任务ID">
                 <Typography.Text code>{run.task_id}</Typography.Text>
@@ -160,7 +295,18 @@ export default function RunDetail() {
             )}
           </Card>
 
-          <Card title="运行日志">
+          <Card title="子任务列表" style={{ marginTop: 16 }}>
+            <Table<RunDetailTask>
+              rowKey="_id"
+              columns={taskColumns}
+              dataSource={tasks}
+              size="small"
+              pagination={false}
+              scroll={{ x: 1100 }}
+            />
+          </Card>
+
+          <Card title="运行日志" style={{ marginTop: 16 }}>
             {run.logs.length === 0 ? (
               <Typography.Text type="secondary">
                 {isActive ? "等待日志..." : "无日志"}

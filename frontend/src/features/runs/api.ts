@@ -1,9 +1,9 @@
 import client from "@/shared/api/client";
 import type { PaginatedResponse } from "@/shared/types/common";
-import type { TaskRun, QueueStatus } from "./types";
+import type { TaskRun, QueueStatus, RunDetailTask } from "./types";
 
-export { statusColors, statusLabels } from "./types";
-export type { TaskRun, QueueStatus, RunLogEntry } from "./types";
+export { statusColors, statusLabels, detailTaskStatusColors, detailTaskStatusLabels } from "./types";
+export type { TaskRun, QueueStatus, RunLogEntry, RunDetailTask, DetailTaskStatus } from "./types";
 
 export function fetchRuns(params?: {
   status?: string;
@@ -27,4 +27,16 @@ export function stopRun(id: string): Promise<{ success: boolean; message: string
 
 export function deleteRun(id: string): Promise<{ deleted: boolean }> {
   return client.delete(`/runs/${id}`).then((res) => res.data);
+}
+
+export function fetchRunDetailTasks(runId: string): Promise<{ items: RunDetailTask[]; total: number }> {
+  return client.get(`/runs/${runId}/tasks`).then((res) => res.data);
+}
+
+export function retryCrawl(runId: string, taskId: string): Promise<{ success: boolean; message?: string }> {
+  return client.post(`/runs/${runId}/tasks/${taskId}/retry-crawl`).then((res) => res.data);
+}
+
+export function retrySave(runId: string, taskId: string): Promise<{ success: boolean; message?: string }> {
+  return client.post(`/runs/${runId}/tasks/${taskId}/retry-save`).then((res) => res.data);
 }
