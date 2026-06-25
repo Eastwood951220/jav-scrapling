@@ -42,7 +42,26 @@ def _parse_field_value(field_name: str, row) -> Any:
         match = re.search(r"([\d.]+)", text)
         return float(match.group(1)) if match else 0.0
 
-    if field_name in ("類別", "类别", "演員", "演员"):
+    if field_name in ("演員", "演员"):
+        # Only include female actors (those followed by <strong class="symbol female">)
+        female_actors = []
+        value_node = row.css("span.value")
+        if value_node:
+            # Get all <a> and <strong> children in order
+            children = value_node.css("a, strong.symbol")
+            current_actor = None
+            for child in children:
+                tag = child.css("::attr(class)").get("") if child.root.tag == "strong" else ""
+                if child.root.tag == "a":
+                    current_actor = clean_text(child.css("::text").get() or "")
+                elif child.root.tag == "strong" and "female" in tag and current_actor:
+                    female_actors.append(current_actor)
+                    current_actor = None
+        if female_actors:
+            return female_actors
+        return link_texts or ([text] if text else [])
+
+    if field_name in ("類別", "类别"):
         return link_texts or ([text] if text else [])
 
     return text
