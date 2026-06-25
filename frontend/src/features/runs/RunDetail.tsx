@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "@tanstack/react-router";
 import {
   Card, Descriptions, Tag, Timeline, Typography, Space, Button, message, Modal,
@@ -21,6 +21,7 @@ export default function RunDetail() {
   const navigate = useNavigate();
   const [run, setRun] = useState<TaskRun | null>(null);
   const [loading, setLoading] = useState(true);
+  const logEndRef = useRef<HTMLDivElement>(null);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -42,6 +43,13 @@ export default function RunDetail() {
   // Poll while active
   const isActive = run && (run.status === "running" || run.status === "queued");
   usePolling(load, 3000, Boolean(isActive));
+
+  // Auto-scroll to latest log during active runs
+  useEffect(() => {
+    if (run?.logs?.length && isActive) {
+      logEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [run?.logs?.length, isActive]);
 
   if (loading) return <FullPageSpinner />;
 
@@ -158,25 +166,28 @@ export default function RunDetail() {
                 {isActive ? "等待日志..." : "无日志"}
               </Typography.Text>
             ) : (
-              <Timeline
-                items={run.logs.map((entry, idx) => ({
-                  key: idx,
-                  color: logLevelColors[entry.level] || "gray",
-                  children: (
-                    <div>
-                      <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                        {new Date(entry.timestamp).toLocaleTimeString()}
-                      </Typography.Text>
-                      <Typography.Text
-                        type={entry.level === "ERROR" ? "danger" : undefined}
-                        style={{ marginLeft: 8 }}
-                      >
-                        {entry.message}
-                      </Typography.Text>
-                    </div>
-                  ),
-                }))}
-              />
+              <>
+                <Timeline
+                  items={run.logs.map((entry, idx) => ({
+                    key: idx,
+                    color: logLevelColors[entry.level] || "gray",
+                    children: (
+                      <div>
+                        <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                          {new Date(entry.timestamp).toLocaleTimeString()}
+                        </Typography.Text>
+                        <Typography.Text
+                          type={entry.level === "ERROR" ? "danger" : undefined}
+                          style={{ marginLeft: 8 }}
+                        >
+                          {entry.message}
+                        </Typography.Text>
+                      </div>
+                    ),
+                  }))}
+                />
+                <div ref={logEndRef} />
+              </>
             )}
           </Card>
         </>
