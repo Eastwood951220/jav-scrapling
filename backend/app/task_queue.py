@@ -93,8 +93,8 @@ def _ensure_worker():
 
 
 def _append_log(run_id: str, message: str, level: str = "INFO"):
-    """Append a log entry to the run's log file."""
-    from app.run_storage import load_logs, save_logs
+    """Append a log entry to the run's log file (JSONL format)."""
+    from app.run_storage import append_log_jsonl
 
     log_entry = {
         "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -103,9 +103,7 @@ def _append_log(run_id: str, message: str, level: str = "INFO"):
     }
 
     try:
-        logs = load_logs(run_id)
-        logs.append(log_entry)
-        save_logs(run_id, logs)
+        append_log_jsonl(run_id, log_entry)
     except Exception as e:
         print(
             f"[ERROR] Failed to append log: {e} "

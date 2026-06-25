@@ -31,6 +31,39 @@ def load_logs(run_id: str) -> list[dict[str, Any]]:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def append_log_jsonl(run_id: str, entry: dict[str, Any]) -> None:
+    """Append a single log entry as a JSON line to {RUN_DATA_DIR}/{run_id}/logs.jsonl."""
+    import json as _json
+
+    path = _run_dir(run_id) / "logs.jsonl"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    line = _json.dumps(entry, ensure_ascii=False, default=str) + "\n"
+    with open(path, "a", encoding="utf-8") as f:
+        f.write(line)
+
+
+def load_logs_jsonl(run_id: str) -> list[dict[str, Any]]:
+    """Read logs from JSONL file. Falls back to JSON array format for old runs."""
+    import json as _json
+
+    jsonl_path = _run_dir(run_id) / "logs.jsonl"
+    if jsonl_path.exists():
+        entries = []
+        with open(jsonl_path, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line:
+                    entries.append(_json.loads(line))
+        return entries
+
+    # Fallback: old JSON array format
+    json_path = _run_dir(run_id) / "logs.json"
+    if json_path.exists():
+        return _json.loads(json_path.read_text(encoding="utf-8"))
+
+    return []
+
+
 def save_result(run_id: str, result: dict[str, Any]) -> None:
     """Write result dict to {RUN_DATA_DIR}/{run_id}/result.json."""
     path = _run_dir(run_id) / "result.json"
