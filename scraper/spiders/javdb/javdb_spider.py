@@ -126,6 +126,7 @@ class JavdbSpider(BaseSpider):
         task_name: str | None = None,
         on_detail_completed=None,
         on_detail_created=None,
+        on_detail_failed=None,
         stop_check=None,
         log_callback=None,
     ) -> list[dict]:
@@ -245,6 +246,9 @@ class JavdbSpider(BaseSpider):
                 task["status"] = TASK_STATUS_FAILED
                 task["reason"] = str(exc)
 
+                if on_detail_failed:
+                    on_detail_failed(task, str(exc))
+
                 msg = f"{prefix} 详情 {index + 1}/{total} 失败: {task.get('name')} error={exc}"
                 print(msg)
                 if log_callback:
@@ -269,7 +273,7 @@ class JavdbSpider(BaseSpider):
 
         return tasks
 
-    def run_task(self, task: CrawlTask, on_detail_completed=None, on_detail_created=None, stop_check=None, log_callback=None) -> list[dict]:
+    def run_task(self, task: CrawlTask, on_detail_completed=None, on_detail_created=None, on_detail_failed=None, stop_check=None, log_callback=None) -> list[dict]:
         if task.is_skip:
             print(f"[Task:{task.name}] skipped by config")
             return []
@@ -284,6 +288,7 @@ class JavdbSpider(BaseSpider):
             task_name=task.name,
             on_detail_completed=on_detail_completed,
             on_detail_created=on_detail_created,
+            on_detail_failed=on_detail_failed,
             stop_check=stop_check,
             log_callback=log_callback,
         )

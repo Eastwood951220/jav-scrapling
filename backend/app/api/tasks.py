@@ -18,8 +18,18 @@ def _collection():
     return get_mongo_db()[TASKS_COLLECTION]
 
 
+def _stringify_objectids(obj):
+    if isinstance(obj, ObjectId):
+        return str(obj)
+    if isinstance(obj, dict):
+        return {k: _stringify_objectids(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_stringify_objectids(item) for item in obj]
+    return obj
+
+
 def _task_to_response(doc: dict) -> dict:
-    return {**doc, "_id": str(doc["_id"])}
+    return _stringify_objectids(doc)
 
 
 @router.get("")

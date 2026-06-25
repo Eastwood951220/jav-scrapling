@@ -17,6 +17,17 @@ def _escape_regex(value: str) -> str:
     return re.escape(value)
 
 
+def _stringify_objectids(obj):
+    """Recursively convert all ObjectId instances to strings."""
+    if isinstance(obj, ObjectId):
+        return str(obj)
+    if isinstance(obj, dict):
+        return {k: _stringify_objectids(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_stringify_objectids(item) for item in obj]
+    return obj
+
+
 @router.get("/collections")
 def list_collections():
     """List movie collections (backward-compatible, returns unified collection)."""
@@ -81,7 +92,7 @@ def list_movies(
     items = []
     for doc in cursor:
         doc["_id"] = str(doc["_id"])
-        items.append(doc)
+        items.append(_stringify_objectids(doc))
 
     return {
         "items": items,
@@ -108,4 +119,4 @@ def get_movie(movie_id: str):
         raise HTTPException(status_code=404, detail="Movie not found")
 
     doc["_id"] = str(doc["_id"])
-    return doc
+    return _stringify_objectids(doc)

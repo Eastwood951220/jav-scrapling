@@ -24,12 +24,12 @@ build:
 	docker compose build --no-cache
 
 dev-backend:
-	cd backend && uvicorn app.main:app --host 0.0.0.0 --port 18642 --reload
+	cd backend && PYTHONPATH=".:..:$$PYTHONPATH" ../.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 18642 --reload
 
 dev-frontend:
 	cd frontend && npm run dev
 
 dev:
 	@echo "Starting backend (port 18642) and frontend (port 18643)..."
-	@cd backend && uvicorn app.main:app --host 0.0.0.0 --port 18642 --reload & \
+	@cd backend && PYTHONPATH=".:..:$$PYTHONPATH" ../.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 18642 --reload & \
 	cd frontend && npm run dev
