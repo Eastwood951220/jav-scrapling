@@ -1,10 +1,3 @@
-/** Filter configuration for crawl tasks. */
-export interface FilterConfig {
-  only_chinese: boolean;
-  exclude_multi_person: boolean;
-  extra_filters?: Record<string, unknown>;
-}
-
 /** Crawl task model. */
 export interface CrawlTask {
   _id: string;
@@ -13,7 +6,6 @@ export interface CrawlTask {
   url_type: string;
   is_skip: boolean;
   max_list_pages: number;
-  filter: FilterConfig;
   source?: string;
   final_url?: string;
   created_at?: string;
@@ -27,5 +19,4 @@ export interface TaskCreatePayload {
   url_type: string;
   is_skip?: boolean;
   max_list_pages?: number;
-  filter?: FilterConfig;
 }

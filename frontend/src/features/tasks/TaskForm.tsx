@@ -25,8 +25,6 @@ export default function TaskForm() {
           url_type: task.url_type,
           is_skip: task.is_skip,
           max_list_pages: task.max_list_pages,
-          only_chinese: task.filter?.only_chinese ?? false,
-          exclude_multi_person: task.filter?.exclude_multi_person ?? false,
         });
       })
       .catch((e) => message.error(getErrorMessage(e)))
@@ -42,10 +40,6 @@ export default function TaskForm() {
         url_type: values.url_type as string,
         is_skip: values.is_skip as boolean,
         max_list_pages: values.max_list_pages as number,
-        filter: {
-          only_chinese: (values.only_chinese as boolean) ?? false,
-          exclude_multi_person: (values.exclude_multi_person as boolean) ?? false,
-        },
       };
 
       if (isEdit && id) {
@@ -71,8 +65,6 @@ export default function TaskForm() {
         url_type: "actors",
         is_skip: false,
         max_list_pages: 50,
-        only_chinese: false,
-        exclude_multi_person: false,
       }}>
         <Form.Item name="name" label="任务名称" rules={[{ required: true, message: "请输入任务名称" }]}>
           <Input placeholder="例如：某演员名称" />
@@ -100,15 +92,6 @@ export default function TaskForm() {
         <Form.Item name="is_skip" label="禁用此任务" valuePropName="checked">
           <Switch />
         </Form.Item>
-
-        <Card title="过滤条件" size="small" style={{ marginBottom: 24 }}>
-          <Form.Item name="only_chinese" label="仅中文字幕" valuePropName="checked">
-            <Switch />
-          </Form.Item>
-          <Form.Item name="exclude_multi_person" label="排除多人作品" valuePropName="checked">
-            <Switch />
-          </Form.Item>
-        </Card>
 
         <Form.Item>
           <Button type="primary" htmlType="submit" loading={submitting}>

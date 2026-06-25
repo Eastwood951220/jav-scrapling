@@ -2,7 +2,7 @@ import client from "@/shared/api/client";
 import type { CrawlTask, TaskCreatePayload } from "./types";
 import type { TaskRun } from "@/features/runs/types";
 
-export type { CrawlTask, TaskCreatePayload, FilterConfig } from "./types";
+export type { CrawlTask, TaskCreatePayload } from "./types";
 
 export function fetchTasks(): Promise<CrawlTask[]> {
   return client.get("/tasks").then((res) => res.data);
