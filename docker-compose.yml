@@ -39,7 +39,7 @@ services:
 
   backend:
     build:
-      context: ./docker/backend
+      context: .
       dockerfile: backend/Dockerfile
       platforms:
         - linux/amd64
