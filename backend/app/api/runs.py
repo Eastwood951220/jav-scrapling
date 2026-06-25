@@ -173,6 +173,17 @@ def _detail_col():
     return get_mongo_db()[DETAIL_TASKS_COLLECTION]
 
 
+def _stringify_objectids(obj):
+    """Recursively convert all ObjectId instances to strings."""
+    if isinstance(obj, ObjectId):
+        return str(obj)
+    if isinstance(obj, dict):
+        return {k: _stringify_objectids(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_stringify_objectids(item) for item in obj]
+    return obj
+
+
 @router.get("/{run_id}/tasks")
 def list_run_detail_tasks(run_id: str):
     try:
@@ -183,8 +194,7 @@ def list_run_detail_tasks(run_id: str):
     cursor = _detail_col().find({"run_id": run_id}).sort("created_at", 1)
     items = []
     for doc in cursor:
-        doc["_id"] = str(doc["_id"])
-        items.append(doc)
+        items.append(_stringify_objectids(doc))
 
     return {"items": items, "total": len(items)}
 
