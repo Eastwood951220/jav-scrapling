@@ -1,4 +1,3 @@
-import os
 import sys
 import threading
 import queue
@@ -89,21 +88,6 @@ def _append_log(run_id: str, message: str, level: str = "INFO"):
         )
 
 
-def _batch_save_items(items: list[dict], batch_size: int, repository) -> int:
-    """Persist items in batches, logging progress. Returns total saved count."""
-    saved = 0
-    total = len(items)
-
-    for i in range(0, total, batch_size):
-        batch = items[i:i + batch_size]
-        for item in batch:
-            if repository.upsert_movie(item):
-                saved += 1
-        print(f"[DB] batch saved {min(i + batch_size, total)}/{total}, saved={saved}")
-
-    return saved
-
-
 def _worker_loop():
     global _current_run_id, _worker_running, _stop_event
 
@@ -119,6 +103,7 @@ def _worker_loop():
 
         runs_col = get_mongo_db()["task_runs"]
         tasks_col = get_mongo_db()["config_tasks"]
+        detail_col = get_mongo_db()["run_detail_tasks"]
         repository = MovieRepository()
 
         runs_col.update_one(
@@ -128,7 +113,6 @@ def _worker_loop():
         _append_log(run_id, "任务开始执行", "INFO")
 
         stop_requested = False
-        collected_items: list[dict] = []
 
         try:
             run_doc = runs_col.find_one({"_id": ObjectId(run_id)})
@@ -141,29 +125,56 @@ def _worker_loop():
             task = build_crawl_task_from_doc(task_doc)
             _append_log(run_id, f"执行任务: {task.name}, URL: {task.final_url}", "INFO")
 
-            # Create a log callback bound to this run_id
             def log_callback(message: str, level: str = "INFO"):
                 _append_log(run_id, message, level)
+
+            def on_item_saved(detail_task: dict, cleaned_item: dict) -> None:
+                detail_doc = detail_col.find_one({
+                    "run_id": run_id,
+                    "source_url": detail_task.get("url"),
+                })
+                if not detail_doc:
+                    return
+
+                try:
+                    repository.upsert_movie(cleaned_item)
+                    detail_col.update_one(
+                        {"_id": detail_doc["_id"]},
+                        {"$set": {
+                            "status": "saved",
+                            "crawled_at": datetime.now(timezone.utc),
+                            "saved_at": datetime.now(timezone.utc),
+                            "item_data": cleaned_item,
+                        }},
+                    )
+                except Exception as save_exc:
+                    detail_col.update_one(
+                        {"_id": detail_doc["_id"]},
+                        {"$set": {
+                            "status": "save_failed",
+                            "crawled_at": datetime.now(timezone.utc),
+                            "error": str(save_exc),
+                            "item_data": cleaned_item,
+                        }},
+                    )
 
             service = MovieService()
             result = service.crawl_javdb_task(
                 task,
                 stop_check=lambda: _stop_event.is_set(),
                 log_callback=log_callback,
+                on_item_saved=on_item_saved,
             )
 
-            collected_items = result.get("items", [])
             stop_requested = result.get("stopped", False) or _stop_event.is_set()
 
-            batch_size = int(os.getenv("BATCH_SAVE_SIZE", "50"))
-            saved = _batch_save_items(collected_items, batch_size, repository)
-            result = {**result, "saved": saved}
+            total_detail = detail_col.count_documents({"run_id": run_id})
+            saved_count = detail_col.count_documents({"run_id": run_id, "status": "saved"})
+            save_failed = detail_col.count_documents({"run_id": run_id, "status": "save_failed"})
 
             _append_log(
                 run_id,
-                f"任务完成: total={result.get('total_tasks', 0)}, "
-                f"completed={result.get('completed_tasks', 0)}, "
-                f"saved={saved}",
+                f"任务完成: 总计={total_detail}, 已保存={saved_count}, 入库失败={save_failed}",
                 "INFO",
             )
 
@@ -171,51 +182,36 @@ def _worker_loop():
 
             # 原子条件更新: 仅在状态仍为 "running" 时写入，
             # 防止覆盖已由 stop 端点设置的 "stopped" 状态
-            # Write full result to file, summary to MongoDB
-            from app.run_storage import save_result, get_result_summary
-            save_result(run_id, result)
-            result_summary = get_result_summary(result)
-
             update_result = runs_col.update_one(
                 {"_id": ObjectId(run_id), "status": "running"},
                 {
                     "$set": {
                         "status": final_status,
                         "finished_at": datetime.now(timezone.utc),
-                        "result": result_summary,
+                        "result": {
+                            "total_tasks": total_detail,
+                            "saved": saved_count,
+                            "save_failed": save_failed,
+                        },
                     }
                 },
             )
             if update_result.modified_count == 0:
-                _append_log(
-                    run_id,
-                    f"状态已被外部更新，跳过状态写入 (final_status={final_status})",
-                    "WARNING",
-                )
+                _append_log(run_id, "状态已被外部更新，跳过写入", "WARNING")
+
         except Exception as exc:
             tb = traceback.format_exc()
             _append_log(run_id, f"错误: {exc}", "ERROR")
             _append_log(run_id, tb, "ERROR")
 
-            # Drain collected items on crash
-            if collected_items:
-                try:
-                    batch_size = int(os.getenv("BATCH_SAVE_SIZE", "50"))
-                    saved = _batch_save_items(collected_items, batch_size, repository)
-                    _append_log(run_id, f"崩溃前已保存 {saved} 条数据", "WARN")
-                except Exception as save_exc:
-                    _append_log(run_id, f"保存崩溃数据失败: {save_exc}", "ERROR")
-
             error_status = "stopped" if stop_requested else "failed"
             runs_col.update_one(
                 {"_id": ObjectId(run_id), "status": "running"},
-                {
-                    "$set": {
-                        "status": error_status,
-                        "finished_at": datetime.now(timezone.utc),
-                        "error": str(exc) if error_status == "failed" else None,
-                    }
-                },
+                {"$set": {
+                    "status": error_status,
+                    "finished_at": datetime.now(timezone.utc),
+                    "error": str(exc) if error_status == "failed" else None,
+                }},
             )
         finally:
             _current_run_id = None
@@ -233,27 +229,49 @@ def get_queue_status() -> dict:
     }
 
 
-def retry_detail_task(task_id: str, retry_type: str) -> dict:
+def retry_detail_task(task_id: str, mode: str) -> dict:
     """重试 detail task 的爬取或入库操作。
 
     Args:
         task_id: detail task 的 ObjectId 字符串
-        retry_type: "crawl" 或 "save"
+        mode: "crawl" 或 "save"
     """
     from scraper.database.mongo_client import get_mongo_db
+    from scraper.database.repositories.movie_repository import MovieRepository
 
-    col = get_mongo_db()["run_detail_tasks"]
-    doc = col.find_one({"_id": ObjectId(task_id)})
+    detail_col = get_mongo_db()["run_detail_tasks"]
+    doc = detail_col.find_one({"_id": ObjectId(task_id)})
     if not doc:
-        raise ValueError(f"Detail task {task_id} not found")
+        return {"success": False, "error": "任务不存在"}
 
-    new_status = "pending_crawl" if retry_type == "crawl" else "crawled"
-    col.update_one(
-        {"_id": ObjectId(task_id)},
-        {"$set": {"status": new_status, "error": None}},
-    )
+    if mode == "crawl":
+        detail_col.update_one(
+            {"_id": ObjectId(task_id)},
+            {"$set": {"status": "pending_crawl", "error": None, "crawled_at": None, "saved_at": None, "item_data": None}},
+        )
+        return {"success": True, "message": "已标记为待重新爬取"}
 
-    return {"success": True, "task_id": task_id, "new_status": new_status}
+    elif mode == "save":
+        item_data = doc.get("item_data")
+        if not item_data:
+            return {"success": False, "error": "无数据可入库"}
+
+        repository = MovieRepository()
+        try:
+            repository.upsert_movie(item_data)
+            detail_col.update_one(
+                {"_id": ObjectId(task_id)},
+                {"$set": {"status": "saved", "saved_at": datetime.now(timezone.utc), "error": None}},
+            )
+            return {"success": True, "message": "重新入库成功"}
+        except Exception as e:
+            detail_col.update_one(
+                {"_id": ObjectId(task_id)},
+                {"$set": {"status": "save_failed", "error": str(e)}},
+            )
+            return {"success": False, "error": str(e)}
+
+    return {"success": False, "error": "未知模式"}
 
 
 def run_to_response(doc: dict) -> dict | None:

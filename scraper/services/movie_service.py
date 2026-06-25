@@ -26,7 +26,7 @@ class MovieService:
 
         return JavdbSpider(fetcher=fetcher)
 
-    def crawl_javdb_task(self, task: CrawlTask, stop_check=None, log_callback=None) -> dict:
+    def crawl_javdb_task(self, task: CrawlTask, stop_check=None, log_callback=None, on_item_saved=None) -> dict:
         if task.is_skip:
             if log_callback:
                 log_callback(f"跳过任务: {task.name}", "INFO")
@@ -64,6 +64,9 @@ class MovieService:
                 print(msg)
                 if log_callback:
                     log_callback(msg, "INFO")
+                # Per-item save callback
+                if on_item_saved:
+                    on_item_saved(detail_task, cleaned)
             else:
                 msg = f"[{task.name}] 跳过无效数据: code={item.get('code')}"
                 print(msg)
