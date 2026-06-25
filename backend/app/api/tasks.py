@@ -44,6 +44,9 @@ def create_task(body: TaskCreate):
     final_url = build_final_url(
         url=body.url,
         url_type=body.url_type,
+        has_magnet=body.has_magnet,
+        has_chinese_sub=body.has_chinese_sub,
+        sort_type=body.sort_type,
         source=source,
     )
 
@@ -52,6 +55,9 @@ def create_task(body: TaskCreate):
         "url": body.url,
         "url_type": body.url_type,
         "is_skip": body.is_skip,
+        "has_magnet": body.has_magnet,
+        "has_chinese_sub": body.has_chinese_sub,
+        "sort_type": body.sort_type,
         "max_list_pages": body.max_list_pages,
         "source": source,
         "final_url": final_url,
@@ -98,10 +104,18 @@ def update_task(task_id: str, body: TaskUpdate):
             raise HTTPException(status_code=404, detail="Task not found")
         url = update_data.get("url", current["url"])
         url_type = update_data.get("url_type", current["url_type"])
+        has_magnet = update_data.get("has_magnet", current.get("has_magnet", False))
+        has_chinese_sub = update_data.get("has_chinese_sub", current.get("has_chinese_sub", False))
+        sort_type = update_data.get("sort_type", current.get("sort_type", 0))
         source = determine_source(url)
         update_data["source"] = source
         update_data["final_url"] = build_final_url(
-            url=url, url_type=url_type, source=source
+            url=url,
+            url_type=url_type,
+            has_magnet=has_magnet,
+            has_chinese_sub=has_chinese_sub,
+            sort_type=sort_type,
+            source=source,
         )
 
     update_data["updated_at"] = datetime.now()

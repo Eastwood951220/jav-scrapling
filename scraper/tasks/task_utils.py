@@ -1,5 +1,5 @@
 from typing import Any
-from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
+from urllib.parse import parse_qsl, quote, urlencode, urlparse, urlunparse
 
 from scraper.tasks.task_schema import CrawlTask
 
@@ -11,6 +11,9 @@ def build_crawl_task_from_doc(doc: dict[str, Any]) -> CrawlTask:
         url=doc["url"],
         url_type=doc["url_type"],
         is_skip=False,
+        has_magnet=doc.get("has_magnet", False),
+        has_chinese_sub=doc.get("has_chinese_sub", False),
+        sort_type=doc.get("sort_type", 0),
         max_list_pages=doc.get("max_list_pages", 50),
         source=doc.get("source"),
         final_url=doc.get("final_url"),
@@ -36,7 +39,11 @@ def append_or_replace_query(url: str, params: dict) -> str:
     parsed = urlparse(url)
     query = dict(parse_qsl(parsed.query, keep_blank_values=True))
     query.update({key: value for key, value in params.items() if value is not None})
-    new_query = urlencode(query, doseq=True)
+    new_query = urlencode(
+        query,
+        doseq=True,
+        quote_via=lambda v, safe, enc, err: quote(str(v), safe=safe + ","),
+    )
 
     return urlunparse(
         (
@@ -50,9 +57,41 @@ def append_or_replace_query(url: str, params: dict) -> str:
     )
 
 
+def _build_filter_params(
+    url_type: str,
+    has_magnet: bool,
+    has_chinese_sub: bool,
+) -> dict[str, str]:
+    """Build filter query params based on URL type and flags."""
+    if not has_magnet and not has_chinese_sub:
+        return {}
+
+    filters: list[str] = []
+    if has_magnet:
+        filters.append("c" if url_type in ("actors", "actor") else "download")
+    if has_chinese_sub:
+        filters.append("d" if url_type in ("actors", "actor") else "cnsub")
+
+    if url_type in ("actors", "actor"):
+        return {"t": ",".join(filters)}
+
+    if url_type == "tags":
+        tag_filters: list[str] = []
+        if has_magnet:
+            tag_filters.append("1")
+        if has_chinese_sub:
+            tag_filters.append("2")
+        return {"c10": ",".join(tag_filters)}
+
+    return {"f": ",".join(filters)}
+
+
 def build_final_url(
     url: str,
     url_type: str,
+    has_magnet: bool = False,
+    has_chinese_sub: bool = False,
+    sort_type: int = 0,
     source: str | None = None,
 ) -> str:
     url = ensure_string(url)
@@ -61,16 +100,18 @@ def build_final_url(
     if not url:
         return ""
 
+    params: dict[str, str | int] = {"page": 1}
+
+    filter_params = _build_filter_params(url_type, has_magnet, has_chinese_sub)
+    params.update(filter_params)
+
+    if sort_type and url_type in ("actors", "actor", "search"):
+        params["sort_type"] = sort_type
+
     if url_type == "search" and "?" not in url:
-        return append_or_replace_query(url, {"f": "all", "page": 1})
+        params.setdefault("f", "all")
 
-    if source == "javdb" and url_type in ("actors", "actor"):
-        return append_or_replace_query(url, {"page": 1})
-
-    if source == "javdb" and url_type in ("lists", "list", "direct", "search"):
-        return append_or_replace_query(url, {"page": 1})
-
-    return append_or_replace_query(url, {"page": 1})
+    return append_or_replace_query(url, params)
 
 
 def build_page_url(final_url: str, page: int) -> str:
