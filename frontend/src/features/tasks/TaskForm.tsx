@@ -168,7 +168,7 @@ export default function TaskForm() {
           url_type: task.url_type,
           is_skip: task.is_skip,
           max_list_pages: task.max_list_pages,
-          has_magnet: task.has_magnet ?? false,
+          has_magnet: task.has_magnet ?? true,
           has_chinese_sub: task.has_chinese_sub ?? false,
           sort_type: task.sort_type ?? 0,
         });
@@ -197,9 +197,7 @@ export default function TaskForm() {
         max_list_pages: (values.max_list_pages as number) ?? 50,
         has_magnet: (values.has_magnet as boolean) ?? false,
         has_chinese_sub: (values.has_chinese_sub as boolean) ?? false,
-        sort_type: urlType === "actors" || urlType === "video_codes"
-          ? ((values.sort_type as number) ?? 0)
-          : undefined,
+        sort_type: (values.sort_type as number) ?? 0,
         final_url: finalUrl,
       };
 
@@ -230,7 +228,7 @@ export default function TaskForm() {
           url_type: "actors",
           is_skip: false,
           max_list_pages: 50,
-          has_magnet: false,
+          has_magnet: true,
           has_chinese_sub: false,
           sort_type: 0,
         }}
@@ -251,7 +249,7 @@ export default function TaskForm() {
           {({ getFieldValue }) => {
             const urlType = getFieldValue("url_type") as UrlType;
             const showConditions = urlType in URL_TYPE_PARAMS;
-            const showSort = urlType === "actors" || urlType === "video_codes";
+            const showSort = urlType === "video_codes";
 
             if (!showConditions) return null;
 

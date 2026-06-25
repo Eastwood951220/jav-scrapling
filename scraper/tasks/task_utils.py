@@ -105,7 +105,7 @@ def build_final_url(
     filter_params = _build_filter_params(url_type, has_magnet, has_chinese_sub)
     params.update(filter_params)
 
-    if sort_type and url_type in ("actors", "actor", "search"):
+    if url_type in ("actors", "series", "makers", "directors", "video_codes"):
         params["sort_type"] = sort_type
 
     if url_type == "search" and "?" not in url:
