@@ -15,6 +15,8 @@ export function fetchMovies(params: {
   sort_by?: string;
   sort_order?: number;
   rating_min?: number;
+  actors?: string;
+  tags?: string;
 }): Promise<MovieListResponse> {
   return client.get("/movies", { params }).then((res) => res.data);
 }
@@ -29,4 +31,16 @@ export function deleteMovie(id: string): Promise<{ deleted: boolean }> {
 
 export function deleteMovies(ids: string[]): Promise<{ deleted: number }> {
   return client.delete("/movies/batch", { data: { ids } }).then((res) => res.data);
+}
+
+export function fetchActors(): Promise<string[]> {
+  return client.get("/movies/actors").then((res) => res.data);
+}
+
+export function fetchTags(): Promise<string[]> {
+  return client.get("/movies/tags").then((res) => res.data);
+}
+
+export function syncMovieFilters(): Promise<{ actors: number; tags: number }> {
+  return client.post("/movies/sync-filters").then((res) => res.data);
 }
