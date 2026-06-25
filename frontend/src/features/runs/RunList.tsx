@@ -18,6 +18,7 @@ export default function RunList() {
   const [total, setTotal] = useState(0);
   const [hasActiveRuns, setHasActiveRuns] = useState(false);
   const navigate = useNavigate();
+  const [modal, contextHolder] = Modal.useModal();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -42,6 +43,25 @@ export default function RunList() {
 
   // Poll every 3 seconds only while there are active (queued/running) runs
   usePolling(load, 3000, hasActiveRuns);
+
+  const handleStopRun = useCallback((run: TaskRun) => {
+    modal.confirm({
+      title: "确认停止任务?",
+      content: "已抓取的数据会被保存",
+      okText: "停止",
+      cancelText: "取消",
+      okButtonProps: { danger: true },
+      onOk: async () => {
+        try {
+          await stopRun(run._id);
+          message.success("停止信号已发送");
+          load();
+        } catch (e) {
+          message.error(getErrorMessage(e));
+        }
+      },
+    });
+  }, [load, modal]);
 
   const columns: ColumnsType<TaskRun> = useMemo(
     () => [
@@ -100,23 +120,7 @@ export default function RunList() {
               <Button
                 type="link"
                 danger
-                onClick={() => {
-                  Modal.confirm({
-                    title: "确认停止任务?",
-                    content: "已抓取的数据会被保存",
-                    okText: "停止",
-                    cancelText: "取消",
-                    okButtonProps: { danger: true },
-                    onOk: async () => {
-                      try {
-                        await stopRun(record._id);
-                        message.success("停止信号已发送");
-                      } catch (e) {
-                        message.error(getErrorMessage(e));
-                      }
-                    },
-                  });
-                }}
+                onClick={() => handleStopRun(record)}
               >
                 停止
               </Button>
@@ -147,11 +151,12 @@ export default function RunList() {
         ),
       },
     ],
-    [navigate],
+    [handleStopRun, load, navigate],
   );
 
   return (
     <div>
+      {contextHolder}
       <div className={styles.toolbarLeft}>
         <Space>
           <Select

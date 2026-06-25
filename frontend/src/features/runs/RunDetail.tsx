@@ -40,6 +40,7 @@ export default function RunDetail() {
   const [tasks, setTasks] = useState<RunDetailTask[]>([]);
   const [loading, setLoading] = useState(true);
   const logEndRef = useRef<HTMLDivElement>(null);
+  const [modal, contextHolder] = Modal.useModal();
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -94,6 +95,25 @@ export default function RunDetail() {
       message.error(getErrorMessage(e));
     }
   }, [id, load]);
+
+  const handleStopRun = useCallback((targetRun: TaskRun) => {
+    modal.confirm({
+      title: "确认停止任务?",
+      content: "已抓取的数据会被保存",
+      okText: "停止",
+      cancelText: "取消",
+      okButtonProps: { danger: true },
+      onOk: async () => {
+        try {
+          await stopRun(targetRun._id);
+          message.success("停止信号已发送");
+          load();
+        } catch (e) {
+          message.error(getErrorMessage(e));
+        }
+      },
+    });
+  }, [load, modal]);
 
   const taskColumns: ColumnsType<RunDetailTask> = [
     {
@@ -190,6 +210,7 @@ export default function RunDetail() {
 
   return (
     <div>
+      {contextHolder}
       <Space style={{ marginBottom: 16 }}>
         <Button icon={<ArrowLeftOutlined />} onClick={() => navigate({ to: "/runs" })}>
           返回
@@ -213,23 +234,7 @@ export default function RunDetail() {
                     <Button
                       danger
                       size="small"
-                      onClick={() => {
-                        Modal.confirm({
-                          title: "确认停止任务?",
-                          content: "已抓取的数据会被保存",
-                          okText: "停止",
-                          cancelText: "取消",
-                          okButtonProps: { danger: true },
-                          onOk: async () => {
-                            try {
-                              await stopRun(run._id);
-                              message.success("停止信号已发送");
-                            } catch (e) {
-                              message.error(getErrorMessage(e));
-                            }
-                          },
-                        });
-                      }}
+                      onClick={() => handleStopRun(run)}
                     >
                       停止任务
                     </Button>
