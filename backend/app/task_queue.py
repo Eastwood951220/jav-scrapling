@@ -233,6 +233,29 @@ def get_queue_status() -> dict:
     }
 
 
+def retry_detail_task(task_id: str, retry_type: str) -> dict:
+    """重试 detail task 的爬取或入库操作。
+
+    Args:
+        task_id: detail task 的 ObjectId 字符串
+        retry_type: "crawl" 或 "save"
+    """
+    from scraper.database.mongo_client import get_mongo_db
+
+    col = get_mongo_db()["run_detail_tasks"]
+    doc = col.find_one({"_id": ObjectId(task_id)})
+    if not doc:
+        raise ValueError(f"Detail task {task_id} not found")
+
+    new_status = "pending_crawl" if retry_type == "crawl" else "crawled"
+    col.update_one(
+        {"_id": ObjectId(task_id)},
+        {"$set": {"status": new_status, "error": None}},
+    )
+
+    return {"success": True, "task_id": task_id, "new_status": new_status}
+
+
 def run_to_response(doc: dict) -> dict | None:
     """Convert MongoDB doc to JSON-safe response dict. Returns None on failure."""
     try:

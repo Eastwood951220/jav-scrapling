@@ -159,3 +159,66 @@ def delete_run(run_id: str):
         logger.warning("删除运行文件失败 %s: %s", run_id, e)
 
     return {"deleted": True}
+
+
+DETAIL_TASKS_COLLECTION = "run_detail_tasks"
+
+
+def _detail_col():
+    return get_mongo_db()[DETAIL_TASKS_COLLECTION]
+
+
+@router.get("/{run_id}/tasks")
+def list_run_detail_tasks(run_id: str):
+    try:
+        ObjectId(run_id)
+    except InvalidId:
+        raise HTTPException(status_code=400, detail="Invalid run ID")
+
+    cursor = _detail_col().find({"run_id": run_id}).sort("created_at", 1)
+    items = []
+    for doc in cursor:
+        doc["_id"] = str(doc["_id"])
+        items.append(doc)
+
+    return {"items": items, "total": len(items)}
+
+
+@router.post("/{run_id}/tasks/{task_id}/retry-crawl")
+def retry_crawl(run_id: str, task_id: str):
+    from app.task_queue import retry_detail_task
+
+    try:
+        ObjectId(run_id)
+        ObjectId(task_id)
+    except InvalidId:
+        raise HTTPException(status_code=400, detail="Invalid ID")
+
+    doc = _detail_col().find_one({"_id": ObjectId(task_id), "run_id": run_id})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Detail task not found")
+    if doc.get("status") != "crawl_failed":
+        raise HTTPException(status_code=400, detail="只能重试爬取失败的任务")
+
+    result = retry_detail_task(task_id, "crawl")
+    return result
+
+
+@router.post("/{run_id}/tasks/{task_id}/retry-save")
+def retry_save(run_id: str, task_id: str):
+    from app.task_queue import retry_detail_task
+
+    try:
+        ObjectId(run_id)
+        ObjectId(task_id)
+    except InvalidId:
+        raise HTTPException(status_code=400, detail="Invalid ID")
+
+    doc = _detail_col().find_one({"_id": ObjectId(task_id), "run_id": run_id})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Detail task not found")
+    if doc.get("status") != "save_failed":
+        raise HTTPException(status_code=400, detail="只能重试入库失败的任务")
+
+    result = retry_detail_task(task_id, "save")
+    return result
