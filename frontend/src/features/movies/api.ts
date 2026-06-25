@@ -22,3 +22,7 @@ export function fetchMovies(params: {
 export function fetchMovie(id: string, collection?: string): Promise<Record<string, unknown>> {
   return client.get(`/movies/${id}`, { params: { collection } }).then((res) => res.data);
 }
+
+export function deleteCollection(name: string): Promise<{ deleted: boolean; collection: string }> {
+  return client.delete(`/movies/collections/${name}`).then((res) => res.data);
+}

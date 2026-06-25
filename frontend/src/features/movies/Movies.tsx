@@ -1,10 +1,10 @@
 import { useEffect, useState, useCallback } from "react";
 import {
-  Table, Input, Select, Button, Space, Card, message, Drawer, Descriptions, Tag, Typography, InputNumber, Image,
+  Table, Input, Select, Button, Space, Card, message, Drawer, Descriptions, Tag, Typography, InputNumber, Image, Popconfirm,
 } from "antd";
-import { SearchOutlined, ReloadOutlined, DownloadOutlined } from "@ant-design/icons";
+import { SearchOutlined, ReloadOutlined, DownloadOutlined, DeleteOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
-import { fetchCollections, fetchMovies, fetchMovie } from "./api";
+import { fetchCollections, fetchMovies, fetchMovie, deleteCollection } from "./api";
 import type { Movie, MovieListResponse } from "./types";
 import { getErrorMessage } from "@/shared/hooks/useErrorMessage";
 
@@ -185,6 +185,29 @@ export default function Movies() {
             options={collections.map((c) => ({ value: c, label: c }))}
             placeholder="选择集合"
           />
+          {selectedCollection !== "movies" && (
+            <Popconfirm
+              title={`确认删除集合 "${selectedCollection}"？`}
+              description="将删除该集合下的所有影片数据，不可恢复"
+              onConfirm={async () => {
+                try {
+                  await deleteCollection(selectedCollection);
+                  message.success(`已删除集合 ${selectedCollection}`);
+                  setSelectedCollection("movies");
+                  loadCollections();
+                } catch (e) {
+                  message.error(getErrorMessage(e));
+                }
+              }}
+              okText="删除"
+              cancelText="取消"
+              okButtonProps={{ danger: true }}
+            >
+              <Button icon={<DeleteOutlined />} danger>
+                删除集合
+              </Button>
+            </Popconfirm>
+          )}
           <Input
             style={{ width: 240 }}
             placeholder="搜索番号、标题..."

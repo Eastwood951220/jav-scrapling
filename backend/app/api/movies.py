@@ -25,6 +25,20 @@ def list_collections():
     return [n for n in names if n not in excluded]
 
 
+@router.delete("/collections/{collection_name}")
+def delete_collection(collection_name: str):
+    db = get_mongo_db()
+    safe_name = _sanitize_collection_name(collection_name)
+    excluded = {"config_tasks", "config_schedules", "config_settings", "task_runs"}
+    if safe_name in excluded:
+        raise HTTPException(status_code=400, detail="不能删除系统集合")
+    names = db.list_collection_names()
+    if safe_name not in names:
+        raise HTTPException(status_code=404, detail="集合不存在")
+    db.drop_collection(safe_name)
+    return {"deleted": True, "collection": safe_name}
+
+
 @router.get("")
 def list_movies(
     collection: str = Query(default="movies"),
