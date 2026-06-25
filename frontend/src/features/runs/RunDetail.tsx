@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate } from "@tanstack/react-router";
 import {
   Card, Descriptions, Tag, Timeline, Typography, Space, Button, message, Modal, Table, Tooltip,
@@ -42,7 +42,6 @@ export default function RunDetail() {
   const [taskPage, setTaskPage] = useState(1);
   const [taskPageSize, setTaskPageSize] = useState(20);
   const [taskTotal, setTaskTotal] = useState(0);
-  const logEndRef = useRef<HTMLDivElement>(null);
   const [modal, contextHolder] = Modal.useModal();
 
   const loadTasks = useCallback(async () => {
@@ -82,13 +81,6 @@ export default function RunDetail() {
   // Poll while active
   const isActive = run && (run.status === "running" || run.status === "queued");
   usePolling(load, 3000, Boolean(isActive));
-
-  // Auto-scroll to latest log during active runs
-  useEffect(() => {
-    if (run?.logs?.length && isActive) {
-      logEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }
-  }, [run?.logs?.length, isActive]);
 
   const handleRetryCrawl = useCallback(async (taskId: string) => {
     if (!id) return;
@@ -350,7 +342,7 @@ export default function RunDetail() {
             ) : (
               <>
                 <Timeline
-                  items={run.logs.map((entry, idx) => ({
+                  items={run.logs.slice().reverse().map((entry, idx) => ({
                     key: idx,
                     color: logLevelColors[entry.level] || "gray",
                     children: (
@@ -368,7 +360,6 @@ export default function RunDetail() {
                     ),
                   }))}
                 />
-                <div ref={logEndRef} />
               </>
             )}
           </Card>
