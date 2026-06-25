@@ -49,12 +49,18 @@ def enqueue_task(task_id: str) -> dict:
     return run_to_response(run_doc)
 
 
-def stop_current_task() -> bool:
-    """Signal the current task to stop. Returns True if a task was running."""
-    if _current_run_id is not None:
-        _stop_event.set()
-        return True
-    return False
+def stop_current_task(run_id: str | None = None) -> bool:
+    """Signal the current task to stop. Returns True if a task was running.
+
+    Args:
+        run_id: If provided, only stop if this run is the current one.
+    """
+    if _current_run_id is None:
+        return False
+    if run_id is not None and _current_run_id != run_id:
+        return False
+    _stop_event.set()
+    return True
 
 
 def _ensure_worker():
@@ -143,6 +149,17 @@ def _worker_loop():
                     "saved_at": None,
                 })
 
+            def on_detail_failed(detail_task: dict, error: str) -> None:
+                detail_col.update_one(
+                    {"run_id": run_id, "source_url": detail_task.get("url")},
+                    {"$set": {
+                        "status": "crawl_failed",
+                        "error": error,
+                        "crawled_at": datetime.now(timezone.utc),
+                    }},
+                    upsert=True,
+                )
+
             def on_item_saved(detail_task: dict, cleaned_item: dict) -> None:
                 try:
                     repository.upsert_movie(cleaned_item)
@@ -175,6 +192,7 @@ def _worker_loop():
                 log_callback=log_callback,
                 on_item_saved=on_item_saved,
                 on_detail_created=on_detail_created,
+                on_detail_failed=on_detail_failed,
             )
 
             stop_requested = result.get("stopped", False) or _stop_event.is_set()
@@ -260,9 +278,16 @@ def retry_detail_task(task_id: str, mode: str) -> dict:
     if mode == "crawl":
         detail_col.update_one(
             {"_id": ObjectId(task_id)},
-            {"$set": {"status": "pending_crawl", "error": None, "crawled_at": None, "saved_at": None, "item_data": None}},
+            {"$set": {
+                "status": "pending_crawl",
+                "error": None,
+                "crawled_at": None,
+                "saved_at": None,
+                "item_data": None,
+                "retried_at": datetime.now(timezone.utc),
+            }},
         )
-        return {"success": True, "message": "已标记为待重新爬取"}
+        return {"success": True, "message": "已标记为待重新爬取，请重新运行任务"}
 
     elif mode == "save":
         item_data = doc.get("item_data")
@@ -287,10 +312,21 @@ def retry_detail_task(task_id: str, mode: str) -> dict:
     return {"success": False, "error": "未知模式"}
 
 
+def _stringify_objectids(obj: Any) -> Any:
+    """Recursively convert all ObjectId instances to strings."""
+    if isinstance(obj, ObjectId):
+        return str(obj)
+    if isinstance(obj, dict):
+        return {k: _stringify_objectids(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_stringify_objectids(item) for item in obj]
+    return obj
+
+
 def run_to_response(doc: dict) -> dict | None:
     """Convert MongoDB doc to JSON-safe response dict. Returns None on failure."""
     try:
-        return {**doc, "_id": str(doc["_id"])}
+        return _stringify_objectids(doc)
     except Exception as e:
         print(
             f"[ERROR] Failed to convert run doc: {e} (keys={list(doc.keys())})",

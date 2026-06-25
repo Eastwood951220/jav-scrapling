@@ -113,16 +113,10 @@ def stop_run(run_id: str):
     except InvalidId:
         raise HTTPException(status_code=400, detail="Invalid run ID")
 
-    status = get_queue_status()
-    current_id = status.get("current_run_id")
-    if not current_id or str(current_id) != run_id:
+    stopped = stop_current_task(run_id)
+    if not stopped:
         raise HTTPException(status_code=400, detail="任务当前未在运行中")
 
-    stopped = stop_current_task()
-    if not stopped:
-        raise HTTPException(status_code=400, detail="无法停止任务")
-
-    # 不在此处写入 MongoDB — 仅设置停止信号，由 worker 通过原子更新设置最终状态
     return {"success": True, "message": "停止信号已发送"}
 
 
