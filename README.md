@@ -7,7 +7,7 @@
 - 爬取 JavDB 列表页和详情页，保存影片详情、磁力信息、标签、演员、评分等字段。
 - 通过 Web UI 管理任务配置、定时任务、运行历史和系统设置。
 - 后端使用 MongoDB 保存配置、运行摘要和影片数据。
-- 大体积运行结果和日志写入 `run_data/`，避免 MongoDB 文档过大。
+- 运行日志写入 `run_data/`，运行结果摘要保存在 MongoDB。
 - 支持 Docker Compose 部署，也支持本地前后端分离开发。
 
 ## 技术栈
@@ -29,7 +29,7 @@
 │   │   ├── api/              # movies/tasks/runs/schedules/settings/cookies API
 │   │   ├── models/           # Pydantic 响应和请求模型
 │   │   ├── main.py           # FastAPI 入口
-│   │   ├── run_storage.py    # run_data 文件存储
+    │   │   ├── run_storage.py    # run_data 日志文件存储
 │   │   ├── scheduler.py      # APScheduler 定时任务
 │   │   └── task_queue.py     # 单进程任务队列和 worker
 │   └── requirements.txt
@@ -71,7 +71,6 @@ LIST_PAGE_DELAY_MAX=5
 DETAIL_PAGE_DELAY_MIN=2
 DETAIL_PAGE_DELAY_MAX=3
 SECURITY_WAIT_SECONDS=120
-BATCH_SAVE_SIZE=50
 ```
 
 使用 Docker Compose 时，后端容器会通过 `mongo:27017` 连接 MongoDB；宿主机访问 compose 中的 MongoDB 端口是 `localhost:27018`。如果本地后端要连接 compose 启动的 MongoDB，请把 `.env` 中的 `MONGO_URI` 改为 `mongodb://admin:admin123@localhost:27018/?authSource=admin`。
@@ -191,11 +190,10 @@ make dev
 
 ### 文件存储
 
-运行日志和完整结果保存在：
+运行日志保存在：
 
 ```text
-run_data/{run_id}/logs.json
-run_data/{run_id}/result.json
+run_data/{run_id}.jsonl
 ```
 
 Docker 运行时对应宿主机目录：

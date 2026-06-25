@@ -5,6 +5,7 @@ from fastapi import APIRouter, HTTPException, Query
 from scraper.database.mongo_client import get_mongo_db
 from app.task_queue import run_to_response as to_response, get_queue_status, stop_current_task
 from app.models.run import QueueStatusResponse, RunListResponse, RunResponse
+from app.models.run_detail_task import RunDetailTaskListResponse
 
 router = APIRouter(prefix="/api/runs", tags=["runs"])
 
@@ -172,7 +173,7 @@ def _stringify_objectids(obj):
     return obj
 
 
-@router.get("/{run_id}/tasks")
+@router.get("/{run_id}/tasks", response_model=RunDetailTaskListResponse)
 def list_run_detail_tasks(run_id: str):
     try:
         ObjectId(run_id)

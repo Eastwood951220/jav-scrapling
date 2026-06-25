@@ -6,7 +6,7 @@ from fastapi import APIRouter, HTTPException
 
 from scraper.database.mongo_client import get_mongo_db, sanitize_collection_name
 from app.models.run import RunResponse
-from app.models.task import TaskCreate, TaskResponse, TaskUpdate
+from app.models.task import TaskCreate, TaskUpdate
 from scraper.tasks.task_utils import build_final_url, determine_source
 
 router = APIRouter(prefix="/api/tasks", tags=["tasks"])

@@ -1,41 +1,8 @@
-import threading
-from unittest.mock import MagicMock, patch
-
-import pytest
-
 from backend.app.task_queue import (
-    _batch_save_items,
     _stop_event,
-    enqueue_task,
     get_queue_status,
     stop_current_task,
 )
-
-
-class TestBatchSave:
-    def test_batch_save_empty_items_returns_zero(self):
-        repo = MagicMock()
-        result = _batch_save_items([], 50, repo)
-        assert result == 0
-        repo.upsert_movie.assert_not_called()
-
-    def test_batch_save_saves_all_items(self):
-        repo = MagicMock()
-        repo.upsert_movie.return_value = "some_id"
-        items = [{"code": f"ABC-{i:03d}", "title": f"Title {i}"} for i in range(10)]
-        result = _batch_save_items(items, 50, repo)
-        assert result == 10
-        assert repo.upsert_movie.call_count == 10
-
-    def test_batch_save_logs_every_batch_size(self):
-        repo = MagicMock()
-        repo.upsert_movie.return_value = "some_id"
-        items = [{"code": f"ABC-{i:03d}", "title": f"Title {i}"} for i in range(55)]
-        with patch("builtins.print") as mock_print:
-            result = _batch_save_items(items, 10, repo)
-        assert result == 55
-        # Should have printed batch progress at least 5 times (ceil(55/10) = 6 batches)
-        assert mock_print.call_count >= 6
 
 
 class TestStopSignal:
@@ -73,60 +40,6 @@ class TestStopSignal:
         result = stop_current_task()
         assert result is False
         assert not _stop_event.is_set()
-
-
-class TestCrashDrain:
-    """Verify crash drain behavior: when crawl_javdb_task raises, already-
-    collected items are persisted before the run is marked failed."""
-
-    def test_batch_save_persists_all_items_on_drain(self):
-        """_batch_save_items saves every item to the repository."""
-        repo = MagicMock()
-
-        saved_items = []
-
-        def fake_upsert(item):
-            saved_items.append(item)
-            return f"id_{item['code']}"
-
-        repo.upsert_movie.side_effect = fake_upsert
-
-        # Simulate crash after collecting 25 items, draining in batches of 10
-        items = [{"code": f"VID-{i:04d}", "title": f"Movie {i}"} for i in range(25)]
-        saved = _batch_save_items(items, 10, repo)
-
-        assert saved == 25
-        assert len(saved_items) == 25
-        assert saved_items[0]["code"] == "VID-0000"
-        assert saved_items[-1]["code"] == "VID-0024"
-
-    def test_batch_save_drain_handles_partial_repo_failure(self):
-        """Items that fail to upsert are counted as not saved, others proceed."""
-        repo = MagicMock()
-
-        saved_codes = []
-
-        def flaky_upsert(item):
-            if item["code"] == "FAIL-0002":
-                return None
-            saved_codes.append(item["code"])
-            return f"id_{item['code']}"
-
-        repo.upsert_movie.side_effect = flaky_upsert
-
-        items = [{"code": f"FAIL-{i:04d}"} for i in range(5)]
-        saved = _batch_save_items(items, 50, repo)
-
-        assert saved == 4
-        assert "FAIL-0002" not in saved_codes
-        assert len(saved_codes) == 4
-
-    def test_drain_on_empty_items_is_noop(self):
-        """Calling _batch_save_items with empty list returns 0 and no upsert."""
-        repo = MagicMock()
-        result = _batch_save_items([], 10, repo)
-        assert result == 0
-        repo.upsert_movie.assert_not_called()
 
 
 class TestAppendLogToFile:

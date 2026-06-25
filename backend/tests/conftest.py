@@ -1,4 +1,3 @@
-import importlib
 import os
 import sys
 from pathlib import Path
@@ -120,6 +119,9 @@ class InMemoryCollection:
         result.inserted_id = oid
         return result
 
+    def create_indexes(self, indexes, **_kwargs):
+        return [idx.document.get("name") for idx in indexes]
+
     def update_one(self, query: dict, update: dict):
         doc = self.find_one(query)
         result = MagicMock()
@@ -144,7 +146,7 @@ class InMemoryCollection:
         result.modified_count = 1
         return result
 
-    def find_one_and_update(self, query: dict, update: dict, return_document=True, **_kwargs):
+    def find_one_and_update(self, query: dict, update: dict, _return_document=True, **_kwargs):
         doc = self.find_one(query)
         if doc is None:
             return None
@@ -182,6 +184,18 @@ class InMemoryDB:
         if name not in self._collections:
             self._collections[name] = InMemoryCollection()
         return self._collections[name]
+
+    def list_collection_names(self) -> list[str]:
+        return list(self._collections)
+
+    def create_collection(self, name: str) -> InMemoryCollection:
+        if name in self._collections:
+            raise ValueError(f"Collection already exists: {name}")
+        self._collections[name] = InMemoryCollection()
+        return self._collections[name]
+
+    def drop_collection(self, name: str) -> None:
+        self._collections.pop(name, None)
 
 
 @pytest.fixture

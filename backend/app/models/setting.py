@@ -1,12 +1,4 @@
-from typing import Any
-
 from pydantic import BaseModel, Field
-
-
-class SettingItem(BaseModel):
-    key: str
-    value: Any
-    description: str = ""
 
 
 class SettingUpdate(BaseModel):
@@ -21,4 +13,3 @@ class SettingUpdate(BaseModel):
     MONGO_URI: str | None = None
     MONGO_DB_NAME: str | None = None
     MONGO_CONNECT_TIMEOUT_MS: int | None = Field(None, ge=1000)
-    BATCH_SAVE_SIZE: int | None = Field(None, ge=1, le=1000)

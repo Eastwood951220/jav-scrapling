@@ -14,6 +14,7 @@ class FakeCollection:
         self.queries = []
 
     def create_indexes(self, indexes, background=False):
+        self.background = background
         for idx in indexes:
             self.indexes.append(idx)
 

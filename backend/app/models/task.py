@@ -1,4 +1,3 @@
-from datetime import datetime
 from typing import Any
 
 from pydantic import BaseModel, Field
@@ -27,18 +26,3 @@ class TaskUpdate(BaseModel):
     max_list_pages: int | None = Field(None, ge=1, le=100)
     filter: FilterConfigModel | None = None
 
-
-class TaskResponse(BaseModel):
-    id: str
-    name: str
-    url: str
-    url_type: str
-    is_skip: bool
-    max_list_pages: int
-    filter: dict
-    source: str | None = None
-    final_url: str | None = None
-    created_at: datetime | None = None
-    updated_at: datetime | None = None
-
-    model_config = {"populate_by_name": True}

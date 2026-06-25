@@ -4,6 +4,7 @@ from bson import ObjectId
 from bson.errors import InvalidId
 from fastapi import APIRouter, HTTPException, Query
 
+from app.models.movie import MovieListResponse
 from scraper.database.mongo_client import get_mongo_db, sanitize_collection_name
 
 router = APIRouter(prefix="/api/movies", tags=["movies"])
@@ -49,7 +50,7 @@ def delete_collection(collection_name: str):
     return {"deleted": True, "collection": safe_name}
 
 
-@router.get("")
+@router.get("", response_model=MovieListResponse)
 def list_movies(
     search: str | None = Query(default=None),
     source_task_name: str | None = Query(default=None),

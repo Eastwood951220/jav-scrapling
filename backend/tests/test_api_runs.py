@@ -22,7 +22,7 @@ def test_get_queue_status(client: TestClient):
 
 
 def test_enqueue_task_creates_run(client: TestClient):
-    with patch("backend.app.task_queue._worker_running", True):
+    with patch("app.task_queue._worker_running", True):
         # Create a task via the API
         payload = {
             "name": "Test",
@@ -61,7 +61,7 @@ def _create_run(client: TestClient) -> str:
         "max_list_pages": 5,
         "filter": {"only_chinese": False, "exclude_multi_person": False},
     }
-    with patch("backend.app.task_queue._worker_running", True):
+    with patch("app.task_queue._worker_running", True):
         create_resp = client.post("/api/tasks", json=payload)
         task_id = create_resp.json()["_id"]
         run_resp = client.post(f"/api/tasks/{task_id}/run")
@@ -84,7 +84,7 @@ class TestListRunsLightweight:
             "max_list_pages": 5,
             "filter": {"only_chinese": False, "exclude_multi_person": False},
         }
-        with patch("backend.app.task_queue._worker_running", True):
+        with patch("app.task_queue._worker_running", True):
             create_resp = client.post("/api/tasks", json=payload)
             task_id = create_resp.json()["_id"]
             run_resp = client.post(f"/api/tasks/{task_id}/run")
@@ -120,7 +120,7 @@ class TestListRunsLightweight:
 
 
 class TestRunDetailFromFiles:
-    """Verify detail endpoint loads logs/result from files with MongoDB fallback."""
+    """Verify detail endpoint loads logs from files with MongoDB fallback."""
 
     def test_detail_loads_logs_from_file(self, client: TestClient):
         from backend.app.run_storage import save_logs
@@ -150,16 +150,19 @@ class TestRunDetailFromFiles:
         assert resp.status_code == 200
         assert resp.json()["logs"] == []
 
-    def test_detail_loads_result_from_file(self, client: TestClient):
-        from backend.app.run_storage import save_result
+    def test_detail_loads_result_from_mongodb(self, client: TestClient):
+        from bson import ObjectId
+
+        from scraper.database.mongo_client import get_mongo_db
 
         run_id = _create_run(client)
 
-        # Save result to file
         result_data = {"total": 5, "items": [{"id": "abc"}, {"id": "def"}]}
-        save_result(run_id, result_data)
+        get_mongo_db()["task_runs"].update_one(
+            {"_id": ObjectId(run_id)},
+            {"$set": {"result": result_data}},
+        )
 
-        # Fetch detail — should return file-based result
         resp = client.get(f"/api/runs/{run_id}")
         assert resp.status_code == 200
         data = resp.json()

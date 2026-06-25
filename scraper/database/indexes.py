@@ -45,4 +45,4 @@ MOVIE_INDEXES: list[IndexModel] = [
 def ensure_indexes(db, collection_name: str = "movies") -> None:
     """Ensure all movie indexes exist on the target collection."""
     collection = db[collection_name]
-    collection.create_indexes(MOVIE_INDEXES)
+    collection.create_indexes(MOVIE_INDEXES, background=True)

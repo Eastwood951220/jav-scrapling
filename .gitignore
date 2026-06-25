@@ -18,7 +18,7 @@ scraper/cookies/storage/*.json
 .superpowers
 graphify-out
 
-docs
+docs/
 .pytest_cache/
 .coverage
 htmlcov/
@@ -32,3 +32,6 @@ node_modules/
 frontend/node_modules/
 frontend/dist/
 mongo_data/
+docker/
+tests/
+backend/tests

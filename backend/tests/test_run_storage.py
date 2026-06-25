@@ -1,5 +1,4 @@
 import json
-from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -22,9 +21,9 @@ class TestSaveLogs:
         ]
         save_logs("run_abc", logs)
 
-        file = tmp_run_dir / "run_abc" / "logs.json"
+        file = tmp_run_dir / "run_abc.jsonl"
         assert file.exists()
-        data = json.loads(file.read_text(encoding="utf-8"))
+        data = [json.loads(line) for line in file.read_text(encoding="utf-8").splitlines()]
         assert len(data) == 2
         assert data[0]["message"] == "start"
         assert data[1]["level"] == "ERROR"
@@ -35,15 +34,17 @@ class TestSaveLogs:
         save_logs("run_abc", [{"message": "old"}])
         save_logs("run_abc", [{"message": "new"}])
 
-        data = json.loads((tmp_run_dir / "run_abc" / "logs.json").read_text(encoding="utf-8"))
+        lines = (tmp_run_dir / "run_abc.jsonl").read_text(encoding="utf-8").splitlines()
+        data = [json.loads(line) for line in lines]
         assert len(data) == 1
         assert data[0]["message"] == "new"
 
     def test_creates_parent_directories(self, tmp_run_dir):
         from backend.app.run_storage import save_logs
 
-        save_logs("deep/nested/run", [{"message": "ok"}])
-        assert (tmp_run_dir / "deep" / "nested" / "run" / "logs.json").exists()
+        save_logs("run_abc", [{"message": "ok"}])
+        assert tmp_run_dir.exists()
+        assert (tmp_run_dir / "run_abc.jsonl").exists()
 
 
 class TestLoadLogs:
@@ -58,34 +59,6 @@ class TestLoadLogs:
         logs = [{"message": "hello"}, {"message": "world"}]
         save_logs("run_xyz", logs)
         assert load_logs("run_xyz") == logs
-
-
-class TestSaveResult:
-    def test_creates_file_and_writes_json(self, tmp_run_dir):
-        from backend.app.run_storage import save_result
-
-        result = {"total_tasks": 10, "saved": 8, "items": [{"code": "A"}]}
-        save_result("run_abc", result)
-
-        file = tmp_run_dir / "run_abc" / "result.json"
-        assert file.exists()
-        data = json.loads(file.read_text(encoding="utf-8"))
-        assert data["total_tasks"] == 10
-        assert data["items"] == [{"code": "A"}]
-
-
-class TestLoadResult:
-    def test_returns_none_when_file_missing(self, tmp_run_dir):
-        from backend.app.run_storage import load_result
-
-        assert load_result("nonexistent") is None
-
-    def test_returns_saved_result(self, tmp_run_dir):
-        from backend.app.run_storage import save_result, load_result
-
-        result = {"total_tasks": 5, "items": []}
-        save_result("run_def", result)
-        assert load_result("run_def") == result
 
 
 class TestGetResultSummary:

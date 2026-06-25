@@ -2,7 +2,7 @@ import os
 
 from fastapi import APIRouter, HTTPException
 
-from app.models.setting import SettingItem, SettingUpdate
+from app.models.setting import SettingUpdate
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])
 

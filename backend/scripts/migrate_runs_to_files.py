@@ -1,4 +1,4 @@
-"""One-time migration: move logs and result from MongoDB to files.
+"""One-time migration: move run logs from MongoDB to JSONL files.
 
 Usage (pick one):
 
@@ -22,7 +22,7 @@ for p in (str(PROJECT_ROOT), str(BACKEND_DIR)):
         sys.path.insert(0, p)
 
 from scraper.database.mongo_client import get_mongo_db, connect_mongo
-from app.run_storage import save_logs, save_result, get_result_summary
+from app.run_storage import get_result_summary, save_logs
 
 
 def migrate():
@@ -45,14 +45,10 @@ def migrate():
             skipped += 1
             continue
 
-        # Write logs to file if they exist
         if logs:
             save_logs(run_id, logs)
 
-        # Write result to file if it has items
         if result and "items" in result:
-            save_result(run_id, result)
-            # Update MongoDB with summary only
             summary = get_result_summary(result)
             runs.update_one(
                 {"_id": doc["_id"]},

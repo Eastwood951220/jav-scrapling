@@ -31,6 +31,5 @@ export interface AppSettings {
   SECURITY_WAIT_SECONDS?: number;
   REQUEST_TIMEOUT?: number;
   USE_DYNAMIC_FETCHER?: boolean;
-  BATCH_SAVE_SIZE?: number;
   [key: string]: unknown;
 }
