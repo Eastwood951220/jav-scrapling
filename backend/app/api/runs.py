@@ -64,6 +64,9 @@ def list_runs(
 @router.get("/{run_id}", response_model=RunResponse)
 def get_run(run_id: str):
     import logging
+
+    from app.run_storage import load_logs, load_result
+
     logger = logging.getLogger("runs")
 
     try:
@@ -78,6 +81,18 @@ def get_run(run_id: str):
     if result is None:
         logger.error("Failed to serialize run doc: %s", run_id)
         raise HTTPException(status_code=500, detail="Failed to serialize run data")
+
+    # Load logs from file, fall back to MongoDB
+    file_logs = load_logs(run_id)
+    if file_logs:
+        result["logs"] = file_logs
+    # else: keep MongoDB logs (backward compat for old runs)
+
+    # Load result from file, fall back to MongoDB
+    file_result = load_result(run_id)
+    if file_result is not None:
+        result["result"] = file_result
+    # else: keep MongoDB result (backward compat)
 
     return result
 
