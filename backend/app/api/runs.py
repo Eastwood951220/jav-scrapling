@@ -74,7 +74,7 @@ def list_runs(
 def get_run(run_id: str):
     import logging
 
-    from app.run_storage import load_logs_jsonl, load_result
+    from app.run_storage import load_logs_jsonl
 
     logger = logging.getLogger("runs")
 
@@ -91,17 +91,11 @@ def get_run(run_id: str):
         logger.error("Failed to serialize run doc: %s", run_id)
         raise HTTPException(status_code=500, detail="Failed to serialize run data")
 
-    # Load logs from file (JSONL or JSON fallback), fall back to MongoDB
+    # Load logs from file (JSONL or legacy fallback), fall back to MongoDB
     file_logs = load_logs_jsonl(run_id)
     if file_logs:
         result["logs"] = file_logs
     # else: keep MongoDB logs (backward compat for old runs)
-
-    # Load result from file, fall back to MongoDB
-    file_result = load_result(run_id)
-    if file_result is not None:
-        result["result"] = file_result
-    # else: keep MongoDB result (backward compat)
 
     return result
 
