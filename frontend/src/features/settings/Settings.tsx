@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Form, Input, InputNumber, Switch, Button, Card, message, Typography } from "antd";
+import { Form, Input, InputNumber, Button, Card, message, Typography } from "antd";
 import Editor, { type OnMount } from "@monaco-editor/react";
 import { fetchSettings, updateSettings, fetchCookiesConfig, updateCookiesConfig, type AppSettings, type CookiesConfig } from "./api";
 import { getErrorMessage } from "@/shared/hooks/useErrorMessage";
@@ -158,12 +158,6 @@ export default function Settings() {
             </Form.Item>
             <Form.Item name="REQUEST_TIMEOUT" label="请求超时 (秒)">
               <InputNumber min={5} max={120} style={{ width: "100%" }} />
-            </Form.Item>
-            <Form.Item name="USE_DYNAMIC_FETCHER" label="动态抓取" valuePropName="checked">
-              <Switch />
-            </Form.Item>
-            <Form.Item name="BATCH_SAVE_SIZE" label="批量写入大小 (条)">
-              <InputNumber min={1} max={1000} style={{ width: "100%" }} />
             </Form.Item>
           </Card>
 

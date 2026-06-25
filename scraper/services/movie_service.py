@@ -1,4 +1,4 @@
-from scraper.config.settings import REQUEST_TIMEOUT, USE_DYNAMIC_FETCHER
+from scraper.config.settings import REQUEST_TIMEOUT
 from scraper.config.sites import JAVDB_SITE
 from scraper.cookies.cookie_manager import CookieManager
 from scraper.fetchers.scrapling_fetcher import ScraplingFetcher
@@ -21,7 +21,6 @@ class MovieService:
             headers=JAVDB_SITE["headers"],
             cookies=cookies,
             timeout=REQUEST_TIMEOUT,
-            dynamic=USE_DYNAMIC_FETCHER,
         )
 
         return JavdbSpider(fetcher=fetcher)
