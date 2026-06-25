@@ -16,6 +16,24 @@ SETTING_KEYS = [
 
 
 def _read_settings() -> dict:
+    from scraper.config import settings as cfg
+
+    # Default values sourced from scraper.config.settings module
+    _DEFAULTS = {
+        "MAX_LIST_PAGES": cfg.MAX_LIST_PAGES,
+        "LIST_PAGE_DELAY_MIN": cfg.LIST_PAGE_DELAY_MIN,
+        "LIST_PAGE_DELAY_MAX": cfg.LIST_PAGE_DELAY_MAX,
+        "DETAIL_PAGE_DELAY_MIN": cfg.DETAIL_PAGE_DELAY_MIN,
+        "DETAIL_PAGE_DELAY_MAX": cfg.DETAIL_PAGE_DELAY_MAX,
+        "SECURITY_WAIT_SECONDS": cfg.SECURITY_WAIT_SECONDS,
+        "REQUEST_TIMEOUT": cfg.REQUEST_TIMEOUT,
+        "USE_DYNAMIC_FETCHER": cfg.USE_DYNAMIC_FETCHER,
+        "MONGO_URI": cfg.MONGO_URI,
+        "MONGO_DB_NAME": cfg.MONGO_DB_NAME,
+        "MONGO_CONNECT_TIMEOUT_MS": cfg.MONGO_CONNECT_TIMEOUT_MS,
+        "BATCH_SAVE_SIZE": int(os.getenv("BATCH_SAVE_SIZE", "50")),
+    }
+
     result = {}
     for key in SETTING_KEYS:
         value = os.getenv(key)
@@ -29,6 +47,8 @@ def _read_settings() -> dict:
                     result[key] = float(value)
                 except ValueError:
                     result[key] = value
+        elif key in _DEFAULTS:
+            result[key] = _DEFAULTS[key]
     return result
 
 

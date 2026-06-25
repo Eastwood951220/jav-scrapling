@@ -29,39 +29,51 @@ class JavdbSpider(BaseSpider):
         super().__init__(fetcher)
         self.logger = get_logger(self.name)
 
-    def collect_detail_tasks(self, task: CrawlTask, stop_check=None) -> list[dict]:
+    def collect_detail_tasks(self, task: CrawlTask, stop_check=None, log_callback=None) -> list[dict]:
         max_pages = min(task.max_list_pages, MAX_LIST_PAGES)
         detail_tasks: list[dict] = []
         verification_count = 0
 
-        print(
-            f"[Task:{task.name}][List] start collect "
-            f"url={task.final_url}, max_pages={max_pages}"
-        )
+        msg = f"[{task.name}] 开始收集列表页 url={task.final_url}, 最大页数={max_pages}"
+        print(msg)
+        if log_callback:
+            log_callback(msg, "INFO")
 
         page_no = 1
 
         while page_no <= max_pages:
             if stop_check and stop_check():
-                print(f"[Task:{task.name}][List] stop signal received at page {page_no}")
+                msg = f"[{task.name}] 列表页 {page_no} 收到停止信号"
+                print(msg)
+                if log_callback:
+                    log_callback(msg, "WARNING")
                 break
             page_url = build_task_page_url(task.final_url or task.url, page_no)
-            print(f"[Task:{task.name}][List] fetching page {page_no}/{max_pages}: {page_url}")
+            msg = f"[{task.name}] 正在获取列表页 {page_no}/{max_pages}"
+            print(msg)
+            if log_callback:
+                log_callback(msg, "INFO")
             self.logger.info("List page: %s", page_url)
 
             page = self.fetch(page_url)
 
             if is_security_check_page(page):
                 verification_count += 1
-                print(
-                    f"[Task:{task.name}][Security] list page {page_no} triggered verification, "
-                    f"wait {SECURITY_WAIT_SECONDS}s and retry same page"
+                msg = (
+                    f"[{task.name}] 列表页 {page_no} 触发安全验证, "
+                    f"等待 {SECURITY_WAIT_SECONDS}s 后重试"
                 )
+                print(msg)
+                if log_callback:
+                    log_callback(msg, "WARNING")
                 if verification_count >= 5:
-                    print(
-                        f"[Task:{task.name}][Security] continuous verification count={verification_count}, "
-                        "please manually refresh cookies or complete browser verification"
+                    msg = (
+                        f"[{task.name}] 连续验证次数={verification_count}, "
+                        "请手动刷新 cookies 或完成浏览器验证"
                     )
+                    print(msg)
+                    if log_callback:
+                        log_callback(msg, "ERROR")
                 fixed_sleep(SECURITY_WAIT_SECONDS, reason="列表页触发人工验证")
                 continue
 
@@ -74,28 +86,37 @@ class JavdbSpider(BaseSpider):
             )
 
             if not page_tasks:
-                print(f"[Task:{task.name}][List] page {page_no} no tasks, stop collect")
+                msg = f"[{task.name}] 列表页 {page_no} 无数据, 停止收集"
+                print(msg)
+                if log_callback:
+                    log_callback(msg, "INFO")
                 break
 
             detail_tasks.extend(page_tasks)
 
             total_count = len(detail_tasks)
             skipped_count = sum(
-                1 for task in detail_tasks if task.get("status") == TASK_STATUS_SKIPPED
+                1 for t in detail_tasks if t.get("status") == TASK_STATUS_SKIPPED
             )
             pending_count = total_count - skipped_count
 
-            print(
-                f"[Task:{task.name}][List] page={page_no} collected={len(page_tasks)} "
-                f"total={total_count}, pending={pending_count}, skipped={skipped_count}"
+            msg = (
+                f"[{task.name}] 列表页 {page_no} 完成: 本页={len(page_tasks)}条, "
+                f"总计={total_count}, 待处理={pending_count}, 跳过={skipped_count}"
             )
+            print(msg)
+            if log_callback:
+                log_callback(msg, "INFO")
 
             if page_no < max_pages:
                 random_sleep(LIST_PAGE_DELAY_MIN, LIST_PAGE_DELAY_MAX)
 
             page_no += 1
 
-        print(f"[Task:{task.name}][List] collect finished total={len(detail_tasks)}")
+        msg = f"[{task.name}] 列表收集完成: 共 {len(detail_tasks)} 条任务"
+        print(msg)
+        if log_callback:
+            log_callback(msg, "INFO")
 
         return detail_tasks
 
@@ -105,18 +126,25 @@ class JavdbSpider(BaseSpider):
         task_name: str | None = None,
         on_detail_completed=None,
         stop_check=None,
+        log_callback=None,
     ) -> list[dict]:
         total = len(tasks)
         verification_count = 0
-        prefix = f"[Task:{task_name}]" if task_name else ""
+        prefix = f"[{task_name}]" if task_name else ""
 
-        print(f"{prefix}[Detail] start tasks total={total}")
+        msg = f"{prefix} 开始处理详情页: 共 {total} 条"
+        print(msg)
+        if log_callback:
+            log_callback(msg, "INFO")
 
         index = 0
 
         while index < total:
             if stop_check and stop_check():
-                print(f"{prefix}[Detail] stop signal received at {index + 1}/{total}")
+                msg = f"{prefix} 详情页 {index + 1}/{total} 收到停止信号"
+                print(msg)
+                if log_callback:
+                    log_callback(msg, "WARNING")
                 break
             task = tasks[index]
 
@@ -131,10 +159,13 @@ class JavdbSpider(BaseSpider):
             )
 
             if task.get("status") == TASK_STATUS_SKIPPED:
-                print(
-                    f"{prefix}[Detail] {index + 1}/{total} skipped "
+                msg = (
+                    f"{prefix} 详情 {index + 1}/{total} 跳过: "
                     f"name={task.get('name')} reason={task.get('reason')}"
                 )
+                print(msg)
+                if log_callback:
+                    log_callback(msg, "INFO")
                 index += 1
                 continue
 
@@ -143,15 +174,21 @@ class JavdbSpider(BaseSpider):
             if not url:
                 task["status"] = TASK_STATUS_FAILED
                 task["reason"] = "missing_url"
-                print(f"{prefix}[Detail] {index + 1}/{total} failed: missing url")
+                msg = f"{prefix} 详情 {index + 1}/{total} 失败: 缺少URL"
+                print(msg)
+                if log_callback:
+                    log_callback(msg, "ERROR")
                 index += 1
                 continue
 
-            print(
-                f"{prefix}[Detail] {index + 1}/{total} running "
-                f"completed={completed_count} failed={failed_count} skipped={skipped_count} "
-                f"name={task.get('name')} url={url}"
+            msg = (
+                f"{prefix} 详情 {index + 1}/{total} 处理中: "
+                f"已完成={completed_count} 失败={failed_count} 跳过={skipped_count} "
+                f"name={task.get('name')}"
             )
+            print(msg)
+            if log_callback:
+                log_callback(msg, "INFO")
             self.logger.info("Detail page: %s", url)
 
             task["status"] = TASK_STATUS_RUNNING
@@ -162,15 +199,21 @@ class JavdbSpider(BaseSpider):
                 if is_security_check_page(page):
                     verification_count += 1
                     task["status"] = TASK_STATUS_PENDING
-                    print(
-                        f"{prefix}[Security] detail task {index + 1}/{total} triggered verification, "
-                        f"wait {SECURITY_WAIT_SECONDS}s and retry same task"
+                    msg = (
+                        f"{prefix} 详情 {index + 1}/{total} 触发安全验证, "
+                        f"等待 {SECURITY_WAIT_SECONDS}s 后重试"
                     )
+                    print(msg)
+                    if log_callback:
+                        log_callback(msg, "WARNING")
                     if verification_count >= 5:
-                        print(
-                            f"{prefix}[Security] continuous verification count={verification_count}, "
-                            "please manually refresh cookies or complete browser verification"
+                        msg = (
+                            f"{prefix} 连续验证次数={verification_count}, "
+                            "请手动刷新 cookies 或完成浏览器验证"
                         )
+                        print(msg)
+                        if log_callback:
+                            log_callback(msg, "ERROR")
                     fixed_sleep(SECURITY_WAIT_SECONDS, reason="详情页触发人工验证")
                     continue
 
@@ -180,7 +223,10 @@ class JavdbSpider(BaseSpider):
                 task["detail"] = detail
                 task["status"] = TASK_STATUS_COMPLETED
 
-                print(f"{prefix}[Detail] {index + 1}/{total} completed name={task.get('name')}")
+                msg = f"{prefix} 详情 {index + 1}/{total} 完成: {task.get('name')}"
+                print(msg)
+                if log_callback:
+                    log_callback(msg, "INFO")
 
                 if on_detail_completed:
                     on_detail_completed(task)
@@ -195,10 +241,10 @@ class JavdbSpider(BaseSpider):
                 task["status"] = TASK_STATUS_FAILED
                 task["reason"] = str(exc)
 
-                print(
-                    f"{prefix}[Detail] {index + 1}/{total} failed "
-                    f"name={task.get('name')} error={exc}"
-                )
+                msg = f"{prefix} 详情 {index + 1}/{total} 失败: {task.get('name')} error={exc}"
+                print(msg)
+                if log_callback:
+                    log_callback(msg, "ERROR")
 
                 index += 1
 
@@ -209,14 +255,17 @@ class JavdbSpider(BaseSpider):
         failed_count = sum(1 for item in tasks if item.get("status") == TASK_STATUS_FAILED)
         skipped_count = sum(1 for item in tasks if item.get("status") == TASK_STATUS_SKIPPED)
 
-        print(
-            f"{prefix}[Detail] finished total={total} "
-            f"completed={completed_count} failed={failed_count} skipped={skipped_count}"
+        msg = (
+            f"{prefix} 详情处理完成: 总计={total} "
+            f"已完成={completed_count} 失败={failed_count} 跳过={skipped_count}"
         )
+        print(msg)
+        if log_callback:
+            log_callback(msg, "INFO")
 
         return tasks
 
-    def run_task(self, task: CrawlTask, on_detail_completed=None, stop_check=None) -> list[dict]:
+    def run_task(self, task: CrawlTask, on_detail_completed=None, stop_check=None, log_callback=None) -> list[dict]:
         if task.is_skip:
             print(f"[Task:{task.name}] skipped by config")
             return []
@@ -225,12 +274,13 @@ class JavdbSpider(BaseSpider):
             print(f"[Task:{task.name}] skipped: missing final_url")
             return []
 
-        detail_tasks = self.collect_detail_tasks(task, stop_check=stop_check)
+        detail_tasks = self.collect_detail_tasks(task, stop_check=stop_check, log_callback=log_callback)
         return self.run_detail_tasks(
             detail_tasks,
             task_name=task.name,
             on_detail_completed=on_detail_completed,
             stop_check=stop_check,
+            log_callback=log_callback,
         )
 
     def run(self, task: CrawlTask) -> list[dict]:

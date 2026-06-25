@@ -26,8 +26,10 @@ class MovieService:
 
         return JavdbSpider(fetcher=fetcher)
 
-    def crawl_javdb_task(self, task: CrawlTask, stop_check=None) -> dict:
+    def crawl_javdb_task(self, task: CrawlTask, stop_check=None, log_callback=None) -> dict:
         if task.is_skip:
+            if log_callback:
+                log_callback(f"跳过任务: {task.name}", "INFO")
             return {
                 "task_name": task.name,
                 "source": task.source,
@@ -55,20 +57,24 @@ class MovieService:
             cleaned = pipeline.process_item(item)
             if cleaned is not None:
                 collected_items.append(cleaned)
-                print(
-                    f"[Task:{task.name}][Collect] "
-                    f"code={cleaned.get('code')} collection={cleaned.get('config_task_name')}"
+                msg = (
+                    f"[{task.name}] 详情完成: code={cleaned.get('code')} "
+                    f"collection={cleaned.get('config_task_name')}"
                 )
+                print(msg)
+                if log_callback:
+                    log_callback(msg, "INFO")
             else:
-                print(
-                    f"[Task:{task.name}][Collect] skipped invalid "
-                    f"code={item.get('code')} url={item.get('source_url')}"
-                )
+                msg = f"[{task.name}] 跳过无效数据: code={item.get('code')}"
+                print(msg)
+                if log_callback:
+                    log_callback(msg, "WARNING")
 
         detail_tasks = spider.run_task(
             task,
             on_detail_completed=collect_completed_detail,
             stop_check=stop_check,
+            log_callback=log_callback,
         )
 
         completed_tasks = [

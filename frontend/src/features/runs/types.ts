@@ -6,6 +6,7 @@ export const statusColors: Record<RunStatus, string> = {
   running: "processing",
   completed: "success",
   failed: "error",
+  stopped: "warning",
 };
 
 /** Chinese labels for each run status. */
@@ -14,6 +15,7 @@ export const statusLabels: Record<RunStatus, string> = {
   running: "运行中",
   completed: "已完成",
   failed: "失败",
+  stopped: "已停止",
 };
 
 /** A single log entry from a task run. */

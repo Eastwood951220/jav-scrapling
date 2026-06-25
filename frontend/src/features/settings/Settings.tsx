@@ -121,101 +121,106 @@ export default function Settings() {
   if (loading) return <FullPageSpinner />;
 
   return (
-    <div className={styles.formContainer}>
-      <Form form={form} layout="vertical" onFinish={handleSaveSettings}>
-        <Card title="数据库连接" className={styles.formCard}>
-          <Form.Item name="MONGO_URI" label="MongoDB URI">
-            <Input placeholder="mongodb://admin:admin123@mongo:27017/" />
-          </Form.Item>
-          <Form.Item name="MONGO_DB_NAME" label="数据库名称">
-            <Input placeholder="jav" />
-          </Form.Item>
-          <Form.Item name="MONGO_CONNECT_TIMEOUT_MS" label="连接超时 (ms)">
-            <InputNumber min={1000} max={30000} style={{ width: "100%" }} />
-          </Form.Item>
-        </Card>
+    <div className={styles.settingsLayout}>
+      {/* Left column: app settings form */}
+      <div className={styles.settingsLeft}>
+        <Form form={form} layout="vertical" onFinish={handleSaveSettings}>
+          <Card title="数据库连接" className={styles.formCard}>
+            <Form.Item name="MONGO_URI" label="MongoDB URI">
+              <Input placeholder="mongodb://admin:admin123@mongo:27017/" />
+            </Form.Item>
+            <Form.Item name="MONGO_DB_NAME" label="数据库名称">
+              <Input placeholder="jav" />
+            </Form.Item>
+            <Form.Item name="MONGO_CONNECT_TIMEOUT_MS" label="连接超时 (ms)">
+              <InputNumber min={1000} max={30000} style={{ width: "100%" }} />
+            </Form.Item>
+          </Card>
 
-        <Card title="爬取参数" className={styles.formCard}>
-          <Form.Item name="MAX_LIST_PAGES" label="最大翻页数">
-            <InputNumber min={1} max={100} style={{ width: "100%" }} />
-          </Form.Item>
-          <Form.Item name="LIST_PAGE_DELAY_MIN" label="列表页最小延迟 (秒)">
-            <InputNumber min={0} max={60} step={0.5} style={{ width: "100%" }} />
-          </Form.Item>
-          <Form.Item name="LIST_PAGE_DELAY_MAX" label="列表页最大延迟 (秒)">
-            <InputNumber min={0} max={60} step={0.5} style={{ width: "100%" }} />
-          </Form.Item>
-          <Form.Item name="DETAIL_PAGE_DELAY_MIN" label="详情页最小延迟 (秒)">
-            <InputNumber min={0} max={60} step={0.5} style={{ width: "100%" }} />
-          </Form.Item>
-          <Form.Item name="DETAIL_PAGE_DELAY_MAX" label="详情页最大延迟 (秒)">
-            <InputNumber min={0} max={60} step={0.5} style={{ width: "100%" }} />
-          </Form.Item>
-          <Form.Item name="SECURITY_WAIT_SECONDS" label="安全验证等待 (秒)">
-            <InputNumber min={10} max={600} style={{ width: "100%" }} />
-          </Form.Item>
-          <Form.Item name="REQUEST_TIMEOUT" label="请求超时 (秒)">
-            <InputNumber min={5} max={120} style={{ width: "100%" }} />
-          </Form.Item>
-          <Form.Item name="USE_DYNAMIC_FETCHER" label="动态抓取" valuePropName="checked">
-            <Switch />
-          </Form.Item>
-          <Form.Item name="BATCH_SAVE_SIZE" label="批量写入大小 (条)">
-            <InputNumber min={1} max={1000} style={{ width: "100%" }} />
-          </Form.Item>
-        </Card>
+          <Card title="爬取参数" className={styles.formCard}>
+            <Form.Item name="MAX_LIST_PAGES" label="最大翻页数">
+              <InputNumber min={1} max={100} style={{ width: "100%" }} />
+            </Form.Item>
+            <Form.Item name="LIST_PAGE_DELAY_MIN" label="列表页最小延迟 (秒)">
+              <InputNumber min={0} max={60} step={0.5} style={{ width: "100%" }} />
+            </Form.Item>
+            <Form.Item name="LIST_PAGE_DELAY_MAX" label="列表页最大延迟 (秒)">
+              <InputNumber min={0} max={60} step={0.5} style={{ width: "100%" }} />
+            </Form.Item>
+            <Form.Item name="DETAIL_PAGE_DELAY_MIN" label="详情页最小延迟 (秒)">
+              <InputNumber min={0} max={60} step={0.5} style={{ width: "100%" }} />
+            </Form.Item>
+            <Form.Item name="DETAIL_PAGE_DELAY_MAX" label="详情页最大延迟 (秒)">
+              <InputNumber min={0} max={60} step={0.5} style={{ width: "100%" }} />
+            </Form.Item>
+            <Form.Item name="SECURITY_WAIT_SECONDS" label="安全验证等待 (秒)">
+              <InputNumber min={10} max={600} style={{ width: "100%" }} />
+            </Form.Item>
+            <Form.Item name="REQUEST_TIMEOUT" label="请求超时 (秒)">
+              <InputNumber min={5} max={120} style={{ width: "100%" }} />
+            </Form.Item>
+            <Form.Item name="USE_DYNAMIC_FETCHER" label="动态抓取" valuePropName="checked">
+              <Switch />
+            </Form.Item>
+            <Form.Item name="BATCH_SAVE_SIZE" label="批量写入大小 (条)">
+              <InputNumber min={1} max={1000} style={{ width: "100%" }} />
+            </Form.Item>
+          </Card>
 
-        <Form.Item>
-          <Button type="primary" htmlType="submit" loading={saving}>
-            保存设置
-          </Button>
-        </Form.Item>
-      </Form>
-
-      {/* Cookie configuration card */}
-      <Card
-        title="Cookie 配置"
-        className={styles.formCard}
-        extra={
-          <div style={{ display: "flex", gap: 8 }}>
-            <Button onClick={handleFormatJson} disabled={!!jsonError && cookieJson.trim() !== ""}>
-              格式化
+          <Form.Item>
+            <Button type="primary" htmlType="submit" loading={saving}>
+              保存设置
             </Button>
-            <Button type="primary" onClick={handleSaveCookies} loading={cookieSaving}>
-              保存 Cookie
-            </Button>
-          </div>
-        }
-      >
-        {cookieLoading ? (
-          <FullPageSpinner />
-        ) : (
-          <>
-            <div style={{ border: "1px solid #d9d9d9", borderRadius: 6, overflow: "hidden" }}>
-              <Editor
-                height="400px"
-                defaultLanguage="json"
-                value={cookieJson}
-                onChange={handleCookieChange}
-                onMount={handleEditorMount}
-                options={{
-                  minimap: { enabled: false },
-                  lineNumbers: "on",
-                  scrollBeyondLastLine: false,
-                  wordWrap: "on",
-                  tabSize: 2,
-                  formatOnPaste: true,
-                }}
-              />
+          </Form.Item>
+        </Form>
+      </div>
+
+      {/* Right column: Cookie configuration */}
+      <div className={styles.settingsRight}>
+        <Card
+          title="Cookie 配置"
+          className={styles.formCard}
+          extra={
+            <div style={{ display: "flex", gap: 8 }}>
+              <Button onClick={handleFormatJson} disabled={!!jsonError && cookieJson.trim() !== ""}>
+                格式化
+              </Button>
+              <Button type="primary" onClick={handleSaveCookies} loading={cookieSaving}>
+                保存 Cookie
+              </Button>
             </div>
-            {jsonError && (
-              <Typography.Text type="danger" style={{ display: "block", marginTop: 8 }}>
-                JSON 格式错误: {jsonError}
-              </Typography.Text>
-            )}
-          </>
-        )}
-      </Card>
+          }
+        >
+          {cookieLoading ? (
+            <FullPageSpinner />
+          ) : (
+            <>
+              <div style={{ border: "1px solid #d9d9d9", borderRadius: 6, overflow: "hidden" }}>
+                <Editor
+                  height="400px"
+                  defaultLanguage="json"
+                  value={cookieJson}
+                  onChange={handleCookieChange}
+                  onMount={handleEditorMount}
+                  options={{
+                    minimap: { enabled: false },
+                    lineNumbers: "on",
+                    scrollBeyondLastLine: false,
+                    wordWrap: "on",
+                    tabSize: 2,
+                    formatOnPaste: true,
+                  }}
+                />
+              </div>
+              {jsonError && (
+                <Typography.Text type="danger" style={{ display: "block", marginTop: 8 }}>
+                  JSON 格式错误: {jsonError}
+                </Typography.Text>
+              )}
+            </>
+          )}
+        </Card>
+      </div>
     </div>
   );
 }

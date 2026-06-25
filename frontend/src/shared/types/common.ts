@@ -8,7 +8,7 @@ export interface PaginatedResponse<T> {
 }
 
 /** Task run lifecycle statuses. */
-export type RunStatus = "queued" | "running" | "completed" | "failed";
+export type RunStatus = "queued" | "running" | "completed" | "failed" | "stopped";
 
 /** Movie document returned by the backend. */
 export interface Movie {

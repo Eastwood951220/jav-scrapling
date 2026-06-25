@@ -13,6 +13,25 @@
   max-width: 700px;
 }
 
+/* ── Settings two-column layout ── */
+
+.settingsLayout {
+  display: grid;
+  grid-template-columns: 1fr 420px;
+  gap: 24px;
+  align-items: start;
+}
+
+.settingsLeft {
+  min-width: 0;
+}
+
+.settingsRight {
+  min-width: 0;
+  position: sticky;
+  top: 24px;
+}
+
 .formCard {
   margin-bottom: 24px;
 }
@@ -33,4 +52,16 @@
 .errorPre {
   color: var(--color-error);
   white-space: pre-wrap;
+}
+
+/* ── Responsive: stack columns on narrow screens ── */
+
+@media (max-width: 1024px) {
+  .settingsLayout {
+    grid-template-columns: 1fr;
+  }
+
+  .settingsRight {
+    position: static;
+  }
 }

@@ -140,10 +140,15 @@ def _worker_loop():
             task = build_crawl_task_from_doc(task_doc)
             _append_log(run_id, f"执行任务: {task.name}, URL: {task.final_url}", "INFO")
 
+            # Create a log callback bound to this run_id
+            def log_callback(message: str, level: str = "INFO"):
+                _append_log(run_id, message, level)
+
             service = MovieService()
             result = service.crawl_javdb_task(
                 task,
                 stop_check=lambda: _stop_event.is_set(),
+                log_callback=log_callback,
             )
 
             collected_items = result.get("items", [])

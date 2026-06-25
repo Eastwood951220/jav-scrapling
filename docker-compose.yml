@@ -3,22 +3,36 @@ services:
     image: mongo:7
     container_name: scrapling-mongo
     restart: unless-stopped
+
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER:-admin}
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASS:-admin123}
+
     ports:
-      - "27017:27017"
+      # 宿主机访问：localhost:27018
+      # Docker 容器内部访问：mongo:27017
+      - "27018:27017"
+
     volumes:
+      # 使用宿主机目录保存 MongoDB 数据
       - ./mongo_data:/data/db
+
     networks:
       - scrapling-net
+
     healthcheck:
-      test: echo 'db.runCommand("ping").ok' | mongosh --quiet
+      test:
+        [
+          "CMD-SHELL",
+          "mongosh --quiet --host 127.0.0.1 --port 27017 -u \"$${MONGO_INITDB_ROOT_USERNAME}\" -p \"$${MONGO_INITDB_ROOT_PASSWORD}\" --authenticationDatabase admin --eval 'quit(db.adminCommand({ ping: 1 }).ok ? 0 : 2)'"
+        ]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
+      start_period: 20s
+
     logging:
-      driver: "json-file"
+      driver: json-file
       options:
         max-size: "10m"
         max-file: "3"
@@ -29,30 +43,63 @@ services:
       dockerfile: backend/Dockerfile
       platforms:
         - linux/amd64
+
     container_name: scrapling-backend
     restart: unless-stopped
+
     environment:
-      MONGO_URI: mongodb://${MONGO_USER:-admin}:${MONGO_PASS:-admin123}@mongo:27017/
+      # 容器之间必须使用 MongoDB 内部端口 27017
+      MONGO_URI: mongodb://${MONGO_USER:-admin}:${MONGO_PASS:-admin123}@mongo:27017/?authSource=admin
       MONGO_DB_NAME: ${MONGO_DB_NAME:-jav}
       MONGO_CONNECT_TIMEOUT_MS: "5000"
+
+      # 爬取参数（与 .env 保持一致）
+      MAX_LIST_PAGES: ${MAX_LIST_PAGES:-50}
+      LIST_PAGE_DELAY_MIN: ${LIST_PAGE_DELAY_MIN:-4}
+      LIST_PAGE_DELAY_MAX: ${LIST_PAGE_DELAY_MAX:-5}
+      DETAIL_PAGE_DELAY_MIN: ${DETAIL_PAGE_DELAY_MIN:-2}
+      DETAIL_PAGE_DELAY_MAX: ${DETAIL_PAGE_DELAY_MAX:-3}
+      SECURITY_WAIT_SECONDS: ${SECURITY_WAIT_SECONDS:-120}
+      REQUEST_TIMEOUT: ${REQUEST_TIMEOUT:-30}
+      USE_DYNAMIC_FETCHER: ${USE_DYNAMIC_FETCHER:-false}
+      BATCH_SAVE_SIZE: ${BATCH_SAVE_SIZE:-50}
+
+      # 如果后端代码支持 HOST/PORT 环境变量，可以保留
+      HOST: 0.0.0.0
+      PORT: "18642"
+
+      # 避免 Python 输出缓存，方便实时查看 Docker 日志
+      PYTHONUNBUFFERED: "1"
+
     ports:
       - "18642:18642"
+
     volumes:
-      - ./scraper/cookies/storage:/app/scraper/cookies/storage
+      - ./cookies:/app/scraper/cookies/storage
       - ./logs:/app/logs
+
     depends_on:
       mongo:
         condition: service_healthy
+
     networks:
       - scrapling-net
+
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:18642/health')"]
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:18642/health', timeout=3)"
+        ]
       interval: 15s
       timeout: 5s
-      retries: 3
-      start_period: 30s
+      retries: 5
+      start_period: 40s
+
     logging:
-      driver: "json-file"
+      driver: json-file
       options:
         max-size: "10m"
         max-file: "3"
@@ -62,30 +109,48 @@ services:
       context: ./frontend
       platforms:
         - linux/amd64
+
     container_name: scrapling-frontend
     restart: unless-stopped
+
     ports:
       - "18643:18643"
+
+    volumes:
+      # 将本地 Nginx 配置直接挂载进容器
+      # 后续修改此文件后只需要执行 nginx reload
+      - ./frontend/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+
     depends_on:
       backend:
         condition: service_healthy
+
     networks:
       - scrapling-net
+
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:18643/"]
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://127.0.0.1:18643/"
+        ]
       interval: 15s
       timeout: 5s
-      retries: 3
-      start_period: 10s
+      retries: 5
+      start_period: 20s
+
     logging:
-      driver: "json-file"
+      driver: json-file
       options:
         max-size: "10m"
         max-file: "3"
 
-volumes:
-  mongo_data:
-
 networks:
   scrapling-net:
+    name: scrapling-net
     driver: bridge
+

@@ -146,6 +146,7 @@ export default function RunList() {
               { value: "running", label: "运行中" },
               { value: "completed", label: "已完成" },
               { value: "failed", label: "失败" },
+              { value: "stopped", label: "已停止" },
             ]}
           />
           <Button icon={<ReloadOutlined />} onClick={load}>

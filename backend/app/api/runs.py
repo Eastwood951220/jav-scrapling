@@ -72,11 +72,22 @@ def stop_run(run_id: str):
         raise HTTPException(status_code=400, detail="Invalid run ID")
 
     status = get_queue_status()
-    if str(status.get("current_run_id")) != run_id:
-        raise HTTPException(status_code=400, detail="Task is not currently running")
+    current_id = status.get("current_run_id")
+    if not current_id or str(current_id) != run_id:
+        raise HTTPException(status_code=400, detail="任务当前未在运行中")
 
     stopped = stop_current_task()
     if not stopped:
-        raise HTTPException(status_code=400, detail="No task is currently running")
+        raise HTTPException(status_code=400, detail="无法停止任务")
 
-    return {"success": True, "message": "Stop signal sent"}
+    # Also update the run document status to "stopped" immediately
+    from datetime import datetime, timezone
+    try:
+        _col().update_one(
+            {"_id": ObjectId(run_id)},
+            {"$set": {"status": "stopped", "finished_at": datetime.now(timezone.utc)}},
+        )
+    except Exception:
+        pass  # Worker will set final status anyway
+
+    return {"success": True, "message": "停止信号已发送"}
