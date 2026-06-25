@@ -15,7 +15,7 @@ services:
 
     volumes:
       # 使用宿主机目录保存 MongoDB 数据
-      - ./mongo_data:/data/db
+      - ./docker/mongo_data:/data/db
 
     networks:
       - scrapling-net
@@ -39,7 +39,7 @@ services:
 
   backend:
     build:
-      context: .
+      context: ./docker/backend
       dockerfile: backend/Dockerfile
       platforms:
         - linux/amd64
@@ -75,8 +75,9 @@ services:
       - "18642:18642"
 
     volumes:
-      - ./cookies:/app/scraper/cookies/storage
-      - ./logs:/app/logs
+      - ./docker/cookies:/app/scraper/cookies/storage
+      - ./docker/logs:/app/logs
+      - ./docker/run_data:/app/run_data
 
     depends_on:
       mongo:
@@ -106,7 +107,7 @@ services:
 
   frontend:
     build:
-      context: ./frontend
+      context: ./docker/frontend
       platforms:
         - linux/amd64
 
@@ -119,7 +120,7 @@ services:
     volumes:
       # 将本地 Nginx 配置直接挂载进容器
       # 后续修改此文件后只需要执行 nginx reload
-      - ./frontend/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./docker/frontend/nginx.conf:/etc/nginx/conf.d/default.conf:ro
 
     depends_on:
       backend:

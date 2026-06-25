@@ -11,7 +11,7 @@ WORKDIR /app
 
 COPY --from=builder /install /usr/local
 
-RUN mkdir -p /app/logs /app/scraper/cookies/storage
+RUN mkdir -p /app/logs /app/scraper/cookies/storage /app/run_data
 
 COPY backend/app/ ./app/
 COPY scraper/   ./scraper/
