@@ -152,7 +152,7 @@ def _worker_loop():
             )
 
             collected_items = result.get("items", [])
-            stop_requested = result.get("stopped", False)
+            stop_requested = result.get("stopped", False) or _stop_event.is_set()
 
             batch_size = int(os.getenv("BATCH_SAVE_SIZE", "50"))
             saved = _batch_save_items(collected_items, batch_size, repository)
@@ -166,9 +166,12 @@ def _worker_loop():
                 "INFO",
             )
 
-            final_status = "stopped" if _stop_event.is_set() else "completed"
-            runs_col.update_one(
-                {"_id": ObjectId(run_id)},
+            final_status = "stopped" if stop_requested else "completed"
+
+            # 原子条件更新: 仅在状态仍为 "running" 时写入，
+            # 防止覆盖已由 stop 端点设置的 "stopped" 状态
+            update_result = runs_col.update_one(
+                {"_id": ObjectId(run_id), "status": "running"},
                 {
                     "$set": {
                         "status": final_status,
@@ -177,6 +180,12 @@ def _worker_loop():
                     }
                 },
             )
+            if update_result.modified_count == 0:
+                _append_log(
+                    run_id,
+                    f"状态已被外部更新，跳过状态写入 (final_status={final_status})",
+                    "WARNING",
+                )
         except Exception as exc:
             tb = traceback.format_exc()
             _append_log(run_id, f"错误: {exc}", "ERROR")

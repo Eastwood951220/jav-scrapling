@@ -88,6 +88,9 @@ class MovieService:
             1 for item in detail_tasks if item.get("status") == TASK_STATUS_SKIPPED
         )
 
+        # 检测停止: 判断 stop_check 是否被触发
+        stopped = stop_check() if stop_check else False
+
         return {
             "task_name": task.name,
             "source": task.source,
@@ -100,7 +103,7 @@ class MovieService:
             "skipped_tasks": skipped_count,
             "saved": 0,  # persistence handled by backend layer
             "items": collected_items,
-            "stopped": False,
+            "stopped": stopped,
         }
 
     def _build_detail_item(self, task: CrawlTask, detail_task: dict) -> dict:

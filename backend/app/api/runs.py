@@ -80,14 +80,5 @@ def stop_run(run_id: str):
     if not stopped:
         raise HTTPException(status_code=400, detail="无法停止任务")
 
-    # Also update the run document status to "stopped" immediately
-    from datetime import datetime, timezone
-    try:
-        _col().update_one(
-            {"_id": ObjectId(run_id)},
-            {"$set": {"status": "stopped", "finished_at": datetime.now(timezone.utc)}},
-        )
-    except Exception:
-        pass  # Worker will set final status anyway
-
+    # 不在此处写入 MongoDB — 仅设置停止信号，由 worker 通过原子更新设置最终状态
     return {"success": True, "message": "停止信号已发送"}
