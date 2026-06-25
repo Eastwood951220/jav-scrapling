@@ -150,6 +150,11 @@ def delete_run(run_id: str):
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Run not found")
 
+    # 删除关联的详情任务
+    detail_deleted = _detail_col().delete_many({"run_id": run_id})
+    if detail_deleted.deleted_count > 0:
+        logger.info("已删除 %d 条详情任务 %s", detail_deleted.deleted_count, run_id)
+
     # 删除文件存储
     try:
         deleted_files = delete_run_dir(run_id)

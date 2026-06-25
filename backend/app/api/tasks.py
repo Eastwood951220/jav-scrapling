@@ -155,6 +155,10 @@ def delete_task(task_id: str):
     from app.run_storage import delete_run_dir
     run_ids = [str(r["_id"]) for r in runs_col.find({"task_id": str(oid)}, {"_id": 1})]
     if run_ids:
+        # 删除关联的详情任务
+        detail_col = get_mongo_db()["run_detail_tasks"]
+        for rid in run_ids:
+            detail_col.delete_many({"run_id": rid})
         runs_col.delete_many({"task_id": str(oid)})
         for run_id in run_ids:
             try:
