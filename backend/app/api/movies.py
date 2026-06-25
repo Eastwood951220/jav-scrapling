@@ -21,7 +21,7 @@ def _escape_regex(value: str) -> str:
 def list_collections():
     db = get_mongo_db()
     names = db.list_collection_names()
-    excluded = {"config_tasks", "config_schedules", "config_settings"}
+    excluded = {"config_tasks", "config_schedules", "config_settings", "task_runs"}
     return [n for n in names if n not in excluded]
 
 
@@ -31,8 +31,9 @@ def list_movies(
     search: str | None = Query(default=None),
     page: int = Query(default=1, ge=1),
     limit: int = Query(default=20, ge=1, le=100),
-    sort_by: str = Query(default="created_at"),
+    sort_by: str = Query(default="release_date"),
     sort_order: int = Query(default=-1, ge=-1, le=1),
+    rating_min: float | None = Query(default=None, ge=0, le=5),
 ):
     col = get_mongo_db()[_sanitize_collection_name(collection)]
 
@@ -44,12 +45,15 @@ def list_movies(
             {"name": {"$regex": _escape_regex(search), "$options": "i"}},
         ]
 
+    if rating_min is not None:
+        query["rating"] = {"$gte": rating_min}
+
     total = col.count_documents(query)
     total_pages = max(1, (total + limit - 1) // limit)
 
-    allowed_sort = {"created_at", "updated_at", "code", "title", "name"}
+    allowed_sort = {"created_at", "updated_at", "code", "title", "name", "release_date", "rating"}
     if sort_by not in allowed_sort:
-        sort_by = "created_at"
+        sort_by = "release_date"
     if sort_order not in (-1, 1):
         sort_order = -1
 
