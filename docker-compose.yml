@@ -72,6 +72,9 @@ services:
       # 避免 Python 输出缓存，方便实时查看 Docker 日志
       PYTHONUNBUFFERED: "1"
 
+      # 时区设置
+      TZ: Asia/Shanghai
+
     ports:
       - "18642:18642"
 
@@ -115,6 +118,10 @@ services:
 
     container_name: scrapling-frontend
     restart: unless-stopped
+
+    environment:
+      TZ: Asia/Shanghai
+      JAVA_TOOL_OPTIONS: "-Duser.timezone=Asia/Shanghai"
 
     ports:
       - "18643:18643"
