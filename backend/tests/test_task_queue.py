@@ -127,3 +127,38 @@ class TestCrashDrain:
         result = _batch_save_items([], 10, repo)
         assert result == 0
         repo.upsert_movie.assert_not_called()
+
+
+class TestAppendLogToFile:
+    """Verify _append_log writes to file instead of MongoDB $push."""
+
+    def test_append_log_writes_to_file(self, tmp_path):
+        from unittest.mock import patch as _patch
+
+        from backend.app import task_queue as tq
+
+        with _patch("app.run_storage.RUN_DATA_DIR", tmp_path):
+            tq._append_log("test_run_001", "hello world", "INFO")
+
+            from app.run_storage import load_logs
+            logs = load_logs("test_run_001")
+            assert len(logs) == 1
+            assert logs[0]["message"] == "hello world"
+            assert logs[0]["level"] == "INFO"
+
+    def test_append_log_accumulates_entries(self, tmp_path):
+        from unittest.mock import patch as _patch
+
+        from backend.app import task_queue as tq
+
+        with _patch("app.run_storage.RUN_DATA_DIR", tmp_path):
+            tq._append_log("test_run_002", "first", "INFO")
+            tq._append_log("test_run_002", "second", "WARNING")
+            tq._append_log("test_run_002", "third", "ERROR")
+
+            from app.run_storage import load_logs
+            logs = load_logs("test_run_002")
+            assert len(logs) == 3
+            assert logs[0]["level"] == "INFO"
+            assert logs[1]["level"] == "WARNING"
+            assert logs[2]["level"] == "ERROR"

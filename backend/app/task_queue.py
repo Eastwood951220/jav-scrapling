@@ -68,31 +68,25 @@ def _ensure_worker():
 
 
 def _append_log(run_id: str, message: str, level: str = "INFO"):
-    """Append a log entry to the run document. Retries once on failure."""
-    from scraper.database.mongo_client import get_mongo_db
+    """Append a log entry to the run's log file."""
+    from app.run_storage import load_logs, save_logs
 
     log_entry = {
-        "timestamp": datetime.now(timezone.utc),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "level": level,
         "message": message,
     }
 
-    for attempt in range(2):
-        try:
-            get_mongo_db()["task_runs"].update_one(
-                {"_id": ObjectId(run_id)},
-                {"$push": {"logs": log_entry}},
-            )
-            return
-        except Exception as e:
-            if attempt == 0:
-                print(f"[WARN] Log write failed, retrying: {e}", file=sys.stderr)
-                continue
-            print(
-                f"[ERROR] Failed to append log after retry: {e} "
-                f"(run_id={run_id}, msg={message[:100]})",
-                file=sys.stderr,
-            )
+    try:
+        logs = load_logs(run_id)
+        logs.append(log_entry)
+        save_logs(run_id, logs)
+    except Exception as e:
+        print(
+            f"[ERROR] Failed to append log: {e} "
+            f"(run_id={run_id}, msg={message[:100]})",
+            file=sys.stderr,
+        )
 
 
 def _batch_save_items(items: list[dict], batch_size: int, repository) -> int:
