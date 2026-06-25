@@ -18,6 +18,10 @@ def _collection():
     return get_mongo_db()[TASKS_COLLECTION]
 
 
+def _sanitize_collection_name(name: str) -> str:
+    return name.replace(" ", "_").replace(".", "_").replace("$", "_")
+
+
 def _task_to_response(doc: dict) -> dict:
     return {**doc, "_id": str(doc["_id"])}
 
@@ -54,6 +58,13 @@ def create_task(body: TaskCreate):
 
     result = _collection().insert_one(doc)
     doc["_id"] = str(result.inserted_id)
+
+    # 创建该任务对应的电影集合
+    collection_name = _sanitize_collection_name(body.name)
+    db = get_mongo_db()
+    if collection_name not in db.list_collection_names():
+        db.create_collection(collection_name)
+
     return doc
 
 
@@ -109,13 +120,42 @@ def update_task(task_id: str, body: TaskUpdate):
 
 @router.delete("/{task_id}")
 def delete_task(task_id: str):
+    import logging
+    logger = logging.getLogger("tasks")
+
     try:
         oid = ObjectId(task_id)
     except InvalidId:
         raise HTTPException(status_code=400, detail="Invalid task ID")
-    result = _collection().delete_one({"_id": oid})
-    if result.deleted_count == 0:
+
+    # 先获取任务文档以找到集合名称
+    task_doc = _collection().find_one({"_id": oid})
+    if not task_doc:
         raise HTTPException(status_code=404, detail="Task not found")
+
+    task_name = task_doc.get("name", "")
+
+    # 删除任务文档
+    _collection().delete_one({"_id": oid})
+
+    # 删除关联的电影集合
+    if task_name:
+        collection_name = _sanitize_collection_name(task_name)
+        db = get_mongo_db()
+        if collection_name in db.list_collection_names():
+            db.drop_collection(collection_name)
+            logger.info("已删除集合 '%s' (任务: '%s')", collection_name, task_name)
+
+    # 删除关联的运行记录及文件存储
+    from app.run_storage import delete_run_dir
+    runs_col = get_mongo_db()["task_runs"]
+    run_ids = [str(r["_id"]) for r in runs_col.find({"task_id": str(oid)}, {"_id": 1})]
+    if run_ids:
+        runs_col.delete_many({"task_id": str(oid)})
+        for run_id in run_ids:
+            delete_run_dir(run_id)
+        logger.info("已删除 %d 条运行记录 (任务: '%s')", len(run_ids), task_name)
+
     return {"deleted": True}
 
 
