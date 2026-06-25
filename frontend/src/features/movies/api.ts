@@ -3,12 +3,12 @@ import type { MovieListResponse } from "./types";
 
 export type { MovieListResponse } from "./types";
 
-export function fetchCollections(): Promise<string[]> {
-  return client.get("/movies/collections").then((res) => res.data);
+export function fetchTaskNames(): Promise<{ _id: string; name: string }[]> {
+  return client.get("/tasks").then((res) => res.data);
 }
 
 export function fetchMovies(params: {
-  collection?: string;
+  source_task_name?: string;
   search?: string;
   page?: number;
   limit?: number;
@@ -19,10 +19,6 @@ export function fetchMovies(params: {
   return client.get("/movies", { params }).then((res) => res.data);
 }
 
-export function fetchMovie(id: string, collection?: string): Promise<Record<string, unknown>> {
-  return client.get(`/movies/${id}`, { params: { collection } }).then((res) => res.data);
-}
-
-export function deleteCollection(name: string): Promise<{ deleted: boolean; collection: string }> {
-  return client.delete(`/movies/collections/${name}`).then((res) => res.data);
+export function fetchMovie(id: string): Promise<Record<string, unknown>> {
+  return client.get(`/movies/${id}`).then((res) => res.data);
 }

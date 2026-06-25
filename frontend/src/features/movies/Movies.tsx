@@ -1,16 +1,16 @@
 import { useEffect, useState, useCallback } from "react";
 import {
-  Table, Input, Select, Button, Space, Card, message, Drawer, Descriptions, Tag, Typography, InputNumber, Image, Popconfirm,
+  Table, Input, Select, Button, Space, Card, message, Drawer, Descriptions, Tag, Typography, InputNumber, Image,
 } from "antd";
-import { SearchOutlined, ReloadOutlined, DownloadOutlined, DeleteOutlined } from "@ant-design/icons";
+import { SearchOutlined, ReloadOutlined, DownloadOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
-import { fetchCollections, fetchMovies, fetchMovie, deleteCollection } from "./api";
+import { fetchTaskNames, fetchMovies, fetchMovie } from "./api";
 import type { Movie, MovieListResponse } from "./types";
 import { getErrorMessage } from "@/shared/hooks/useErrorMessage";
 
 export default function Movies() {
-  const [collections, setCollections] = useState<string[]>([]);
-  const [selectedCollection, setSelectedCollection] = useState("movies");
+  const [taskOptions, setTaskOptions] = useState<{ value: string; label: string }[]>([]);
+  const [selectedTask, setSelectedTask] = useState<string | undefined>(undefined);
   const [search, setSearch] = useState("");
   const [ratingMin, setRatingMin] = useState<number | undefined>(undefined);
   const [sortBy, setSortBy] = useState("release_date");
@@ -21,13 +21,11 @@ export default function Movies() {
   const [detail, setDetail] = useState<Record<string, unknown> | null>(null);
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
 
-  const loadCollections = useCallback(async () => {
+  const loadTasks = useCallback(async () => {
     try {
-      const cols = await fetchCollections();
-      setCollections(cols);
-      if (cols.length > 0 && !cols.includes(selectedCollection)) {
-        setSelectedCollection(cols[0]);
-      }
+      const tasks = await fetchTaskNames();
+      const options = tasks.map((t) => ({ value: t.name, label: t.name }));
+      setTaskOptions(options);
     } catch (e: unknown) {
       message.error(getErrorMessage(e));
     }
@@ -37,7 +35,7 @@ export default function Movies() {
     setLoading(true);
     try {
       const result = await fetchMovies({
-        collection: selectedCollection,
+        source_task_name: selectedTask,
         search: search || undefined,
         page,
         limit: 20,
@@ -51,11 +49,11 @@ export default function Movies() {
     } finally {
       setLoading(false);
     }
-  }, [selectedCollection, search, sortBy, sortOrder, ratingMin]);
+  }, [selectedTask, search, sortBy, sortOrder, ratingMin]);
 
   useEffect(() => {
-    loadCollections();
-  }, [loadCollections]);
+    loadTasks();
+  }, [loadTasks]);
 
   useEffect(() => {
     loadMovies();
@@ -63,7 +61,7 @@ export default function Movies() {
 
   const handleViewDetail = async (id: string) => {
     try {
-      const movie = await fetchMovie(id, selectedCollection);
+      const movie = await fetchMovie(id);
       setDetail(movie);
       setDetailOpen(true);
     } catch (e: unknown) {
@@ -86,7 +84,7 @@ export default function Movies() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `magnets_${selectedCollection}_${new Date().toISOString().slice(0, 10)}.txt`;
+    a.download = `magnets_${selectedTask ?? "all"}_${new Date().toISOString().slice(0, 10)}.txt`;
     a.click();
     URL.revokeObjectURL(url);
     message.success(`已导出 ${magnets.length} 条磁力链接`);
@@ -180,34 +178,12 @@ export default function Movies() {
         <Space wrap>
           <Select
             style={{ width: 200 }}
-            value={selectedCollection}
-            onChange={setSelectedCollection}
-            options={collections.map((c) => ({ value: c, label: c }))}
-            placeholder="选择集合"
+            value={selectedTask}
+            onChange={setSelectedTask}
+            options={taskOptions}
+            placeholder="选择任务"
+            allowClear
           />
-          {selectedCollection !== "movies" && (
-            <Popconfirm
-              title={`确认删除集合 "${selectedCollection}"？`}
-              description="将删除该集合下的所有影片数据，不可恢复"
-              onConfirm={async () => {
-                try {
-                  await deleteCollection(selectedCollection);
-                  message.success(`已删除集合 ${selectedCollection}`);
-                  setSelectedCollection("movies");
-                  loadCollections();
-                } catch (e) {
-                  message.error(getErrorMessage(e));
-                }
-              }}
-              okText="删除"
-              cancelText="取消"
-              okButtonProps={{ danger: true }}
-            >
-              <Button icon={<DeleteOutlined />} danger>
-                删除集合
-              </Button>
-            </Popconfirm>
-          )}
           <Input
             style={{ width: 240 }}
             placeholder="搜索番号、标题..."
