@@ -276,9 +276,21 @@ export default function Movies() {
           showTotal: (total) => `共 ${total} 条`,
         }}
         onChange={(_pagination, _filters, sorter) => {
-          if (!Array.isArray(sorter) && sorter.field) {
-            setSortBy(sorter.field as string);
-            setSortOrder(sorter.order === "ascend" ? 1 : -1);
+          if (!Array.isArray(sorter) && sorter.column) {
+            const field = sorter.field as string;
+            // Ant Design cycles: ascend → descend → undefined (neutral)
+            // When neutral, reset to default sort
+            if (sorter.order === "ascend") {
+              setSortBy(field);
+              setSortOrder(1);
+            } else if (sorter.order === "descend") {
+              setSortBy(field);
+              setSortOrder(-1);
+            } else {
+              // Neutral (third click) — reset to default
+              setSortBy("release_date");
+              setSortOrder(-1);
+            }
           }
         }}
         scroll={{ x: 1200 }}
