@@ -11,6 +11,8 @@ router = APIRouter(prefix="/api/movies", tags=["movies"])
 
 # Unified collection name for all movies
 MOVIE_COLLECTION = "movies"
+ACTORS_COLLECTION = "movie_actors"
+TAGS_COLLECTION = "movie_tags"
 
 
 def _escape_regex(value: str) -> str:
@@ -50,6 +52,54 @@ def delete_collection(collection_name: str):
     return {"deleted": True, "collection": safe_name}
 
 
+@router.post("/sync-filters")
+def sync_filters():
+    """Scan all movies, dedup actors/tags, and write to movie_actors/movie_tags."""
+    db = get_mongo_db()
+    col = db[MOVIE_COLLECTION]
+
+    actors_set: set[str] = set()
+    tags_set: set[str] = set()
+
+    for doc in col.find({}, {"actors": 1, "tags": 1}):
+        for actor in doc.get("actors", []):
+            if isinstance(actor, str) and actor.strip():
+                actors_set.add(actor.strip())
+        for tag in doc.get("tags", []):
+            if isinstance(tag, str) and tag.strip():
+                tags_set.add(tag.strip())
+
+    db[ACTORS_COLLECTION].drop()
+    db[TAGS_COLLECTION].drop()
+
+    if actors_set:
+        db[ACTORS_COLLECTION].insert_many(
+            [{"name": name} for name in sorted(actors_set)]
+        )
+    if tags_set:
+        db[TAGS_COLLECTION].insert_many(
+            [{"name": name} for name in sorted(tags_set)]
+        )
+
+    return {"actors": len(actors_set), "tags": len(tags_set)}
+
+
+@router.get("/actors")
+def list_actors():
+    """Return deduplicated actor names."""
+    db = get_mongo_db()
+    col = db[ACTORS_COLLECTION]
+    return [doc["name"] for doc in col.find({}, {"name": 1, "_id": 0}).sort("name", 1)]
+
+
+@router.get("/tags")
+def list_tags():
+    """Return deduplicated tag names."""
+    db = get_mongo_db()
+    col = db[TAGS_COLLECTION]
+    return [doc["name"] for doc in col.find({}, {"name": 1, "_id": 0}).sort("name", 1)]
+
+
 @router.get("", response_model=MovieListResponse)
 def list_movies(
     search: str | None = Query(default=None),
@@ -59,6 +109,8 @@ def list_movies(
     sort_by: str = Query(default="created_at"),
     sort_order: int = Query(default=-1, ge=-1, le=1),
     rating_min: float | None = Query(default=None, ge=0, le=5),
+    actors: str | None = Query(default=None),
+    tags: str | None = Query(default=None),
 ):
     """Get a paginated movie list with optional filters."""
     db = get_mongo_db()
@@ -78,6 +130,16 @@ def list_movies(
 
     if rating_min is not None:
         query["rating"] = {"$gte": rating_min}
+
+    if actors:
+        actor_list = [a.strip() for a in actors.split(",") if a.strip()]
+        if actor_list:
+            query["actors"] = {"$all": actor_list}
+
+    if tags:
+        tag_list = [t.strip() for t in tags.split(",") if t.strip()]
+        if tag_list:
+            query["tags"] = {"$all": tag_list}
 
     total = col.count_documents(query)
     total_pages = max(1, (total + limit - 1) // limit)
