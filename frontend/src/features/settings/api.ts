@@ -18,3 +18,7 @@ export function fetchCookiesConfig(): Promise<CookiesConfig> {
 export function updateCookiesConfig(data: CookiesConfig): Promise<CookiesConfig> {
   return client.put("/settings/cookies", data).then((res) => res.data);
 }
+
+export function syncMovieFilters(): Promise<{ actors: number; tags: number }> {
+  return client.post("/movies/sync-filters").then((res) => res.data);
+}

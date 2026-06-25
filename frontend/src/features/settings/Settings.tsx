@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Form, Input, InputNumber, Button, Card, message, Typography } from "antd";
 import Editor, { type OnMount } from "@monaco-editor/react";
-import { fetchSettings, updateSettings, fetchCookiesConfig, updateCookiesConfig, type AppSettings, type CookiesConfig } from "./api";
+import { fetchSettings, updateSettings, fetchCookiesConfig, updateCookiesConfig, syncMovieFilters, type AppSettings, type CookiesConfig } from "./api";
 import { getErrorMessage } from "@/shared/hooks/useErrorMessage";
 import FullPageSpinner from "@/shared/components/FullPageSpinner";
 import styles from "@/shared/styles/pages.module.css";
@@ -23,6 +23,7 @@ export default function Settings() {
   const [cookieJson, setCookieJson] = useState("");
   const [cookieLoading, setCookieLoading] = useState(true);
   const [jsonError, setJsonError] = useState<string | null>(null);
+  const [syncing, setSyncing] = useState(false);
   const editorRef = useRef<Parameters<OnMount>[0] | null>(null);
 
   // Load app settings
@@ -115,6 +116,18 @@ export default function Settings() {
       setJsonError(null);
     } catch {
       // Can't format invalid JSON — do nothing
+    }
+  };
+
+  const handleSyncFilters = async () => {
+    setSyncing(true);
+    try {
+      const result = await syncMovieFilters();
+      message.success(`同步完成：${result.actors} 个演员，${result.tags} 个标签`);
+    } catch (e: unknown) {
+      message.error(getErrorMessage(e));
+    } finally {
+      setSyncing(false);
     }
   };
 
@@ -213,6 +226,13 @@ export default function Settings() {
               )}
             </>
           )}
+        </Card>
+
+        <Card title="数据同步" className={styles.formCard}>
+          <p style={{ marginBottom: 16 }}>从已抓取的影片数据中提取并同步演员和标签到筛选列表。</p>
+          <Button type="primary" onClick={handleSyncFilters} loading={syncing}>
+            同步演员和标签
+          </Button>
         </Card>
       </div>
     </div>
