@@ -39,29 +39,45 @@ export default function RunDetail() {
   const [run, setRun] = useState<TaskRun | null>(null);
   const [tasks, setTasks] = useState<RunDetailTask[]>([]);
   const [loading, setLoading] = useState(true);
+  const [taskPage, setTaskPage] = useState(1);
+  const [taskPageSize, setTaskPageSize] = useState(20);
+  const [taskTotal, setTaskTotal] = useState(0);
   const logEndRef = useRef<HTMLDivElement>(null);
   const [modal, contextHolder] = Modal.useModal();
+
+  const loadTasks = useCallback(async () => {
+    if (!id) return;
+    try {
+      const taskData = await fetchRunDetailTasks(id, { page: taskPage, limit: taskPageSize });
+      setTasks(taskData.items);
+      setTaskTotal(taskData.total);
+    } catch (e: unknown) {
+      message.error(getErrorMessage(e));
+    }
+  }, [id, taskPage, taskPageSize]);
 
   const load = useCallback(async () => {
     if (!id) return;
     try {
-      const [runData, taskData] = await Promise.all([
-        fetchRun(id),
-        fetchRunDetailTasks(id),
-      ]);
+      const runData = await fetchRun(id);
       setRun(runData);
-      setTasks(taskData.items);
+      await loadTasks();
     } catch (e: unknown) {
       message.error(getErrorMessage(e));
     } finally {
       setLoading(false);
     }
-  }, [id]);
+  }, [id, loadTasks]);
 
   // Initial load
   useEffect(() => {
     load();
   }, [load]);
+
+  // Reload tasks when pagination changes
+  useEffect(() => {
+    loadTasks();
+  }, [loadTasks]);
 
   // Poll while active
   const isActive = run && (run.status === "running" || run.status === "queued");
@@ -306,7 +322,22 @@ export default function RunDetail() {
               columns={taskColumns}
               dataSource={tasks}
               size="small"
-              pagination={false}
+              pagination={{
+                current: taskPage,
+                total: taskTotal,
+                pageSize: taskPageSize,
+                showSizeChanger: true,
+                pageSizeOptions: ["20", "50", "100"],
+                showTotal: (total) => `共 ${total} 条`,
+                onChange: (page, size) => {
+                  if (size !== taskPageSize) {
+                    setTaskPageSize(size);
+                    setTaskPage(1);
+                  } else {
+                    setTaskPage(page);
+                  }
+                },
+              }}
               scroll={{ x: 1100 }}
             />
           </Card>

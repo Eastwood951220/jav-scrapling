@@ -29,8 +29,11 @@ export function deleteRun(id: string): Promise<{ deleted: boolean }> {
   return client.delete(`/runs/${id}`).then((res) => res.data);
 }
 
-export function fetchRunDetailTasks(runId: string): Promise<{ items: RunDetailTask[]; total: number }> {
-  return client.get(`/runs/${runId}/tasks`).then((res) => res.data);
+export function fetchRunDetailTasks(
+  runId: string,
+  params?: { page?: number; limit?: number },
+): Promise<{ items: RunDetailTask[]; total: number; page: number; limit: number; total_pages: number }> {
+  return client.get(`/runs/${runId}/tasks`, { params }).then((res) => res.data);
 }
 
 export function retryCrawl(runId: string, taskId: string): Promise<{ success: boolean; message?: string }> {

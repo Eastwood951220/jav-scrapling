@@ -174,18 +174,35 @@ def _stringify_objectids(obj):
 
 
 @router.get("/{run_id}/tasks", response_model=RunDetailTaskListResponse)
-def list_run_detail_tasks(run_id: str):
+def list_run_detail_tasks(
+    run_id: str,
+    page: int = Query(default=1, ge=1),
+    limit: int = Query(default=20, ge=1, le=100),
+):
     try:
         ObjectId(run_id)
     except InvalidId:
         raise HTTPException(status_code=400, detail="Invalid run ID")
 
-    cursor = _detail_col().find({"run_id": run_id}).sort("created_at", 1)
-    items = []
-    for doc in cursor:
-        items.append(_stringify_objectids(doc))
+    total = _detail_col().count_documents({"run_id": run_id})
+    total_pages = max(1, (total + limit - 1) // limit)
 
-    return {"items": items, "total": len(items)}
+    cursor = (
+        _detail_col()
+        .find({"run_id": run_id})
+        .sort("created_at", 1)
+        .skip((page - 1) * limit)
+        .limit(limit)
+    )
+    items = [_stringify_objectids(doc) for doc in cursor]
+
+    return {
+        "items": items,
+        "total": total,
+        "page": page,
+        "limit": limit,
+        "total_pages": total_pages,
+    }
 
 
 @router.post("/{run_id}/tasks/{task_id}/retry-crawl")
