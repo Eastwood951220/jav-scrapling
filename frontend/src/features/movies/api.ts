@@ -14,6 +14,7 @@ export function fetchMovies(params: {
   limit?: number;
   sort_by?: string;
   sort_order?: number;
+  rating_min?: number;
 }): Promise<MovieListResponse> {
   return client.get("/movies", { params }).then((res) => res.data);
 }

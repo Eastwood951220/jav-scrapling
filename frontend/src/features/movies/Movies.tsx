@@ -5,6 +5,7 @@ import {
 import { SearchOutlined, ReloadOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import { fetchCollections, fetchMovies, fetchMovie, MovieListResponse } from "./api";
+import type { Movie } from "@/shared/types/common";
 import { getErrorMessage } from "@/shared/hooks/useErrorMessage";
 
 export default function Movies() {
@@ -63,7 +64,7 @@ export default function Movies() {
     }
   };
 
-  const columns: ColumnsType<Record<string, unknown>> = [
+  const columns: ColumnsType<Movie> = [
     { title: "番号", dataIndex: "code", key: "code", width: 140 },
     {
       title: "标题",
@@ -72,7 +73,7 @@ export default function Movies() {
       ellipsis: true,
       render: (text: string) => text || "-",
     },
-    { title: "日期", dataIndex: "date", key: "date", width: 110 },
+    { title: "日期", dataIndex: "release_date", key: "release_date", width: 110 },
     {
       title: "标签",
       dataIndex: "tags",
@@ -92,8 +93,8 @@ export default function Movies() {
       title: "操作",
       key: "actions",
       width: 80,
-      render: (_: unknown, record: Record<string, unknown>) => (
-        <Button type="link" size="small" onClick={() => handleViewDetail(record._id as string)}>
+      render: (_: unknown, record: Movie) => (
+        <Button type="link" size="small" onClick={() => handleViewDetail(record._id)}>
           详情
         </Button>
       ),

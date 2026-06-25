@@ -4,7 +4,7 @@ export type { Movie };
 
 /** Paginated movie list response. */
 export interface MovieListResponse {
-  items: Record<string, unknown>[];
+  items: Movie[];
   total: number;
   page: number;
   limit: number;

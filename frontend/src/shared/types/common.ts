@@ -15,13 +15,24 @@ export interface Movie {
   _id: string;
   code: string;
   title: string;
-  date?: string;
-  length?: string;
+  cover?: string;
+  release_date?: string;
+  duration?: number;
   director?: string;
   maker?: string;
   publisher?: string;
-  actors?: string[];
+  series?: string;
+  rating?: number;
   tags?: string[];
-  cover?: string;
+  actors?: string[];
+  magnet?: string;
+  size?: number;
+  has_chinese_sub?: boolean;
   source_url?: string;
+  source_name?: string;
+  source_code?: string;
+  source_page?: number;
+  name?: string;
+  created_at?: string;
+  updated_at?: string;
 }
