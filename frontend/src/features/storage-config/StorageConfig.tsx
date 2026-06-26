@@ -33,17 +33,17 @@ import styles from "@/shared/styles/pages.module.css";
 
 function TestResultCard({ result }: { result: StorageTestResult }) {
   const items = [
-    { label: "连接", value: result.connection },
-    { label: "Token 有效", value: result.token_valid },
-    { label: "临时目录", value: result.temp_dir_exists },
-    { label: "目标目录", value: result.target_dir_exists },
-    { label: "下载能力", value: result.download_capable },
-    { label: "文件操作", value: result.file_ops_capable },
+    { label: "gRPC 连接", value: result.grpc_reachable, error: result.grpc_error },
+    { label: "API 授权", value: result.api_authorized, error: result.api_error },
+    { label: "下载目录", value: result.download_root_exists, error: result.download_root_error },
+    { label: "目标文件夹", value: result.target_folder_accessible, error: result.target_folder_error },
   ];
+
+  const allPassed = items.every((item) => item.value);
 
   return (
     <Card title="测试结果" className={styles.resultCard} size="small">
-      <Descriptions column={3} size="small">
+      <Descriptions column={2} size="small">
         {items.map((item) => (
           <Descriptions.Item key={item.label} label={item.label}>
             <Tag color={item.value ? "success" : "error"}>
@@ -52,10 +52,29 @@ function TestResultCard({ result }: { result: StorageTestResult }) {
           </Descriptions.Item>
         ))}
       </Descriptions>
-      {result.message && (
+      {items.some((item) => !item.value && item.error) && (
         <Alert
-          type={result.connection ? "success" : "error"}
-          message={result.message}
+          type="error"
+          message="错误详情"
+          description={
+            <ul style={{ margin: 0, paddingLeft: 20 }}>
+              {items
+                .filter((item) => !item.value && item.error)
+                .map((item) => (
+                  <li key={item.label}>
+                    {item.label}: {item.error}
+                  </li>
+                ))}
+            </ul>
+          }
+          style={{ marginTop: 12 }}
+          showIcon
+        />
+      )}
+      {allPassed && (
+        <Alert
+          type="success"
+          message="所有测试通过"
           style={{ marginTop: 12 }}
           showIcon
         />
@@ -127,10 +146,10 @@ export default function StorageConfig() {
       .finally(() => setLoading(false));
   };
 
-  if (loading) return <FullPageSpinner />;
-
   const maskDisplay =
     Form.useWatch("api_token_masked", form) as string | undefined;
+
+  if (loading) return <FullPageSpinner />;
 
   return (
     <div style={{ maxWidth: 900 }}>
