@@ -35,3 +35,4 @@ mongo_data/
 docker/
 tests/
 backend/tests
+run_data/

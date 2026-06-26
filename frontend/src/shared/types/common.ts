@@ -25,6 +25,7 @@ export interface MovieMagnet {
   tags?: string[];
   has_chinese_sub?: boolean;
   date?: string;
+  dedupe_key?: string;
 }
 
 /** Storage task summary embedded in a movie document. */
@@ -51,6 +52,7 @@ export interface Movie {
   actors?: string[];
   magnet?: string;
   magnets?: MovieMagnet[];
+  selected_magnet_dedupe_key?: string;
   size?: number;
   has_chinese_sub?: boolean;
   source_url?: string;

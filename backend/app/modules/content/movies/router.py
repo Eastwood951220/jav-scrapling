@@ -63,6 +63,7 @@ def _public_magnet_doc(doc: dict) -> dict:
         "tags": doc.get("tags", []),
         "has_chinese_sub": bool(doc.get("has_chinese_sub")),
         "date": doc.get("date", ""),
+        "dedupe_key": doc.get("dedupe_key", ""),
     }
 
 
@@ -339,6 +340,43 @@ def get_movie(movie_id: str):
 
     doc["_id"] = str(doc["_id"])
     return _stringify_objectids(doc)
+
+
+@router.post("/{movie_id}/select-magnet")
+def select_magnet(movie_id: str, body: dict):
+    """Set the selected (best) magnet for a movie."""
+    try:
+        oid = ObjectId(movie_id)
+    except InvalidId:
+        raise HTTPException(status_code=400, detail="Invalid movie ID")
+
+    dedupe_key = body.get("dedupe_key", "").strip()
+    if not dedupe_key:
+        raise HTTPException(status_code=400, detail="dedupe_key is required")
+
+    db = get_mongo_db()
+    col = db[MOVIE_COLLECTION]
+
+    # Verify movie exists
+    movie = col.find_one({"_id": oid}, {"_id": 1})
+    if not movie:
+        raise HTTPException(status_code=404, detail="Movie not found")
+
+    # Verify magnet exists for this movie
+    magnet = db[MAGNET_COLLECTION].find_one({
+        "movie_id": str(oid),
+        "dedupe_key": dedupe_key,
+    })
+    if not magnet:
+        raise HTTPException(status_code=404, detail="Magnet not found for this movie")
+
+    # Update the movie's selected magnet
+    col.update_one(
+        {"_id": oid},
+        {"$set": {"selected_magnet_dedupe_key": dedupe_key}},
+    )
+
+    return {"success": True, "selected_magnet_dedupe_key": dedupe_key}
 
 
 @router.delete("/batch")

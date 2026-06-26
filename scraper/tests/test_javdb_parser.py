@@ -82,12 +82,23 @@ def test_parse_detail_page_fields_and_best_magnet():
         </nav>
         <div id="magnets-content">
           <div class="item">
-            <button class="copy-to-clipboard" data-clipboard-text="magnet:?xt=1"></button>
-            <div class="magnet-name"><span class="meta">1.2 GB</span><span class="tags"><span class="tag">字幕</span></span></div>
+            <div class="magnet-name">
+              <a href="magnet:?xt=urn:btih:1111111111111111111111111111111111111111">
+                <span class="name">ABC-123-C.torrent</span>
+                <span class="meta">1.2 GB</span>
+                <span class="tags"><span class="tag">字幕</span></span>
+              </a>
+            </div>
+            <div class="date"><span class="time">2024-01-01</span></div>
           </div>
           <div class="item">
-            <button class="copy-to-clipboard" data-clipboard-text="magnet:?xt=2"></button>
-            <div class="magnet-name"><span class="meta">3.0 GB</span></div>
+            <div class="magnet-name">
+              <a href="magnet:?xt=urn:btih:2222222222222222222222222222222222222222">
+                <span class="name">ABC-123.torrent</span>
+                <span class="meta">3.0 GB</span>
+              </a>
+            </div>
+            <div class="date"><span class="time">2024-01-02</span></div>
           </div>
         </div>
         """
@@ -100,5 +111,8 @@ def test_parse_detail_page_fields_and_best_magnet():
     assert result["rating"] == 4.62
     assert result["tags"] == ["VR", "字幕"]
     assert result["actors"] == ["Alice"]
-    assert result["magnet"] == "magnet:?xt=1"
-    assert result["size"] == 1228.8
+    assert result["magnets"][0]["magnet"] == "magnet:?xt=urn:btih:1111111111111111111111111111111111111111"
+    assert result["magnets"][0]["name"] == "ABC-123-C.torrent"
+    assert result["magnets"][0]["size"] == 1228.8
+    assert result["magnets"][0]["has_chinese_sub"] is True
+    assert "中文字幕" in result["magnets"][0]["tags"]

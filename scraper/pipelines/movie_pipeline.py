@@ -1,4 +1,5 @@
 from scraper.pipelines.base_pipeline import BasePipeline
+from scraper.spiders.javdb.javdb_parser import derive_magnet_tags
 
 
 class MoviePipeline(BasePipeline):
@@ -35,6 +36,23 @@ class MoviePipeline(BasePipeline):
 
         if task_name:
             result["source_task_name"] = task_name
+
+        # Enrich magnet tags from name
+        magnets = item.get("magnets")
+        if isinstance(magnets, list):
+            enriched_magnets = []
+            for magnet in magnets:
+                if isinstance(magnet, dict):
+                    m = dict(magnet)
+                    name = m.get("name") or ""
+                    existing = m.get("tags") if isinstance(m.get("tags"), list) else []
+                    tags, has_sub = derive_magnet_tags(name, existing)
+                    m["tags"] = tags
+                    m["has_chinese_sub"] = has_sub
+                    enriched_magnets.append(m)
+                else:
+                    enriched_magnets.append(magnet)
+            result["magnets"] = enriched_magnets
 
         return result
 

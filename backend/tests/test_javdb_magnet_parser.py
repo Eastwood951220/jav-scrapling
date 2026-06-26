@@ -1,6 +1,10 @@
 from scrapling.parser import Selector
 
-from scraper.spiders.javdb.javdb_parser import parse_detail_page, parse_magnets
+from scraper.spiders.javdb.javdb_parser import (
+    derive_magnet_tags,
+    parse_detail_page,
+    parse_magnets,
+)
 
 
 def test_parse_magnets_extracts_link_name_size_files_tags_and_date():
@@ -39,7 +43,7 @@ def test_parse_magnets_extracts_link_name_size_files_tags_and_date():
             "size_text": "8.75GB",
             "file_count": 1,
             "file_text": "1個文件",
-            "tags": ["高清", "字幕"],
+            "tags": ["高清", "字幕", "中文字幕"],
             "has_chinese_sub": True,
             "date": "2023-10-01",
         },
@@ -137,7 +141,7 @@ def test_parse_detail_page_attaches_all_magnets_without_best_selection_fields():
             "size_text": "8.75GB",
             "file_count": 1,
             "file_text": "1個文件",
-            "tags": ["字幕"],
+            "tags": ["字幕", "中文字幕"],
             "has_chinese_sub": True,
             "date": "2023-10-01",
         }
@@ -145,3 +149,58 @@ def test_parse_detail_page_attaches_all_magnets_without_best_selection_fields():
     assert "magnet" not in detail
     assert "size" not in detail
     assert "has_chinese_sub" not in detail
+
+
+def test_derive_magnet_tags_uncensored_keyword():
+    tags, has_sub = derive_magnet_tags("JUR-732-U.无码破解.torrent", [])
+    assert "破解" in tags
+    assert has_sub is False
+
+
+def test_derive_magnet_tags_uncensored_keyword_no_sub():
+    tags, has_sub = derive_magnet_tags("SSIS-889.破解版.torrent", [])
+    assert "破解" in tags
+    assert has_sub is False
+
+
+def test_derive_magnet_tags_chinese_subtitle_suffix():
+    tags, has_sub = derive_magnet_tags("SSIS-889-C.torrent", [])
+    assert "中文字幕" in tags
+    assert has_sub is True
+
+
+def test_derive_magnet_tags_uncensored_suffix():
+    tags, has_sub = derive_magnet_tags("SSIS-889-U.torrent", [])
+    assert "破解" in tags
+    assert has_sub is False
+
+
+def test_derive_magnet_tags_both_suffix():
+    tags, has_sub = derive_magnet_tags("SSIS-889-UC.torrent", [])
+    assert "破解" in tags
+    assert "中文字幕" in tags
+    assert has_sub is True
+
+
+def test_derive_magnet_tags_merges_existing():
+    tags, has_sub = derive_magnet_tags("SSIS-889-C.torrent", ["高清"])
+    assert "高清" in tags
+    assert "中文字幕" in tags
+    assert len(tags) == 2
+
+
+def test_derive_magnet_tags_no_duplicates():
+    tags, has_sub = derive_magnet_tags("SSIS-889-C.torrent", ["中文字幕"])
+    assert tags.count("中文字幕") == 1
+
+
+def test_derive_magnet_tags_plain_name():
+    tags, has_sub = derive_magnet_tags("SSIS-889.torrent", ["高清"])
+    assert tags == ["高清"]
+    assert has_sub is False
+
+
+def test_derive_magnet_tags_empty_name():
+    tags, has_sub = derive_magnet_tags("", ["高清"])
+    assert tags == ["高清"]
+    assert has_sub is False

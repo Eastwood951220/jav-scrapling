@@ -88,6 +88,55 @@ def _parse_magnet_meta(meta_text: str) -> tuple[str, int | None, str]:
     return size_text, file_count, file_text
 
 
+# Keywords that indicate uncensored/pirated content
+UNCENSORED_KEYWORDS = ("无码破解", "无码", "破解")
+
+# Code suffixes: -C = Chinese subtitle, -U = uncensored, -UC = both
+_SUFFIX_RE = re.compile(r"-(UC|C|U)(?:\.|$)", re.IGNORECASE)
+
+
+def derive_magnet_tags(
+    name: str, existing_tags: list[str]
+) -> tuple[list[str], bool]:
+    """Derive tags from magnet name keywords and code suffixes.
+
+    Returns (enriched_tags, has_chinese_sub).
+    """
+    if not name:
+        has_sub = any("字幕" in t or "中字" in t for t in existing_tags)
+        return list(existing_tags), has_sub
+
+    tags = list(existing_tags)
+    has_chinese_sub = any("字幕" in t or "中字" in t for t in tags)
+
+    # Keyword-based: name contains uncensored keywords
+    for keyword in UNCENSORED_KEYWORDS:
+        if keyword in name:
+            if "破解" not in tags:
+                tags.append("破解")
+            break
+
+    # Suffix-based: parse code suffixes from the name
+    match = _SUFFIX_RE.search(name)
+    if match:
+        suffix = match.group(1).upper()
+        if suffix == "UC":
+            if "中文字幕" not in tags:
+                tags.append("中文字幕")
+            has_chinese_sub = True
+            if "破解" not in tags:
+                tags.append("破解")
+        elif suffix == "C":
+            if "中文字幕" not in tags:
+                tags.append("中文字幕")
+            has_chinese_sub = True
+        elif suffix == "U":
+            if "破解" not in tags:
+                tags.append("破解")
+
+    return tags, has_chinese_sub
+
+
 def is_fc2_task(name: str | None, url: str | None, code: str | None = None) -> bool:
     values = [
         name or "",
@@ -196,14 +245,14 @@ def parse_magnets(page) -> list[dict]:
             ],
         )
 
-        name = _first_text(node, [".magnet-name a::text", ".magnet-name .name::text", ".name::text"])
+        name = _first_text(node, [".magnet-name .name::text", ".name::text", ".magnet-name a::text"])
         meta_text = _first_text(node, [".magnet-name .meta::text", ".meta::text"])
         if not (magnet_url or name or meta_text):
             continue
 
         size_text, file_count, file_text = _parse_magnet_meta(meta_text)
-        tags = _all_text(node, ".magnet-name .tags .tag::text") or _all_text(node, ".tag::text")
-        has_chinese_sub = any("字幕" in tag or "中字" in tag for tag in tags)
+        html_tags = _all_text(node, ".magnet-name .tags .tag::text") or _all_text(node, ".tag::text")
+        tags, has_chinese_sub = derive_magnet_tags(name, html_tags)
         date = _first_text(node, [".date .time::text", ".time::text"])
 
         magnets.append(

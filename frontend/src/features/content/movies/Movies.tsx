@@ -34,7 +34,8 @@ import {
     fetchTags,
     fetchAllMagnets,
     createStorageTask,
-    batchCreateStorageTasks
+    batchCreateStorageTasks,
+    selectMagnet
 } from "./api";
 import type {StorageBatchResponse} from "./api";
 import type {Movie, MovieListResponse} from "./types";
@@ -72,6 +73,9 @@ export default function Movies() {
     const [batchRetryFailed, setBatchRetryFailed] = useState(false);
     const [batchPushLoading, setBatchPushLoading] = useState(false);
     const [batchResult, setBatchResult] = useState<StorageBatchResponse | null>(null);
+    const [selectMagnetOpen, setSelectMagnetOpen] = useState(false);
+    const [selectMagnetMovie, setSelectMagnetMovie] = useState<Movie | null>(null);
+    const [selectMagnetLoading, setSelectMagnetLoading] = useState(false);
 
     const loadFilters = useCallback(async () => {
         setFiltersLoading(true);
@@ -309,6 +313,36 @@ export default function Movies() {
         }
     };
 
+    const handleOpenSelectMagnet = (movie: Movie) => {
+        setSelectMagnetMovie(movie);
+        setSelectMagnetOpen(true);
+    };
+
+    const handleSelectMagnet = async (dedupeKey: string) => {
+        if (!selectMagnetMovie) return;
+        setSelectMagnetLoading(true);
+        try {
+            await selectMagnet(selectMagnetMovie._id, dedupeKey);
+            message.success("已选择最佳磁力");
+            setSelectMagnetOpen(false);
+            setData((prev) => ({
+                ...prev,
+                items: prev.items.map((item) =>
+                    item._id === selectMagnetMovie._id
+                        ? { ...item, selected_magnet_dedupe_key: dedupeKey }
+                        : item
+                ),
+            }));
+            if (detail && (detail._id as string) === selectMagnetMovie._id) {
+                setDetail({ ...detail, selected_magnet_dedupe_key: dedupeKey });
+            }
+        } catch (e: unknown) {
+            message.error(getErrorMessage(e));
+        } finally {
+            setSelectMagnetLoading(false);
+        }
+    };
+
     const storageStatusColor: Record<string, string> = {
         pending: "processing",
         running: "processing",
@@ -415,6 +449,14 @@ export default function Movies() {
                     <Space size="small">
                         <Button type="link" size="small" onClick={() => handleViewDetail(record._id)}>
                             详情
+                        </Button>
+                        <Button
+                            type="link"
+                            size="small"
+                            disabled={!hasMagnet}
+                            onClick={() => handleOpenSelectMagnet(record)}
+                        >
+                            选择磁力
                         </Button>
                         {ss?.last_status && ["pending", "running", "waiting_download", "downloading", "moving"].includes(ss.last_status) ? (
                             <Button type="link" size="small" disabled>
@@ -661,6 +703,33 @@ export default function Movies() {
                                 <Image src={detail.cover as string} width={200} referrerPolicy="no-referrer"/>
                             ) : "-"}
                         </Descriptions.Item>
+                        <Descriptions.Item label="最佳磁力">
+                            {(() => {
+                                const selectedKey = detail.selected_magnet_dedupe_key as string | undefined;
+                                if (!selectedKey) return <Typography.Text type="secondary">未选择</Typography.Text>;
+                                const selectedMagnet = detailMagnets.find((m) => m.dedupe_key === selectedKey);
+                                if (!selectedMagnet) return <Typography.Text type="secondary">未找到</Typography.Text>;
+                                const m = selectedMagnet;
+                                const displayName = m.name || m.title || "-";
+                                const displaySize = getMagnetSizeText(m);
+                                const displaySub = m.has_chinese_sub ? "是" : "否";
+                                return (
+                                    <Space direction="vertical" size={2}>
+                                        <Typography.Text strong>{displayName}</Typography.Text>
+                                        <Typography.Text type="secondary">
+                                            {displaySize ? `大小: ${displaySize}` : ""}
+                                            {m.file_text ? ` · ${m.file_text}` : ""}
+                                            {` · 中字: ${displaySub}`}
+                                        </Typography.Text>
+                                        {m.magnet && (
+                                            <Typography.Paragraph copyable={{text: m.magnet}} style={{marginBottom: 0, fontSize: 12, wordBreak: "break-all"}}>
+                                                {m.magnet}
+                                            </Typography.Paragraph>
+                                        )}
+                                    </Space>
+                                );
+                            })()}
+                        </Descriptions.Item>
                         <Descriptions.Item label="磁力链接">
                             {detailMagnetLinks.length > 0 ? (
                                 <Space direction="vertical" size={4} style={{width: "100%"}}>
@@ -791,6 +860,84 @@ export default function Movies() {
                             </Typography.Paragraph>
                         )}
                     </>
+                )}
+            </Modal>
+
+            {/* Magnet selection modal */}
+            <Modal
+                title={`选择最佳磁力 - ${selectMagnetMovie?.code || ""}`}
+                open={selectMagnetOpen}
+                onCancel={() => setSelectMagnetOpen(false)}
+                footer={null}
+                width={800}
+            >
+                {selectMagnetMovie && (
+                    <Table
+                        dataSource={(selectMagnetMovie.magnets ?? []).filter((m) => Boolean(m.magnet?.trim()))}
+                        rowKey={(m) => (m as MovieMagnet).magnet}
+                        pagination={false}
+                        size="small"
+                        columns={[
+                            {
+                                title: "名称",
+                                dataIndex: "name",
+                                key: "name",
+                                render: (_: unknown, record: MovieMagnet) => record.name || record.title || "-",
+                            },
+                            {
+                                title: "大小",
+                                dataIndex: "size_text",
+                                key: "size",
+                                width: 120,
+                                render: (_: unknown, record: MovieMagnet) => getMagnetSizeText(record) || "-",
+                            },
+                            {
+                                title: "中字",
+                                dataIndex: "has_chinese_sub",
+                                key: "has_chinese_sub",
+                                width: 60,
+                                render: (v: boolean) => v ? <Tag color="green">是</Tag> : <Tag>否</Tag>,
+                            },
+                            {
+                                title: "文件数",
+                                dataIndex: "file_count",
+                                key: "file_count",
+                                width: 80,
+                                render: (_: unknown, record: MovieMagnet) => record.file_text || (record.file_count != null ? String(record.file_count) : "-"),
+                            },
+                            {
+                                title: "标签",
+                                dataIndex: "tags",
+                                key: "tags",
+                                render: (tags: string[]) =>
+                                    Array.isArray(tags) && tags.length > 0
+                                        ? <Space size={[0, 4]} wrap>{tags.map((t) => <Tag key={t}>{t}</Tag>)}</Space>
+                                        : "-",
+                            },
+                            {
+                                title: "操作",
+                                key: "action",
+                                width: 80,
+                                render: (_: unknown, record: MovieMagnet) => {
+                                    const dedupeKey = record.dedupe_key as string | undefined;
+                                    const isSelected = dedupeKey && selectMagnetMovie.selected_magnet_dedupe_key === dedupeKey;
+                                    if (isSelected) {
+                                        return <Typography.Text type="success">当前</Typography.Text>;
+                                    }
+                                    return (
+                                        <Button
+                                            type="primary"
+                                            size="small"
+                                            loading={selectMagnetLoading}
+                                            onClick={() => dedupeKey && handleSelectMagnet(dedupeKey)}
+                                        >
+                                            选择
+                                        </Button>
+                                    );
+                                },
+                            },
+                        ]}
+                    />
                 )}
             </Modal>
         </div>

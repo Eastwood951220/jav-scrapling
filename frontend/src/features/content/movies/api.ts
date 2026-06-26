@@ -54,6 +54,10 @@ export function deleteMovies(ids: string[]): Promise<{ deleted: number }> {
   return client.delete("/movies/batch", { data: { ids } }).then((res) => res.data);
 }
 
+export function selectMagnet(movieId: string, dedupeKey: string): Promise<{ success: boolean; selected_magnet_dedupe_key: string }> {
+  return client.post(`/movies/${movieId}/select-magnet`, { dedupe_key: dedupeKey }).then((res) => res.data);
+}
+
 export function fetchActors(): Promise<string[]> {
   return client.get("/movies/actors").then((res) => res.data);
 }
