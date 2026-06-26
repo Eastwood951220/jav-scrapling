@@ -113,7 +113,7 @@ export default function TaskDetail() {
   usePolling(load, 3000, Boolean(isActive));
 
   const canRetry = task && (
-    task.status === "failed" || task.status === "retryable" || task.status === "waiting_retry"
+    task.status === "failed" || task.status === "retryable" || task.status === "waiting_retry" || task.status === "stopped"
   );
 
   const handleRetry = async () => {
