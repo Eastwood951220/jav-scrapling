@@ -24,6 +24,16 @@ def _all_text(node, selector: str) -> list[str]:
     return [str(clean_text(value)) for value in values if clean_text(value)]
 
 
+def _first_magnet_url(node, selectors: list[str]) -> str:
+    for selector in selectors:
+        values = node.css(selector).getall()
+        for value in values:
+            candidate = str(clean_text(value))
+            if candidate.startswith("magnet:?"):
+                return candidate
+    return ""
+
+
 def _parse_field_value(field_name: str, row) -> Any:
     text = _first_text(row, ["span.value::text", "span::text"])
     link_texts = _all_text(row, "span.value a::text") or _all_text(row, "a::text")
@@ -177,7 +187,7 @@ def parse_magnets(page) -> list[dict]:
     magnets: list[dict] = []
 
     for node in page.css("#magnets-content .item"):
-        magnet_url = _first_text(
+        magnet_url = _first_magnet_url(
             node,
             [
                 ".magnet-name a::attr(href)",
@@ -185,8 +195,6 @@ def parse_magnets(page) -> list[dict]:
                 "button.copy-to-clipboard::attr(data-clipboard-text)",
             ],
         )
-        if not magnet_url.startswith("magnet:?"):
-            magnet_url = ""
 
         name = _first_text(node, [".magnet-name a::text", ".magnet-name .name::text", ".name::text"])
         meta_text = _first_text(node, [".magnet-name .meta::text", ".meta::text"])

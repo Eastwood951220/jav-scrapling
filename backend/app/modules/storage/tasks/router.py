@@ -69,10 +69,13 @@ def _select_best_magnet(magnets: list[dict]) -> dict | None:
     if not magnets:
         return None
 
-    def _parse_size_mb(size_str: str) -> float:
+    def _parse_size_mb(size_value) -> float:
         """Parse a human-readable size string (e.g. '4.5 GB') into MB."""
-        if not size_str:
+        if isinstance(size_value, (int, float)):
+            return float(size_value)
+        if not size_value:
             return 0.0
+        size_str = str(size_value)
         size_str = size_str.strip().upper()
         match = re.match(r"([\d.]+)\s*(GB|MB|KB|TB)?", size_str)
         if not match:
@@ -96,7 +99,7 @@ def _select_best_magnet(magnets: list[dict]) -> dict | None:
         if not isinstance(m, dict) or not m.get("magnet"):
             continue
         has_sub = _has_chinese_sub(m)
-        size_mb = _parse_size_mb(m.get("size", ""))
+        size_mb = _parse_size_mb(m.get("size")) or _parse_size_mb(m.get("size_text", ""))
         is_4k_chinese = has_sub and size_mb > 2048  # >2GB with Chinese sub = highest priority
         scored.append((is_4k_chinese, has_sub, size_mb, m))
 

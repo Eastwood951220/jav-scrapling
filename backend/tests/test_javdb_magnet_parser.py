@@ -87,6 +87,24 @@ def test_parse_magnets_keeps_rows_with_only_name_and_file_metadata():
     ]
 
 
+def test_parse_magnets_falls_back_to_clipboard_when_anchor_is_not_magnet():
+    page = Selector(
+        """
+        <div id="magnets-content">
+          <div class="item">
+            <div class="magnet-name">
+              <a href="/magnets/ssis-889">SSIS-889-C.torrent</a>
+              <span class="meta">8.75GB, 1個文件</span>
+            </div>
+            <button class="copy-to-clipboard" data-clipboard-text="magnet:?xt=urn:btih:30bb559440d8f806eee3dc6e70e2f0911003d099"></button>
+          </div>
+        </div>
+        """
+    )
+
+    assert parse_magnets(page)[0]["magnet"] == "magnet:?xt=urn:btih:30bb559440d8f806eee3dc6e70e2f0911003d099"
+
+
 def test_parse_detail_page_attaches_all_magnets_without_best_selection_fields():
     page = Selector(
         """
