@@ -640,13 +640,14 @@ def _step_move_files(task: dict, config: dict) -> dict:
 def _step_verify_result(task: dict, config: dict) -> dict:
     """Step 8: Verify target files exist with correct sizes."""
     task_id = task["task_id"]
-    selected = task.get("selected_videos", [])
+    # Use moved_files (has moved_path) instead of selected_videos
+    moved_files = task.get("moved_files", [])
     target_path = task["target_path"]
 
     cd2 = _build_cd2_client(config)
     try:
         all_ok = True
-        for video in selected:
+        for video in moved_files:
             moved_path = video.get("moved_path")
             if not moved_path:
                 all_ok = False
