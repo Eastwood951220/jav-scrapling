@@ -120,12 +120,10 @@ class MovieService:
         return {
             **detail,
             "code": detail.get("code") or source_code,
-            "name": task.name,
             "source_url": detail_task.get("url"),
-            "source_name": detail_task.get("name"),
+            "source_name": detail_task.get("name") or detail.get("source_name"),
             "source_code": source_code,
             "source_page": detail_task.get("source_page"),
-            "parent_task_name": detail_task.get("parent_task_name"),
             "config_task_name": task.name,
         }
 

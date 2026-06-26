@@ -24,9 +24,9 @@ class MoviePipeline(BasePipeline):
     def clean_item(self, item: dict, task_name: str = None) -> dict:
         result = dict(item)
 
-        title = item.get("title")
-        if isinstance(title, str):
-            result["title"] = title.strip()
+        source_name = item.get("source_name")
+        if isinstance(source_name, str):
+            result["source_name"] = source_name.strip()
 
         tags = item.get("tags")
         if isinstance(tags, list) and item.get("has_chinese_sub") and "中文字幕" not in tags:
@@ -57,4 +57,4 @@ class MoviePipeline(BasePipeline):
         return result
 
     def is_valid_item(self, item: dict) -> bool:
-        return bool(item.get("title") or item.get("code") or item.get("source_url"))
+        return bool(item.get("source_name") or item.get("code") or item.get("source_url"))

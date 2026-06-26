@@ -127,7 +127,7 @@ class MovieMagnetRepository:
         document = {
             "movie_id": movie_id,
             "movie_code": movie.get("code") or movie.get("movie_code") or "",
-            "movie_title": movie.get("title") or movie.get("movie_title") or "",
+            "movie_title": movie.get("source_name") or movie.get("movie_title") or "",
             "source_url": movie.get("source_url") or "",
             "source_task_name": movie.get("source_task_name") or "",
             "magnet": magnet_url,
