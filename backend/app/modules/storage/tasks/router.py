@@ -269,12 +269,18 @@ def batch_create_storage_tasks(body: dict):
 
         magnets = movie.get("magnets", [])
         best_magnet = _select_best_magnet(magnets)
-        if not best_magnet:
-            items.append({"movie_id": mid, "result": "skipped", "reason": "no_magnet"})
-            skipped += 1
-            continue
 
-        magnet_url = best_magnet.get("magnet", "")
+        # Fallback: singular "magnet" field (string) when "magnets" array is empty
+        if not best_magnet:
+            single_magnet = movie.get("magnet", "")
+            if single_magnet:
+                magnet_url = single_magnet
+            else:
+                items.append({"movie_id": mid, "result": "skipped", "reason": "no_magnet"})
+                skipped += 1
+                continue
+        else:
+            magnet_url = best_magnet.get("magnet", "")
         info_hash = _extract_info_hash(magnet_url)
 
         # Check existing tasks for this movie + magnet
