@@ -132,58 +132,54 @@ def test_storage_connection():
 
     result = StorageTestResult()
 
-    # --- 1. gRPC reachable ---
-    try:
-        cd2 = CloudDrive2Client(host=host, token=token or "probe", timeout=timeout)
-        cd2.get_file_info("/")
-        # If we get here without exception, the server is reachable
-        result.grpc_reachable = True
-    except Exception as exc:
-        result.grpc_reachable = False
-        result.grpc_error = str(exc)[:200]
-        cd2.close()
-        return result
+    with CloudDrive2Client(
+        host=host, token=token or "probe", timeout=timeout, delay_range=(0, 0)
+    ) as cd2:
+        # --- 1. gRPC reachable ---
+        try:
+            cd2.get_file_info("/")
+            result.grpc_reachable = True
+        except Exception as exc:
+            result.grpc_reachable = False
+            result.grpc_error = str(exc)[:200]
+            return result
 
-    # --- 2. Token authorized ---
-    if not token:
-        result.api_authorized = False
-        result.api_error = "未配置 API Token"
-        cd2.close()
-        return result
+        # --- 2. Token authorized ---
+        if not token:
+            result.api_authorized = False
+            result.api_error = "未配置 API Token"
+            return result
 
-    try:
-        # A valid token should allow listing root; a bad token returns 401/403
-        cd2.list_files("/")
-        result.api_authorized = True
-    except Exception as exc:
-        result.api_authorized = False
-        result.api_error = _extract_auth_error(exc)
-        cd2.close()
-        return result
+        try:
+            cd2.list_files("/")
+            result.api_authorized = True
+        except Exception as exc:
+            result.api_authorized = False
+            result.api_error = _extract_auth_error(exc)
+            return result
 
-    # --- 3. Download root exists ---
-    try:
-        info = cd2.get_file_info(download_root)
-        if info is not None:
-            result.download_root_exists = True
-        else:
+        # --- 3. Download root exists ---
+        try:
+            info = cd2.get_file_info(download_root)
+            if info is not None:
+                result.download_root_exists = True
+            else:
+                result.download_root_exists = False
+                result.download_root_error = f"路径不存在: {download_root}"
+        except Exception as exc:
             result.download_root_exists = False
-            result.download_root_error = f"路径不存在: {download_root}"
-    except Exception as exc:
-        result.download_root_exists = False
-        result.download_root_error = str(exc)[:200]
+            result.download_root_error = str(exc)[:200]
 
-    # --- 4. Target folder accessible ---
-    try:
-        info = cd2.get_file_info(target_folder)
-        if info is not None:
-            result.target_folder_accessible = True
-        else:
+        # --- 4. Target folder accessible ---
+        try:
+            info = cd2.get_file_info(target_folder)
+            if info is not None:
+                result.target_folder_accessible = True
+            else:
+                result.target_folder_accessible = False
+                result.target_folder_error = f"路径不存在: {target_folder}"
+        except Exception as exc:
             result.target_folder_accessible = False
-            result.target_folder_error = f"路径不存在: {target_folder}"
-    except Exception as exc:
-        result.target_folder_accessible = False
-        result.target_folder_error = str(exc)[:200]
+            result.target_folder_error = str(exc)[:200]
 
-    cd2.close()
     return result
