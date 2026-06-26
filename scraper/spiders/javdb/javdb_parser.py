@@ -68,6 +68,16 @@ def _parse_field_value(field_name: str, row) -> Any:
     return text
 
 
+def _parse_magnet_meta(meta_text: str) -> tuple[str, int | None, str]:
+    parts = [str(clean_text(part)) for part in meta_text.split(",")]
+    size_text = parts[0] if parts else ""
+    file_text = parts[1] if len(parts) > 1 else ""
+    file_count_match = re.search(r"\d+", file_text)
+    file_count = int(file_count_match.group()) if file_count_match else None
+
+    return size_text, file_count, file_text
+
+
 def is_fc2_task(name: str | None, url: str | None, code: str | None = None) -> bool:
     values = [
         name or "",
@@ -156,15 +166,9 @@ def parse_detail_page(page) -> dict:
             continue
         detail[key] = _parse_field_value(label, row)
 
-    best_magnet = get_best_magnet(page)
-    if best_magnet:
-        detail.update(
-            {
-                "magnet": best_magnet["url"],
-                "size": round(best_magnet["size"], 2),
-                "has_chinese_sub": best_magnet["has_chinese_sub"],
-            }
-        )
+    magnets = parse_magnets(page)
+    if magnets:
+        detail["magnets"] = magnets
 
     return detail
 
@@ -176,41 +180,36 @@ def parse_magnets(page) -> list[dict]:
         magnet_url = _first_text(
             node,
             [
-                "button.copy-to-clipboard::attr(data-clipboard-text)",
                 ".magnet-name a::attr(href)",
                 "a::attr(href)",
+                "button.copy-to-clipboard::attr(data-clipboard-text)",
             ],
         )
         if not magnet_url.startswith("magnet:?"):
+            magnet_url = ""
+
+        name = _first_text(node, [".magnet-name a::text", ".magnet-name .name::text", ".name::text"])
+        meta_text = _first_text(node, [".magnet-name .meta::text", ".meta::text"])
+        if not (magnet_url or name or meta_text):
             continue
 
-        meta_text = _first_text(node, [".magnet-name .meta::text", ".meta::text"])
+        size_text, file_count, file_text = _parse_magnet_meta(meta_text)
         tags = _all_text(node, ".magnet-name .tags .tag::text") or _all_text(node, ".tag::text")
         has_chinese_sub = any("字幕" in tag or "中字" in tag for tag in tags)
+        date = _first_text(node, [".date .time::text", ".time::text"])
 
         magnets.append(
             {
-                "url": magnet_url,
-                "size": parse_size(meta_text),
+                "magnet": magnet_url,
+                "name": name,
+                "size": round(parse_size(size_text), 2),
+                "size_text": size_text,
+                "file_count": file_count,
+                "file_text": file_text,
                 "tags": tags,
-                "meta_text": meta_text,
                 "has_chinese_sub": has_chinese_sub,
+                "date": date,
             }
         )
 
     return magnets
-
-
-def get_best_magnet(page) -> dict | None:
-    magnets = parse_magnets(page)
-    if not magnets:
-        return None
-
-    return max(magnets, key=_calculate_magnet_weight)
-
-
-def _calculate_magnet_weight(magnet: dict) -> float:
-    weight = float(magnet.get("size") or 0.0)
-    if magnet.get("has_chinese_sub"):
-        weight += 10_000
-    return weight
