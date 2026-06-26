@@ -16,6 +16,8 @@ import {
   ClockCircleOutlined,
   PlayCircleOutlined,
   HistoryOutlined,
+  DatabaseOutlined,
+  CloudOutlined,
 } from "@ant-design/icons";
 import ErrorBoundary from "@/shared/components/ErrorBoundary";
 import AuthLayout from "@/shared/components/AuthLayout";
@@ -30,6 +32,7 @@ import Settings from "@/features/settings/Settings";
 import RunList from "@/features/runs/RunList";
 import RunDetail from "@/features/runs/RunDetail";
 import Movies from "@/features/movies/Movies";
+import StorageConfig from "@/features/storage-config/StorageConfig";
 
 // ── Root ──────────────────────────────────────────────
 const rootRoute = createRootRoute({
@@ -77,6 +80,14 @@ const menuItems = [
   {
     type: "group" as const,
     label: "存储模块",
+    children: [
+      { key: "/storage/tasks", icon: <DatabaseOutlined />, label: "存储任务" },
+      { key: "/storage/config", icon: <CloudOutlined />, label: "存储配置" },
+    ],
+  },
+  {
+    type: "group" as const,
+    label: "内容管理",
     children: [
       { key: "/movies", icon: <PlayCircleOutlined />, label: "内容浏览" },
     ],
@@ -196,6 +207,23 @@ const moviesRoute = createRoute({
   component: Movies,
 });
 
+const storageConfigRoute = createRoute({
+  path: "/storage/config",
+  getParentRoute: () => appLayout,
+  component: StorageConfig,
+});
+
+const storageTasksRoute = createRoute({
+  path: "/storage/tasks",
+  getParentRoute: () => appLayout,
+  component: () => (
+    <div style={{ padding: 24, textAlign: "center" }}>
+      <Typography.Title level={4}>存储任务</Typography.Title>
+      <Typography.Text type="secondary">即将在 Phase 3 实现</Typography.Text>
+    </div>
+  ),
+});
+
 // ── Build tree ────────────────────────────────────────
 const routeTree = rootRoute.addChildren([
   authLayout.addChildren([loginRoute]),
@@ -209,6 +237,8 @@ const routeTree = rootRoute.addChildren([
     runsIndexRoute,
     runsDetailRoute,
     moviesRoute,
+    storageConfigRoute,
+    storageTasksRoute,
   ]),
 ]);
 
