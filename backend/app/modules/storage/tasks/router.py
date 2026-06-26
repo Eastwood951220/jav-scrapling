@@ -101,6 +101,40 @@ def _select_best_magnet(magnets: list[dict]) -> dict | None:
 
 
 # ---------------------------------------------------------------------------
+# POST /api/storage/tasks/batch-retry — batch retry failed tasks
+# ---------------------------------------------------------------------------
+
+@router.post("/batch-retry")
+def batch_retry_storage_tasks(body: dict):
+    """Retry multiple failed/waiting_retry tasks in batch."""
+    task_ids = body.get("task_ids", [])
+    if not task_ids:
+        raise HTTPException(status_code=400, detail="task_ids is required")
+    result = _col().update_many(
+        {"task_id": {"$in": task_ids}, "status": {"$in": ["failed", "waiting_retry"]}},
+        {"$set": {"status": "pending", "step": None, "error_message": None, "updated_at": datetime.now()}},
+    )
+    return {"retried": result.modified_count, "skipped": len(task_ids) - result.modified_count}
+
+
+# ---------------------------------------------------------------------------
+# POST /api/storage/tasks/batch-cancel — batch cancel tasks
+# ---------------------------------------------------------------------------
+
+@router.post("/batch-cancel")
+def batch_cancel_storage_tasks(body: dict):
+    """Cancel multiple pending/waiting tasks in batch."""
+    task_ids = body.get("task_ids", [])
+    if not task_ids:
+        raise HTTPException(status_code=400, detail="task_ids is required")
+    result = _col().update_many(
+        {"task_id": {"$in": task_ids}, "status": {"$in": list(ACTIVE_STATUSES - {"running"})}},
+        {"$set": {"status": "cancelled", "updated_at": datetime.now()}},
+    )
+    return {"cancelled": result.modified_count}
+
+
+# ---------------------------------------------------------------------------
 # POST /api/storage/tasks — create a single task
 # ---------------------------------------------------------------------------
 
@@ -430,6 +464,25 @@ def list_storage_tasks(
 
 
 # ---------------------------------------------------------------------------
+# GET /api/storage/tasks/stats — aggregate task counts by status
+# ---------------------------------------------------------------------------
+
+@router.get("/stats")
+def get_storage_task_stats():
+    """Return task counts grouped by status."""
+    pipeline = [{"$group": {"_id": "$status", "count": {"$sum": 1}}}]
+    results = {doc["_id"]: doc["count"] for doc in _col().aggregate(pipeline)}
+    return {
+        "pending": results.get("pending", 0),
+        "waiting_download": results.get("waiting_download", 0),
+        "running": results.get("running", 0),
+        "waiting_retry": results.get("waiting_retry", 0),
+        "failed": results.get("failed", 0),
+        "completed": results.get("completed", 0),
+    }
+
+
+# ---------------------------------------------------------------------------
 # GET /api/storage/tasks/{task_id} — task detail
 # ---------------------------------------------------------------------------
 
@@ -455,3 +508,50 @@ def get_storage_task_logs(task_id: str):
         raise HTTPException(status_code=404, detail="Task not found")
 
     return {"logs": load_storage_task_logs(task_id)}
+
+
+# ---------------------------------------------------------------------------
+# POST /api/storage/tasks/{task_id}/retry — reset failed task to pending
+# ---------------------------------------------------------------------------
+
+@router.post("/{task_id}/retry")
+def retry_storage_task(task_id: str):
+    """Reset a failed or waiting_retry task back to pending."""
+    result = _col().update_one(
+        {"task_id": task_id, "status": {"$in": ["failed", "waiting_retry"]}},
+        {"$set": {"status": "pending", "step": None, "error_message": None, "updated_at": datetime.now()}},
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Task not found or not retryable")
+    return {"status": "retried"}
+
+
+# ---------------------------------------------------------------------------
+# POST /api/storage/tasks/{task_id}/cancel — cancel pending/waiting task
+# ---------------------------------------------------------------------------
+
+@router.post("/{task_id}/cancel")
+def cancel_storage_task(task_id: str):
+    """Cancel a pending or waiting task (not running)."""
+    result = _col().update_one(
+        {"task_id": task_id, "status": {"$in": list(ACTIVE_STATUSES - {"running"})}},
+        {"$set": {"status": "cancelled", "updated_at": datetime.now()}},
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Task not found or cannot be cancelled")
+    return {"status": "cancelled"}
+
+
+# ---------------------------------------------------------------------------
+# DELETE /api/storage/tasks/{task_id} — delete completed/failed/cancelled task
+# ---------------------------------------------------------------------------
+
+@router.delete("/{task_id}")
+def delete_storage_task(task_id: str):
+    """Delete a completed, failed, or cancelled task."""
+    result = _col().delete_one(
+        {"task_id": task_id, "status": {"$in": ["completed", "failed", "cancelled"]}},
+    )
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Task not found or not deletable")
+    return {"status": "deleted"}
