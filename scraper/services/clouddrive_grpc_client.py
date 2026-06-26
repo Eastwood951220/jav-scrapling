@@ -46,10 +46,6 @@ class CloudDriveGrpcClient:
             return []
         return [("authorization", f"Bearer {self.token}")]
 
-    def _call_options(self) -> grpc.CallOptions:
-        """Return call options with timeout."""
-        return grpc.CallOptions(timeout=self.timeout)
-
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
@@ -67,7 +63,7 @@ class CloudDriveGrpcClient:
         return stub.GetSystemInfo(
             empty_pb2.Empty(),
             metadata=self._auth_metadata(),
-            options=self._call_options(),
+            timeout=self.timeout,
         )
 
     def find_file_by_path(self, parent_path: str, path: str) -> Any | None:
@@ -89,7 +85,7 @@ class CloudDriveGrpcClient:
             return stub.FindFileByPath(
                 request,
                 metadata=self._auth_metadata(),
-                options=self._call_options(),
+                timeout=self.timeout,
             )
         except grpc.RpcError as exc:
             if exc.code() == grpc.StatusCode.NOT_FOUND:
@@ -114,7 +110,7 @@ class CloudDriveGrpcClient:
         for response in stub.GetSubFiles(
             request,
             metadata=self._auth_metadata(),
-            options=self._call_options(),
+            timeout=self.timeout,
         ):
             files.extend(response.subFiles)
         return files
