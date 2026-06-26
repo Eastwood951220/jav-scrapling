@@ -1,4 +1,4 @@
-import {useEffect, useState, useCallback} from "react";
+import React, {useEffect, useState, useCallback} from "react";
 import {
     Table,
     Input,
@@ -371,10 +371,9 @@ export default function Movies() {
         {title: "番号", dataIndex: "code", key: "code", width: 120},
         {
             title: "标题",
-            dataIndex: "title",
-            key: "title",
+            dataIndex: "source_name",
+            key: "source_name",
             ellipsis: true,
-            render: (text: string, record: Movie) => text || record.source_name || "-",
         },
         {
             title: "评分",
@@ -396,7 +395,7 @@ export default function Movies() {
             title: "时长",
             dataIndex: "duration",
             key: "duration",
-            width: 70,
+            width: 100,
             render: (v: number) => (v != null ? `${v}分` : "-"),
         },
         {
@@ -417,7 +416,7 @@ export default function Movies() {
             title: "标签",
             dataIndex: "tags",
             key: "tags",
-            width: 200,
+            width: 240,
             ellipsis: true,
             render: (tags: string[]) =>
                 Array.isArray(tags) ? (
@@ -441,7 +440,7 @@ export default function Movies() {
             title: "操作",
             key: "actions",
             fixed: 'right',
-            width: 240,
+            width: 320,
             render: (_: unknown, record: Movie) => {
                 const ss = record.storage_summary;
                 const hasMagnet = getMovieMagnetLinks(record).length > 0;
@@ -677,7 +676,7 @@ export default function Movies() {
                     <Descriptions column={1} bordered size="small">
                         <Descriptions.Item label="番号">{detail.code as string}</Descriptions.Item>
                         <Descriptions.Item
-                            label="标题">{(detail.title as string) || (detail.source_name as string) || "-"}</Descriptions.Item>
+                            label="标题">{(detail.source_name as string) || "-"}</Descriptions.Item>
                         <Descriptions.Item label="发行日期">{detail.release_date as string}</Descriptions.Item>
                         <Descriptions.Item
                             label="时长">{detail.duration != null ? `${detail.duration}分` : "-"}</Descriptions.Item>
@@ -773,7 +772,7 @@ export default function Movies() {
                     <Descriptions column={1} size="small" bordered style={{marginBottom: 16}}>
                         <Descriptions.Item label="番号">{pushMovie.code}</Descriptions.Item>
                         <Descriptions.Item
-                            label="标题">{pushMovie.title || pushMovie.source_name || "-"}</Descriptions.Item>
+                            label="标题">{pushMovie.source_name || "-"}</Descriptions.Item>
                     </Descriptions>
                 )}
                 <div style={{marginBottom: 12}}>

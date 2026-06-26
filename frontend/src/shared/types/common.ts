@@ -39,7 +39,7 @@ export interface StorageSummary {
 export interface Movie {
   _id: string;
   code: string;
-  title: string;
+  source_name: string;
   cover?: string;
   release_date?: string;
   duration?: number;
@@ -56,10 +56,8 @@ export interface Movie {
   size?: number;
   has_chinese_sub?: boolean;
   source_url?: string;
-  source_name?: string;
   source_code?: string;
   source_page?: number;
-  name?: string;
   storage_summary?: StorageSummary;
   created_at?: string;
   updated_at?: string;
