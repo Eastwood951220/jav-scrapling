@@ -1,12 +1,14 @@
 import { useEffect, useState, useCallback } from "react";
 import {
-  Table, Input, Select, Button, Space, Card, message, Drawer, Descriptions, Tag, Typography, InputNumber, Image, Popconfirm, DatePicker,
+  Table, Input, Select, Button, Space, Card, message, Drawer, Descriptions, Tag, Typography, InputNumber, Image, Popconfirm, DatePicker, Modal, Switch, Statistic, Row, Col,
 } from "antd";
-import { SearchOutlined, ReloadOutlined, DownloadOutlined, DeleteOutlined } from "@ant-design/icons";
+import { SearchOutlined, ReloadOutlined, DownloadOutlined, DeleteOutlined, CloudUploadOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import type { Dayjs } from "dayjs";
-import { fetchTaskNames, fetchMovies, fetchMovie, deleteMovie, deleteMovies, fetchActors, fetchTags, fetchAllMagnets } from "./api";
+import { fetchTaskNames, fetchMovies, fetchMovie, deleteMovie, deleteMovies, fetchActors, fetchTags, fetchAllMagnets, createStorageTask, batchCreateStorageTasks } from "./api";
+import type { StorageBatchResponse } from "./api";
 import type { Movie, MovieListResponse } from "./types";
+import type { MovieMagnet } from "@/shared/types/common";
 import { getErrorMessage } from "@/shared/hooks/useErrorMessage";
 
 export default function Movies() {
@@ -28,6 +30,18 @@ export default function Movies() {
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [filtersLoading, setFiltersLoading] = useState(false);
   const [dateRange, setDateRange] = useState<[Dayjs | null, Dayjs | null]>([null, null]);
+
+  // Storage push state
+  const [pushModalOpen, setPushModalOpen] = useState(false);
+  const [pushMovie, setPushMovie] = useState<Movie | null>(null);
+  const [pushMagnet, setPushMagnet] = useState<string | undefined>(undefined);
+  const [pushLoading, setPushLoading] = useState(false);
+  const [batchPushOpen, setBatchPushOpen] = useState(false);
+  const [batchSkipRunning, setBatchSkipRunning] = useState(true);
+  const [batchSkipCompleted, setBatchSkipCompleted] = useState(true);
+  const [batchRetryFailed, setBatchRetryFailed] = useState(false);
+  const [batchPushLoading, setBatchPushLoading] = useState(false);
+  const [batchResult, setBatchResult] = useState<StorageBatchResponse | null>(null);
 
   const loadFilters = useCallback(async () => {
     setFiltersLoading(true);
@@ -160,6 +174,98 @@ export default function Movies() {
     }
   }, [selectedRowKeys, loadMovies, data.page]);
 
+  // --- Storage push handlers ---
+
+  const getMagnetOptions = (movie: Movie): { value: string; label: string }[] => {
+    const magnets: MovieMagnet[] = movie.magnets ?? [];
+    if (magnets.length > 0) {
+      return magnets.map((m) => ({
+        value: m.magnet,
+        label: `${m.title || m.magnet.slice(0, 40)}${m.size ? ` (${m.size})` : ""}`,
+      }));
+    }
+    if (movie.magnet) {
+      return [{ value: movie.magnet, label: movie.magnet }];
+    }
+    return [];
+  };
+
+  const handleOpenPush = (movie: Movie) => {
+    const options = getMagnetOptions(movie);
+    setPushMovie(movie);
+    setPushMagnet(options.length > 0 ? options[0].value : undefined);
+    setPushModalOpen(true);
+  };
+
+  const handleConfirmPush = async () => {
+    if (!pushMovie || !pushMagnet) return;
+    setPushLoading(true);
+    try {
+      const res = await createStorageTask(pushMovie._id, pushMagnet);
+      if (res.status === "existing") {
+        message.info("已有进行中的任务");
+      } else {
+        message.success("已创建推送任务");
+      }
+      setPushModalOpen(false);
+      loadMovies(data.page);
+    } catch (e: unknown) {
+      message.error(getErrorMessage(e));
+    } finally {
+      setPushLoading(false);
+    }
+  };
+
+  const handleOpenBatchPush = () => {
+    setBatchResult(null);
+    setBatchSkipRunning(true);
+    setBatchSkipCompleted(true);
+    setBatchRetryFailed(false);
+    setBatchPushOpen(true);
+  };
+
+  const handleConfirmBatchPush = async () => {
+    setBatchPushLoading(true);
+    try {
+      const result = await batchCreateStorageTasks(selectedRowKeys as string[], {
+        skip_running: batchSkipRunning,
+        skip_completed: batchSkipCompleted,
+        retry_failed: batchRetryFailed,
+      });
+      setBatchResult(result);
+      message.success(`创建 ${result.created} 个任务，跳过 ${result.skipped} 个`);
+      loadMovies(data.page);
+    } catch (e: unknown) {
+      message.error(getErrorMessage(e));
+    } finally {
+      setBatchPushLoading(false);
+    }
+  };
+
+  const storageStatusColor: Record<string, string> = {
+    pending: "processing",
+    running: "processing",
+    waiting_download: "processing",
+    waiting_retry: "warning",
+    downloading: "processing",
+    moving: "processing",
+    completed: "success",
+    failed: "error",
+    retryable: "warning",
+  };
+
+  const storageStatusText: Record<string, string> = {
+    pending: "等待中",
+    running: "运行中",
+    waiting_download: "等待下载",
+    waiting_retry: "等待重试",
+    downloading: "下载中",
+    moving: "移动中",
+    completed: "已完成",
+    failed: "失败",
+    retryable: "可重试",
+  };
+
   const columns: ColumnsType<Movie> = [
     { title: "番号", dataIndex: "code", key: "code", width: 120 },
     {
@@ -223,26 +329,55 @@ export default function Movies() {
     {
       title: "操作",
       key: "actions",
-      width: 140,
-      render: (_: unknown, record: Movie) => (
-        <Space size="small">
-          <Button type="link" size="small" onClick={() => handleViewDetail(record._id)}>
-            详情
-          </Button>
-          <Popconfirm
-            title="确认删除此影片？"
-            description="删除后不可恢复"
-            onConfirm={() => handleDelete(record._id)}
-            okText="删除"
-            cancelText="取消"
-            okButtonProps={{ danger: true }}
-          >
-            <Button type="link" danger size="small" icon={<DeleteOutlined />}>
-              删除
+      width: 200,
+      render: (_: unknown, record: Movie) => {
+        const ss = record.storage_summary;
+        const hasMagnet = Boolean(record.magnet) || (Array.isArray(record.magnets) && record.magnets.length > 0);
+        return (
+          <Space size="small">
+            <Button type="link" size="small" onClick={() => handleViewDetail(record._id)}>
+              详情
             </Button>
-          </Popconfirm>
-        </Space>
-      ),
+            {ss?.last_status && ["pending", "running", "waiting_download", "downloading", "moving"].includes(ss.last_status) ? (
+              <Button type="link" size="small" disabled>
+                推送中
+              </Button>
+            ) : (
+              <Button
+                type="link"
+                size="small"
+                icon={<CloudUploadOutlined />}
+                disabled={!hasMagnet}
+                onClick={() => handleOpenPush(record)}
+              >
+                {ss?.last_status === "completed" ? "重新推送" : "推送存储"}
+              </Button>
+            )}
+            <Popconfirm
+              title="确认删除此影片？"
+              description="删除后不可恢复"
+              onConfirm={() => handleDelete(record._id)}
+              okText="删除"
+              cancelText="取消"
+              okButtonProps={{ danger: true }}
+            >
+              <Button type="link" danger size="small" icon={<DeleteOutlined />}>
+                删除
+              </Button>
+            </Popconfirm>
+          </Space>
+        );
+      },
+    },
+    {
+      title: "存储状态",
+      key: "storage_status",
+      width: 100,
+      render: (_: unknown, record: Movie) => {
+        const status = record.storage_summary?.last_status;
+        if (!status) return <Typography.Text type="secondary">-</Typography.Text>;
+        return <Tag color={storageStatusColor[status]}>{storageStatusText[status] || status}</Tag>;
+      },
     },
   ];
 
@@ -335,6 +470,14 @@ export default function Movies() {
           >
             导出磁力{selectedRowKeys.length > 0 ? ` (${selectedRowKeys.length})` : ""}
           </Button>
+          {selectedRowKeys.length > 0 && (
+            <Button
+              icon={<CloudUploadOutlined />}
+              onClick={handleOpenBatchPush}
+            >
+              批量推送存储 ({selectedRowKeys.length})
+            </Button>
+          )}
           {selectedRowKeys.length > 0 && (
             <Popconfirm
               title={`确认删除选中的 ${selectedRowKeys.length} 条影片？`}
@@ -447,6 +590,100 @@ export default function Movies() {
           </Descriptions>
         )}
       </Drawer>
+
+      {/* Single push modal */}
+      <Modal
+        title="推送存储"
+        open={pushModalOpen}
+        onCancel={() => setPushModalOpen(false)}
+        onOk={handleConfirmPush}
+        okText="确认推送"
+        cancelText="取消"
+        confirmLoading={pushLoading}
+        okButtonProps={{ disabled: !pushMagnet }}
+      >
+        {pushMovie && (
+          <Descriptions column={1} size="small" bordered style={{ marginBottom: 16 }}>
+            <Descriptions.Item label="番号">{pushMovie.code}</Descriptions.Item>
+            <Descriptions.Item label="标题">{pushMovie.title || pushMovie.source_name || "-"}</Descriptions.Item>
+          </Descriptions>
+        )}
+        <div style={{ marginBottom: 12 }}>
+          <Typography.Text strong>选择磁力链接</Typography.Text>
+          <Select
+            style={{ width: "100%", marginTop: 4 }}
+            placeholder="选择磁力链接"
+            value={pushMagnet}
+            onChange={setPushMagnet}
+            options={pushMovie ? getMagnetOptions(pushMovie) : []}
+            showSearch
+            optionFilterProp="label"
+          />
+        </div>
+        {pushMagnet && (
+          <Typography.Paragraph type="secondary" style={{ fontSize: 12, wordBreak: "break-all", marginBottom: 0 }}>
+            {pushMagnet}
+          </Typography.Paragraph>
+        )}
+      </Modal>
+
+      {/* Batch push modal */}
+      <Modal
+        title="批量推送存储"
+        open={batchPushOpen}
+        onCancel={() => { setBatchPushOpen(false); setBatchResult(null); }}
+        onOk={batchResult ? () => { setBatchPushOpen(false); setBatchResult(null); setSelectedRowKeys([]); } : handleConfirmBatchPush}
+        okText={batchResult ? "完成" : "确认推送"}
+        cancelText={batchResult ? undefined : "取消"}
+        cancelButtonProps={batchResult ? { style: { display: "none" } } : undefined}
+        confirmLoading={batchPushLoading}
+      >
+        {!batchResult ? (
+          <>
+            <Descriptions column={1} size="small" bordered style={{ marginBottom: 16 }}>
+              <Descriptions.Item label="选中影片">{selectedRowKeys.length} 部</Descriptions.Item>
+            </Descriptions>
+            <Space direction="vertical" style={{ width: "100%" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <Typography.Text>跳过运行中的任务</Typography.Text>
+                <Switch checked={batchSkipRunning} onChange={setBatchSkipRunning} />
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <Typography.Text>跳过已完成的任务</Typography.Text>
+                <Switch checked={batchSkipCompleted} onChange={setBatchSkipCompleted} />
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <Typography.Text>重试失败的任务</Typography.Text>
+                <Switch checked={batchRetryFailed} onChange={setBatchRetryFailed} />
+              </div>
+            </Space>
+          </>
+        ) : (
+          <>
+            <Row gutter={16} style={{ marginBottom: 16 }}>
+              <Col span={8}>
+                <Statistic title="选中" value={batchResult.requested} />
+              </Col>
+              <Col span={8}>
+                <Statistic title="创建/重试" value={batchResult.created} valueStyle={{ color: "#3f8600" }} />
+              </Col>
+              <Col span={8}>
+                <Statistic title="跳过" value={batchResult.skipped} valueStyle={{ color: "#999" }} />
+              </Col>
+            </Row>
+            {batchResult.items.filter((i) => i.result === "skipped").length > 0 && (
+              <Typography.Paragraph type="secondary" style={{ fontSize: 12, maxHeight: 200, overflow: "auto" }}>
+                跳过详情：
+                {batchResult.items
+                  .filter((i) => i.result === "skipped")
+                  .map((i) => (
+                    <div key={i.movie_id}>{i.movie_id} — {i.reason}</div>
+                  ))}
+              </Typography.Paragraph>
+            )}
+          </>
+        )}
+      </Modal>
     </div>
   );
 }
