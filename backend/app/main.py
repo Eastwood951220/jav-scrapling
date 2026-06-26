@@ -1,47 +1,25 @@
-import logging
-import sys
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.core.logging import configure_logging, get_app_logger
+from app.db.indexes import ensure_backend_indexes
+from app.modules.content.movies.router import router as movies_router
+from app.modules.crawler.cookies.router import router as cookies_config_router
+from app.modules.crawler.runs.router import router as runs_router
+from app.modules.crawler.schedules.router import router as schedules_router
+from app.modules.crawler.config.router import router as config_router
+from app.modules.crawler.tasks.router import router as tasks_router
+from app.modules.storage.config.router import router as storage_config_router
+from app.modules.storage.tasks.router import router as storage_tasks_router
+from app.modules.storage.tasks.worker import start_storage_worker, stop_storage_worker
+from app.scheduler import start_scheduler
 from scraper.config.settings import MONGO_DB_NAME
 from scraper.database.mongo_client import connect_mongo, close_mongo, get_mongo_db
-from scraper.database.indexes import ensure_indexes
-from app.api.movies import router as movies_router
-from app.api.schedules import router as schedules_router
-from app.api.settings import router as settings_router
-from app.api.runs import router as runs_router
-from app.api.tasks import router as tasks_router
-from app.api.cookies_config import router as cookies_config_router
-from app.api.storage_config import router as storage_config_router
-from app.api.storage_tasks import router as storage_tasks_router
-from app.scheduler import start_scheduler
-from app.storage_worker import start_storage_worker, stop_storage_worker
 
-# Ensure startup errors go to stderr for docker logs
-logging.basicConfig(
-    level=logging.DEBUG,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-    stream=sys.stderr,
-)
-_startup_logger = logging.getLogger("startup")
-
-
-def ensure_storage_task_indexes(db) -> None:
-    """Ensure indexes on the storage_tasks collection."""
-    from pymongo import ASCENDING, DESCENDING, IndexModel
-
-    collection = db["storage_tasks"]
-    collection.create_indexes([
-        IndexModel([("task_id", ASCENDING)], name="idx_storage_task_id", unique=True),
-        IndexModel([("movie_id", ASCENDING), ("info_hash", ASCENDING), ("status", ASCENDING)],
-                   name="idx_storage_task_dedup"),
-        IndexModel([("movie_code", ASCENDING)], name="idx_storage_task_movie_code"),
-        IndexModel([("status", ASCENDING)], name="idx_storage_task_status"),
-        IndexModel([("created_at", DESCENDING)], name="idx_storage_task_created_at"),
-    ])
+configure_logging()
+_startup_logger = get_app_logger("startup")
 
 
 @asynccontextmanager
@@ -58,10 +36,8 @@ async def lifespan(app: FastAPI):
     try:
         _startup_logger.info("Ensuring database indexes...")
         db = get_mongo_db()
-        ensure_indexes(db, "movies")
+        ensure_backend_indexes(db)
         _startup_logger.info("Database indexes ensured successfully")
-        ensure_storage_task_indexes(db)
-        _startup_logger.info("Storage task indexes ensured successfully")
     except Exception:
         _startup_logger.exception("FATAL: Failed to ensure database indexes")
         raise
@@ -75,7 +51,7 @@ async def lifespan(app: FastAPI):
         raise
 
     try:
-        from app.task_queue import recover_orphaned_runs
+        from app.modules.crawler.runs.queue import recover_orphaned_runs
         recovered = recover_orphaned_runs()
         if recovered > 0:
             _startup_logger.info("Recovered %d orphaned queued runs", recovered)
@@ -105,7 +81,7 @@ app = FastAPI(
 
 app.include_router(movies_router)
 app.include_router(schedules_router)
-app.include_router(settings_router)
+app.include_router(config_router)
 app.include_router(runs_router)
 app.include_router(tasks_router)
 app.include_router(cookies_config_router)

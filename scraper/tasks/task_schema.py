@@ -14,6 +14,7 @@ class CrawlTask:
     max_list_pages: int = 50
     source: str | None = None
     final_url: str | None = None
+    filter: dict[str, Any] | None = None
 
     def get(self, key: str, default: Any = None) -> Any:
         try:
@@ -38,4 +39,5 @@ class CrawlTask:
             "max_list_pages": self.max_list_pages,
             "source": self.source,
             "final_url": self.final_url,
+            "filter": self.filter,
         }

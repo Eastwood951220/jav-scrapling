@@ -51,10 +51,11 @@ def _parse_field_value(field_name: str, row) -> Any:
             children = value_node.css("a, strong.symbol")
             current_actor = None
             for child in children:
-                tag = child.css("::attr(class)").get("") if child.root.tag == "strong" else ""
-                if child.root.tag == "a":
-                    current_actor = clean_text(child.css("::text").get() or "")
-                elif child.root.tag == "strong" and "female" in tag and current_actor:
+                class_name = child.css("::attr(class)").get("") or ""
+                child_text = clean_text(child.css("::text").get() or "")
+                if "symbol" not in class_name:
+                    current_actor = child_text
+                elif "female" in class_name and current_actor:
                     female_actors.append(current_actor)
                     current_actor = None
         if female_actors:

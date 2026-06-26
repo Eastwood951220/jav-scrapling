@@ -13,20 +13,20 @@
   max-width: 700px;
 }
 
-/* ── Settings two-column layout ── */
+/* ── Config two-column layout ── */
 
-.settingsLayout {
+.configLayout {
   display: grid;
   grid-template-columns: 1fr 420px;
   gap: 24px;
   align-items: start;
 }
 
-.settingsLeft {
+.configLeft {
   min-width: 0;
 }
 
-.settingsRight {
+.configRight {
   min-width: 0;
   position: sticky;
   top: 24px;
@@ -57,11 +57,11 @@
 /* ── Responsive: stack columns on narrow screens ── */
 
 @media (max-width: 1024px) {
-  .settingsLayout {
+  .configLayout {
     grid-template-columns: 1fr;
   }
 
-  .settingsRight {
+  .configRight {
     position: static;
   }
 }

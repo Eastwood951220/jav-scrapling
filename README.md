@@ -7,7 +7,7 @@
 - 爬取 JavDB 列表页和详情页，保存影片详情、磁力信息、标签、演员、评分等字段。
 - 通过 Web UI 管理任务配置、定时任务、运行历史和系统设置。
 - 后端使用 MongoDB 保存配置、运行摘要和影片数据。
-- 运行日志写入 `run_data/`，运行结果摘要保存在 MongoDB。
+- 运行日志写入 `run_data/runs/` 和 `run_data/storage_tasks/`，运行结果摘要保存在 MongoDB。
 - 支持 Docker Compose 部署，也支持本地前后端分离开发。
 
 ## 技术栈
@@ -24,14 +24,13 @@
 
 ```text
 .
-├── backend/                  # FastAPI 后端、API 路由、任务队列、调度器
+├── backend/                  # FastAPI 后端、模块化 API、任务队列、调度器
 │   ├── app/
-│   │   ├── api/              # movies/tasks/runs/schedules/settings/cookies API
-│   │   ├── models/           # Pydantic 响应和请求模型
+│   │   ├── core/             # BSON、日志等基础设施
+│   │   ├── db/               # 集合名和索引定义
+│   │   ├── modules/          # crawler/storage/content 大模块
 │   │   ├── main.py           # FastAPI 入口
-    │   │   ├── run_storage.py    # run_data 日志文件存储
 │   │   ├── scheduler.py      # APScheduler 定时任务
-│   │   └── task_queue.py     # 单进程任务队列和 worker
 │   └── requirements.txt
 ├── frontend/                 # React 管理界面源码
 ├── scraper/                  # 爬虫、解析、清洗、数据库仓储
@@ -172,8 +171,23 @@ make dev
 | `/api/runs` | 查看运行历史、运行详情、队列状态、停止任务 |
 | `/api/schedules` | 创建、更新、删除定时任务 |
 | `/api/movies` | 浏览统一电影集合，支持搜索、分页、排序、评分过滤 |
-| `/api/settings` | 查看和更新当前进程环境配置 |
-| `/api/cookies-config` | Cookie 配置相关接口 |
+| `/api/config` | 查看和更新当前进程环境配置 |
+| `/api/config/cookies` | Cookie 配置相关接口 |
+
+## Fresh Data Reset
+
+This version uses fresh MongoDB collection names for crawl task history:
+`crawl_tasks`, `crawl_runs`, and `crawl_run_detail_tasks`. Existing
+`config_tasks`, `task_runs`, and `run_detail_tasks` data is not read.
+
+Execution logs are stored as JSONL files:
+
+- Crawl runs: `run_data/runs/{run_id}.jsonl`
+- Storage tasks: `run_data/storage_tasks/{task_id}.jsonl`
+
+To start clean in local Docker, stop the stack and remove the MongoDB and
+runtime-data volumes/directories configured in `docker-compose.yml`, then start
+the stack again with `make start`.
 
 ## 数据存储
 
@@ -182,18 +196,22 @@ make dev
 | 集合 | 说明 |
 | --- | --- |
 | `movies` | 统一电影集合，当前电影仓储写入该集合 |
-| `config_tasks` | 任务配置 |
-| `config_schedules` | 定时任务配置 |
-| `config_settings` | 系统设置预留集合 |
-| `task_runs` | 任务运行记录和结果摘要 |
-| `run_detail_tasks` | 详情任务状态，供失败重试等功能使用 |
+| `crawl_tasks` | 任务配置 |
+| `crawl_schedules` | 定时任务配置 |
+| `crawl_config` | 系统配置预留集合 |
+| `crawl_runs` | 任务运行记录和结果摘要 |
+| `crawl_run_detail_tasks` | 详情任务状态，供失败重试等功能使用 |
+| `storage_config` | 存储配置 |
+| `storage_tasks` | 存储任务 |
+| `storage_counters` | 存储任务 ID 计数器 |
 
 ### 文件存储
 
 运行日志保存在：
 
 ```text
-run_data/{run_id}.jsonl
+run_data/runs/{run_id}.jsonl
+run_data/storage_tasks/{task_id}.jsonl
 ```
 
 Docker 运行时对应宿主机目录：
@@ -286,7 +304,7 @@ npm run build
 ## 当前实现注意事项
 
 - 任务队列是单进程内存队列，后端重启后不会自动恢复内存中的排队任务。
-- `/api/settings` 更新的是当前进程环境变量，已在模块导入时读取的配置常量需要重启后才会完全生效。
+- `/api/config` 更新的是当前进程环境变量，已在模块导入时读取的配置常量需要重启后才会完全生效。
 - 运行日志目前按 JSON 文件整体读写，日志量很大时建议后续改为 JSONL 追加写。
 - `backend/app/api/tasks.py` 中创建任务时仍保留旧的“创建任务同名集合”逻辑；电影仓储和电影 API 已使用统一 `movies` 集合。
 - 不建议提交 `docker/mongo_data/`、`docker/run_data/`、`docker/cookies/`、`run_data/` 等运行数据目录。

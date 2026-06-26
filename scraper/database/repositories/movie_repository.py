@@ -5,10 +5,11 @@ from pymongo.errors import DuplicateKeyError, PyMongoError
 from scraper.config.logging import get_logger
 from scraper.database.indexes import ensure_indexes
 from scraper.database.mongo_client import get_mongo_db
+from app.db.collections import MOVIES
 
 
 class MovieRepository:
-    COLLECTION_NAME = "movies"
+    COLLECTION_NAME = MOVIES
 
     def __init__(self):
         self.logger = get_logger("movie_repository")

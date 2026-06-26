@@ -1,4 +1,7 @@
+from unittest.mock import MagicMock
+
 from scraper.database import mongo_client
+from scraper.database.indexes import ensure_indexes
 
 
 class FakeAdmin:
@@ -46,3 +49,15 @@ def test_connect_mongo_pings_and_reuses_client(monkeypatch):
 
     assert client.closed is True
     assert mongo_client._client is None
+
+
+def test_ensure_indexes_does_not_send_background_command_option():
+    db = MagicMock()
+    collection = MagicMock()
+    db.__getitem__.return_value = collection
+
+    ensure_indexes(db, collection_name="movies")
+
+    collection.create_indexes.assert_called_once()
+    _, kwargs = collection.create_indexes.call_args
+    assert "background" not in kwargs
