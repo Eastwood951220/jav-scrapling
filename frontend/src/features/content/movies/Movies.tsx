@@ -214,7 +214,7 @@ export default function Movies() {
     // --- Storage push handlers ---
 
     const getMagnetOptions = (movie: Movie): { value: string; label: string }[] => {
-        const magnets: MovieMagnet[] = movie.magnets ?? [];
+        const magnets: MovieMagnet[] = (movie.magnets ?? []).filter((m) => Boolean(m.magnet?.trim()));
         if (magnets.length > 0) {
             return magnets.map((m) => ({
                 value: m.magnet,
@@ -404,7 +404,7 @@ export default function Movies() {
             width: 240,
             render: (_: unknown, record: Movie) => {
                 const ss = record.storage_summary;
-                const hasMagnet = Boolean(record.magnet) || (Array.isArray(record.magnets) && record.magnets.length > 0);
+                const hasMagnet = getMovieMagnetLinks(record).length > 0;
                 return (
                     <Space size="small">
                         <Button type="link" size="small" onClick={() => handleViewDetail(record._id)}>
