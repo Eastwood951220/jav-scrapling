@@ -135,6 +135,22 @@ def batch_cancel_storage_tasks(body: dict):
 
 
 # ---------------------------------------------------------------------------
+# POST /api/storage/tasks/batch-delete — batch delete tasks
+# ---------------------------------------------------------------------------
+
+@router.post("/batch-delete")
+def batch_delete_storage_tasks(body: dict):
+    """Batch delete completed/failed/cancelled tasks."""
+    task_ids = body.get("task_ids", [])
+    if not task_ids:
+        raise HTTPException(status_code=400, detail="task_ids is required")
+    result = _col().delete_many(
+        {"task_id": {"$in": task_ids}, "status": {"$in": ["completed", "failed", "cancelled", "retryable"]}},
+    )
+    return {"deleted": result.deleted_count}
+
+
+# ---------------------------------------------------------------------------
 # POST /api/storage/tasks — create a single task
 # ---------------------------------------------------------------------------
 

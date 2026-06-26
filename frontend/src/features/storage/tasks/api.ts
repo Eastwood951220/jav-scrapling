@@ -76,5 +76,5 @@ export async function batchCancelTasks(taskIds: string[]): Promise<{ cancelled: 
 }
 
 export function batchDeleteTasks(taskIds: string[]): Promise<{ deleted: number }> {
-  return client.post("/storage/tasks/batch", { task_ids: taskIds }).then((res) => res.data);
+  return client.post("/storage/tasks/batch-delete", { task_ids: taskIds }).then((res) => res.data);
 }
