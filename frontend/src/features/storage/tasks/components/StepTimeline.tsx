@@ -94,18 +94,31 @@ export default function StepTimeline({ task }: { task: Task }) {
     <Timeline
       items={ALL_STEPS.map((stepName, idx) => {
         let status: string;
-        if (task.status === "completed" && stepName === "completed") {
+        if (task.status === "completed") {
+          // All steps are success when task is completed
           status = "success";
-        } else if (failedIdx >= 0 && idx === failedIdx) {
-          status = "failed";
-        } else if (failedIdx >= 0 && idx > failedIdx) {
-          status = "pending";
-        } else if (idx < currentIdx) {
-          status = "success";
-        } else if (idx === currentIdx) {
-          status = task.status === "running" ? "running" : "success";
+        } else if (task.status === "failed" || task.status === "retryable" || task.status === "waiting_retry") {
+          // Failed task: steps before failed step are success, failed step is failed, after is pending
+          if (failedIdx >= 0 && idx === failedIdx) {
+            status = "failed";
+          } else if (failedIdx >= 0 && idx > failedIdx) {
+            status = "pending";
+          } else if (idx < currentIdx) {
+            status = "success";
+          } else if (idx === currentIdx) {
+            status = "failed";
+          } else {
+            status = "pending";
+          }
         } else {
-          status = "pending";
+          // Running/pending task
+          if (idx < currentIdx) {
+            status = "success";
+          } else if (idx === currentIdx) {
+            status = task.status === "running" ? "running" : "pending";
+          } else {
+            status = "pending";
+          }
         }
 
         return {

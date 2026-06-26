@@ -11,8 +11,8 @@ import {
   Typography,
   message,
 } from "antd";
-import { ArrowLeftOutlined, CheckOutlined, CopyOutlined } from "@ant-design/icons";
-import { fetchTask, fetchTaskLogs } from "./api";
+import { ArrowLeftOutlined, CheckOutlined, CopyOutlined, RedoOutlined } from "@ant-design/icons";
+import { fetchTask, fetchTaskLogs, retryTask } from "./api";
 import { statusColors, statusLabels, stepLabels } from "./constants";
 import FilesTable from "./components/FilesTable";
 import LogsPanel from "./components/LogsPanel";
@@ -112,6 +112,21 @@ export default function TaskDetail() {
   );
   usePolling(load, 3000, Boolean(isActive));
 
+  const canRetry = task && (
+    task.status === "failed" || task.status === "retryable" || task.status === "waiting_retry"
+  );
+
+  const handleRetry = async () => {
+    if (!task) return;
+    try {
+      await retryTask(task.task_id);
+      message.success("重试任务已提交");
+      load();
+    } catch (e: unknown) {
+      message.error(getErrorMessage(e));
+    }
+  };
+
   if (loading) return <FullPageSpinner />;
 
   return (
@@ -120,6 +135,11 @@ export default function TaskDetail() {
         <Button icon={<ArrowLeftOutlined />} onClick={() => navigate({ to: "/storage/tasks" })}>
           返回
         </Button>
+        {canRetry && (
+          <Button type="primary" icon={<RedoOutlined />} onClick={handleRetry}>
+            重试任务
+          </Button>
+        )}
       </Space>
 
       {task && (
