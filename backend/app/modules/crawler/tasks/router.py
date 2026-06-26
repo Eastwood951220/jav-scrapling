@@ -5,7 +5,7 @@ from bson.errors import InvalidId
 from fastapi import APIRouter, HTTPException
 
 from app.core.bson import stringify_objectids
-from app.db.collections import RUNS, RUN_DETAIL_TASKS, TASKS
+from app.db.collections import CRAWL_RUNS, CRAWL_RUN_DETAIL_TASKS, CRAWL_TASKS
 from app.modules.crawler.runs.logs import delete_run_logs
 from app.modules.crawler.runs.queue import enqueue_task
 from app.modules.crawler.runs.schemas import RunResponse
@@ -15,7 +15,7 @@ from scraper.tasks.task_utils import build_final_url, determine_source
 
 router = APIRouter(prefix="/api/crawler/tasks", tags=["crawler-tasks"])
 
-TASKS_COLLECTION = TASKS
+TASKS_COLLECTION = CRAWL_TASKS
 
 
 def _collection():
@@ -134,7 +134,7 @@ def delete_task(task_id: str):
         raise HTTPException(status_code=404, detail="Task not found")
 
     # 检查是否有正在运行或排队中的任务
-    runs_col = get_mongo_db()[RUNS]
+    runs_col = get_mongo_db()[CRAWL_RUNS]
     active_run = runs_col.find_one({
         "task_id": str(oid),
         "status": {"$in": ["running", "queued"]},
@@ -149,7 +149,7 @@ def delete_task(task_id: str):
     run_ids = [str(r["_id"]) for r in runs_col.find({"task_id": str(oid)}, {"_id": 1})]
     if run_ids:
         # 删除关联的详情任务
-        detail_col = get_mongo_db()[RUN_DETAIL_TASKS]
+        detail_col = get_mongo_db()[CRAWL_RUN_DETAIL_TASKS]
         for rid in run_ids:
             detail_col.delete_many({"run_id": rid})
         runs_col.delete_many({"task_id": str(oid)})

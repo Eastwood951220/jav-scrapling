@@ -6,16 +6,16 @@ from bson.errors import InvalidId
 from fastapi import APIRouter, HTTPException, Query
 
 from app.db.collections import (
-    COOKIES_CONFIG,
     MOVIES,
-    RUNS,
-    RUN_DETAIL_TASKS,
-    SCHEDULES,
-    CONFIG,
+    CRAWL_COOKIES_CONFIG,
+    CRAWL_RUNS,
+    CRAWL_RUN_DETAIL_TASKS,
+    CRAWL_SCHEDULES,
+    CRAWL_CONFIG,
+    CRAWL_TASKS,
     STORAGE_CONFIG,
     STORAGE_COUNTERS,
     STORAGE_TASKS,
-    TASKS,
 )
 from app.modules.content.movies.schemas import MovieListResponse
 from scraper.database.mongo_client import get_mongo_db, sanitize_collection_name
@@ -56,16 +56,16 @@ def delete_collection(collection_name: str):
     db = get_mongo_db()
     safe_name = sanitize_collection_name(collection_name)
     excluded = {
-        COOKIES_CONFIG,
         MOVIE_COLLECTION,
-        RUNS,
-        RUN_DETAIL_TASKS,
-        SCHEDULES,
-        CONFIG,
+        CRAWL_COOKIES_CONFIG,
+        CRAWL_RUNS,
+        CRAWL_RUN_DETAIL_TASKS,
+        CRAWL_SCHEDULES,
+        CRAWL_CONFIG,
+        CRAWL_TASKS,
         STORAGE_CONFIG,
         STORAGE_COUNTERS,
         STORAGE_TASKS,
-        TASKS,
     }
     if safe_name in excluded:
         raise HTTPException(status_code=400, detail="不能删除系统集合或统一电影集合")

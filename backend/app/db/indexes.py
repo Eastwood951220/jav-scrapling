@@ -1,11 +1,11 @@
 from pymongo import ASCENDING, DESCENDING, IndexModel
 
 from app.db.collections import (
-    RUNS,
-    RUN_DETAIL_TASKS,
+    CRAWL_RUNS,
+    CRAWL_RUN_DETAIL_TASKS,
     STORAGE_COUNTERS,
     STORAGE_TASKS,
-    TASKS,
+    CRAWL_TASKS,
 )
 from scraper.database.indexes import ensure_indexes as ensure_movie_indexes
 
@@ -14,17 +14,17 @@ def ensure_backend_indexes(db) -> None:
     """Create indexes for fresh backend-owned collections."""
     ensure_movie_indexes(db, "movies")
 
-    db[TASKS].create_indexes([
+    db[CRAWL_TASKS].create_indexes([
         IndexModel([("created_at", DESCENDING)], name="idx_crawl_tasks_created_at"),
         IndexModel([("name", ASCENDING)], name="idx_crawl_tasks_name"),
     ])
 
-    db[RUNS].create_indexes([
+    db[CRAWL_RUNS].create_indexes([
         IndexModel([("task_id", ASCENDING), ("status", ASCENDING)], name="idx_crawl_runs_task_status"),
         IndexModel([("queued_at", DESCENDING)], name="idx_crawl_runs_queued_at"),
     ])
 
-    db[RUN_DETAIL_TASKS].create_indexes([
+    db[CRAWL_RUN_DETAIL_TASKS].create_indexes([
         IndexModel([("run_id", ASCENDING), ("status", ASCENDING)], name="idx_crawl_detail_run_status"),
         IndexModel([("run_id", ASCENDING), ("source_url", ASCENDING)], name="idx_crawl_detail_run_source"),
         IndexModel([("created_at", ASCENDING)], name="idx_crawl_detail_created_at"),
