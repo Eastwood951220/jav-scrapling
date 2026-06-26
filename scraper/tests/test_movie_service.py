@@ -12,8 +12,8 @@ class FakeSpider:
     name = "fake"
     def run_task(self, task, on_detail_completed=None, **kwargs):
         items = [
-            {"code": "ABC-001", "url": "http://x.com/1", "detail": {"title": "Test 1"}, "name": "Test 1", "source_page": 1, "parent_task_name": task.name, "status": "completed"},
-            {"code": "ABC-002", "url": "http://x.com/2", "detail": {"title": "Test 2"}, "name": "Test 2", "source_page": 1, "parent_task_name": task.name, "status": "completed"},
+            {"code": "ABC-001", "url": "http://x.com/1", "detail": {"source_name": "Test 1"}, "name": "Test 1", "source_page": 1, "status": "completed"},
+            {"code": "ABC-002", "url": "http://x.com/2", "detail": {"source_name": "Test 2"}, "name": "Test 2", "source_page": 1, "status": "completed"},
         ]
         for item in items:
             if on_detail_completed:

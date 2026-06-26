@@ -17,8 +17,8 @@ def test_stop_check_breaks_collect_detail_tasks(monkeypatch):
     # Mock parse_search_page to return fake tasks
     monkeypatch.setattr(
         "scraper.spiders.javdb.javdb_spider.parse_search_page",
-        lambda page, source_page, parent_task_name: [
-            {"code": f"ABC-{source_page:03d}", "url": "http://x.com/1", "name": "Test", "source_page": source_page, "parent_task_name": parent_task_name, "status": "pending"}
+        lambda page, source_page: [
+            {"code": f"ABC-{source_page:03d}", "url": "http://x.com/1", "name": "Test", "source_page": source_page, "status": "pending"}
         ]
     )
     monkeypatch.setattr(
@@ -52,9 +52,9 @@ def test_stop_check_breaks_run_detail_tasks():
         return call_count[0] >= 2
 
     tasks = [
-        {"code": "A", "url": "http://x.com/1", "name": "A", "source_page": 1, "parent_task_name": "t", "status": "pending"},
-        {"code": "B", "url": "http://x.com/2", "name": "B", "source_page": 1, "parent_task_name": "t", "status": "pending"},
-        {"code": "C", "url": "http://x.com/3", "name": "C", "source_page": 1, "parent_task_name": "t", "status": "pending"},
+        {"code": "A", "url": "http://x.com/1", "name": "A", "source_page": 1, "status": "pending"},
+        {"code": "B", "url": "http://x.com/2", "name": "B", "source_page": 1, "status": "pending"},
+        {"code": "C", "url": "http://x.com/3", "name": "C", "source_page": 1, "status": "pending"},
     ]
 
     # Avoid actual network calls — the spider will try to fetch, so patch fetch
@@ -63,7 +63,7 @@ def test_stop_check_breaks_run_detail_tasks():
     try:
         import scraper.spiders.javdb.javdb_spider as sp_mod
         original_parse = sp_mod.parse_detail_page
-        sp_mod.parse_detail_page = lambda page: {"title": "Test"}
+        sp_mod.parse_detail_page = lambda page: {"source_name": "Test"}
         original_security = sp_mod.is_security_check_page
         sp_mod.is_security_check_page = lambda page: False
         try:

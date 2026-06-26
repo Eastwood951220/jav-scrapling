@@ -26,13 +26,12 @@ def test_parse_search_page_item():
         """
     )
 
-    assert parse_search_page(page, source_page=3, parent_task_name="VR") == [
+    assert parse_search_page(page, source_page=3) == [
         {
             "url": "https://javdb.com/v/abc",
             "name": "Movie Title",
             "code": "ABC-123",
             "source_page": 3,
-            "parent_task_name": "VR",
             "status": TASK_STATUS_PENDING,
             "cover": "cover.jpg",
         }

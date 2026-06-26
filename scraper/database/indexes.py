@@ -35,6 +35,10 @@ MOVIE_INDEXES: list[IndexModel] = [
         [("updated_at", DESCENDING)],
         name="idx_movie_updated_at",
     ),
+    IndexModel(
+        [("source_name", ASCENDING)],
+        name="idx_movie_source_name",
+    ),
 ]
 
 

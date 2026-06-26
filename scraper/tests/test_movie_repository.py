@@ -52,7 +52,7 @@ def test_repository_inserts_into_unified_movies_collection(monkeypatch):
         {
             "source_task_name": "Task.Name $1",
             "code": "ABC-001",
-            "title": "Title",
+            "source_name": "Title",
         }
     )
 

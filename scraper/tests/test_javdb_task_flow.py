@@ -129,4 +129,4 @@ def test_run_detail_tasks_calls_completion_callback(monkeypatch):
 
     assert completed == [tasks[0]]
     assert completed[0]["status"] == TASK_STATUS_COMPLETED
-    assert completed[0]["detail"]["title"] == "ABC-001 Title"
+    assert completed[0]["detail"]["source_name"] == "ABC-001 Title"
