@@ -8,13 +8,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from scraper.config.settings import MONGO_DB_NAME
 from scraper.database.mongo_client import connect_mongo, close_mongo, get_mongo_db
 from scraper.database.indexes import ensure_indexes
-
 from app.api.movies import router as movies_router
 from app.api.schedules import router as schedules_router
 from app.api.settings import router as settings_router
 from app.api.runs import router as runs_router
 from app.api.tasks import router as tasks_router
 from app.api.cookies_config import router as cookies_config_router
+from app.api.storage_config import router as storage_config_router
 from app.scheduler import start_scheduler
 
 # Ensure startup errors go to stderr for docker logs
@@ -25,6 +25,18 @@ logging.basicConfig(
     stream=sys.stderr,
 )
 _startup_logger = logging.getLogger("startup")
+
+
+def ensure_storage_task_indexes(db) -> None:
+    """Ensure indexes on the storage_tasks collection."""
+    from pymongo import ASCENDING, DESCENDING, IndexModel
+
+    collection = db["storage_tasks"]
+    collection.create_indexes([
+        IndexModel([("movie_code", ASCENDING)], name="idx_storage_task_movie_code"),
+        IndexModel([("status", ASCENDING)], name="idx_storage_task_status"),
+        IndexModel([("created_at", DESCENDING)], name="idx_storage_task_created_at"),
+    ])
 
 
 @asynccontextmanager
@@ -43,6 +55,8 @@ async def lifespan(app: FastAPI):
         db = get_mongo_db()
         ensure_indexes(db, "movies")
         _startup_logger.info("Database indexes ensured successfully")
+        ensure_storage_task_indexes(db)
+        _startup_logger.info("Storage task indexes ensured successfully")
     except Exception:
         _startup_logger.exception("FATAL: Failed to ensure database indexes")
         raise
@@ -82,6 +96,7 @@ app.include_router(settings_router)
 app.include_router(runs_router)
 app.include_router(tasks_router)
 app.include_router(cookies_config_router)
+app.include_router(storage_config_router)
 
 app.add_middleware(
     CORSMiddleware,
