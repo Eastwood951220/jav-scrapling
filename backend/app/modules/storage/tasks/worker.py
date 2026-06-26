@@ -186,9 +186,17 @@ def _download_folder(task: dict, config: dict) -> str:
 
 
 def _target_folder(task: dict, config: dict) -> str:
-    """Return the CloudDrive2 path for a task's target folder."""
+    """Return the CloudDrive2 path for a task's target folder.
+
+    Structure: {target_folder}/{actor_name}/{movie_code}
+    Falls back to movie_code if no actor name is available.
+    """
     target = config.get("target_folder", "/Movies")
-    return str(PurePosixPath(target) / task["movie_code"])
+    actor_name = task.get("actor_name", "")
+    movie_code = task["movie_code"]
+    if actor_name:
+        return str(PurePosixPath(target) / actor_name / movie_code)
+    return str(PurePosixPath(target) / movie_code)
 
 
 def _disc_number(file_name: str) -> int | None:
@@ -299,19 +307,25 @@ def _step_prepare(task: dict, config: dict) -> dict:
     if not magnet_url:
         raise ValueError("缺少磁力链接")
 
-    # Compute paths
+    # Load actor name for target folder structure
+    actors = movie.get("actors", [])
+    actor_name = actors[0] if actors else ""
+
+    # Compute paths (target includes actor subfolder)
+    task_with_actor = {**task, "actor_name": actor_name}
     download_path = _download_folder(task, config)
-    target_path = _target_folder(task, config)
+    target_path = _target_folder(task_with_actor, config)
 
     _update_task(task_id, {
         "download_path": download_path,
         "target_path": target_path,
         "magnet_url": magnet_url,
+        "actor_name": actor_name,
     })
 
     _append_log(task_id, f"准备完成: download={download_path}, target={target_path}")
 
-    return {**task, "download_path": download_path, "target_path": target_path, "magnet_url": magnet_url}
+    return {**task_with_actor, "download_path": download_path, "target_path": target_path, "magnet_url": magnet_url}
 
 
 def _step_submit_magnet(task: dict, config: dict) -> dict:
@@ -589,14 +603,8 @@ def _step_move_files(task: dict, config: dict) -> dict:
     selected = task.get("selected_videos", [])
     target_path = task["target_path"]
 
-    keep_subs = config.get("keep_subtitles", True)
-    keep_covers = config.get("keep_cover_images", True)
-
+    # Only move video files (not covers/subtitles)
     files_to_move = list(selected)
-    if keep_subs:
-        files_to_move.extend(task.get("subtitle_files", []))
-    if keep_covers:
-        files_to_move.extend(task.get("cover_files", []))
 
     if not files_to_move:
         _append_log(task_id, "无需移动，没有文件")
