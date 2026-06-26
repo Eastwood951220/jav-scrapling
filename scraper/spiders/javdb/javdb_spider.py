@@ -77,7 +77,6 @@ class JavdbSpider(BaseSpider):
             page_tasks = parse_search_page(
                 page=page,
                 source_page=page_no,
-                parent_task_name=task.name,
             )
 
             if not page_tasks:
