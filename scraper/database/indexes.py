@@ -42,7 +42,43 @@ MOVIE_INDEXES: list[IndexModel] = [
 ]
 
 
+MAGNET_INDEXES: list[IndexModel] = [
+    IndexModel(
+        [("movie_id", ASCENDING), ("dedupe_key", ASCENDING)],
+        unique=True,
+        name="idx_movie_magnets_movie_dedupe",
+    ),
+    IndexModel(
+        [("movie_id", ASCENDING)],
+        name="idx_movie_magnets_movie_id",
+    ),
+    IndexModel(
+        [("info_hash", ASCENDING)],
+        sparse=True,
+        name="idx_movie_magnets_info_hash",
+    ),
+    IndexModel(
+        [("source_task_name", ASCENDING), ("movie_code", ASCENDING)],
+        name="idx_movie_magnets_source_task",
+    ),
+    IndexModel(
+        [("has_chinese_sub", DESCENDING), ("size", DESCENDING)],
+        name="idx_movie_magnets_quality",
+    ),
+    IndexModel(
+        [("updated_at", DESCENDING)],
+        name="idx_movie_magnets_updated_at",
+    ),
+]
+
+
 def ensure_indexes(db, collection_name: str = "movies") -> None:
     """Ensure all movie indexes exist on the target collection."""
     collection = db[collection_name]
     collection.create_indexes(MOVIE_INDEXES)
+
+
+def ensure_magnet_indexes(db, collection_name: str = "movie_magnets") -> None:
+    """Ensure all movie magnet indexes exist on the target collection."""
+    collection = db[collection_name]
+    collection.create_indexes(MAGNET_INDEXES)

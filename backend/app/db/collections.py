@@ -1,4 +1,5 @@
 MOVIES = "movies"
+MOVIE_MAGNETS = "movie_magnets"
 MOVIE_ACTORS = "movie_actors"
 MOVIE_TAGS = "movie_tags"
 CRAWL_TASKS = "crawl_tasks"
