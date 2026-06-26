@@ -1,4 +1,5 @@
 import re
+from datetime import datetime
 
 from bson import ObjectId
 from bson.errors import InvalidId
@@ -111,12 +112,24 @@ def list_movies(
     rating_min: float | None = Query(default=None, ge=0, le=5),
     actors: str | None = Query(default=None),
     tags: str | None = Query(default=None),
+    date_from: str | None = Query(default=None, description="YYYY-MM-DD"),
+    date_to: str | None = Query(default=None, description="YYYY-MM-DD"),
 ):
     """Get a paginated movie list with optional filters."""
     db = get_mongo_db()
     col = db[MOVIE_COLLECTION]
 
     query = {}
+    if date_from or date_to:
+        created_at_filter = {}
+        if date_from:
+            created_at_filter["$gte"] = datetime.strptime(date_from, "%Y-%m-%d")
+        if date_to:
+            created_at_filter["$lte"] = datetime.strptime(date_to, "%Y-%m-%d").replace(
+                hour=23, minute=59, second=59, microsecond=999999
+            )
+        query["created_at"] = created_at_filter
+
     if search:
         escaped = _escape_regex(search)
         query["$or"] = [
@@ -164,6 +177,70 @@ def list_movies(
         "limit": limit,
         "total_pages": total_pages,
     }
+
+
+@router.get("/magnets")
+def export_magnets(
+    search: str | None = Query(default=None),
+    source_task_name: str | None = Query(default=None),
+    rating_min: float | None = Query(default=None, ge=0, le=5),
+    actors: str | None = Query(default=None),
+    tags: str | None = Query(default=None),
+    date_from: str | None = Query(default=None, description="YYYY-MM-DD"),
+    date_to: str | None = Query(default=None, description="YYYY-MM-DD"),
+):
+    """Return all magnets matching the query filters (no pagination) for export."""
+    db = get_mongo_db()
+    col = db[MOVIE_COLLECTION]
+
+    query = {}
+    if date_from or date_to:
+        created_at_filter = {}
+        if date_from:
+            created_at_filter["$gte"] = datetime.strptime(date_from, "%Y-%m-%d")
+        if date_to:
+            created_at_filter["$lte"] = datetime.strptime(date_to, "%Y-%m-%d").replace(
+                hour=23, minute=59, second=59, microsecond=999999
+            )
+        query["created_at"] = created_at_filter
+
+    if search:
+        escaped = _escape_regex(search)
+        query["$or"] = [
+            {"title": {"$regex": escaped, "$options": "i"}},
+            {"code": {"$regex": escaped, "$options": "i"}},
+            {"name": {"$regex": escaped, "$options": "i"}},
+        ]
+
+    if source_task_name:
+        query["source_task_name"] = source_task_name
+
+    if rating_min is not None:
+        query["rating"] = {"$gte": rating_min}
+
+    if actors:
+        actor_list = [a.strip() for a in actors.split(",") if a.strip()]
+        if actor_list:
+            query["actors"] = {"$all": actor_list}
+
+    if tags:
+        tag_list = [t.strip() for t in tags.split(",") if t.strip()]
+        if tag_list:
+            query["tags"] = {"$all": tag_list}
+
+    cursor = col.find(query, {"magnets": 1, "code": 1, "title": 1, "name": 1, "_id": 0})
+    magnets = []
+    for doc in cursor:
+        for m in doc.get("magnets", []):
+            if isinstance(m, dict) and m.get("magnet"):
+                magnets.append({
+                    "code": doc.get("code") or doc.get("name", ""),
+                    "title": doc.get("title") or doc.get("name", ""),
+                    "magnet": m["magnet"],
+                    "size": m.get("size", ""),
+                })
+
+    return {"magnets": magnets, "total": len(magnets)}
 
 
 @router.get("/{movie_id}")
