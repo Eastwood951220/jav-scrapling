@@ -86,18 +86,21 @@ def _select_best_magnet(magnets: list[dict]) -> dict | None:
         title = (magnet.get("title") or "").lower()
         return any(kw in title for kw in ["chs", "cht", "chinese", "中字", "中文", "字幕"])
 
-    # Sort: chinese-sub first, then largest size
+    # Sort: (chinese-sub + >2GB) first, then chinese-sub, then largest size
     scored = []
     for m in magnets:
         if not isinstance(m, dict) or not m.get("magnet"):
             continue
-        scored.append((_has_chinese_sub(m), _parse_size_mb(m.get("size", "")), m))
+        has_sub = _has_chinese_sub(m)
+        size_mb = _parse_size_mb(m.get("size", ""))
+        is_4k_chinese = has_sub and size_mb > 2048  # >2GB with Chinese sub = highest priority
+        scored.append((is_4k_chinese, has_sub, size_mb, m))
 
     if not scored:
         return None
 
-    scored.sort(key=lambda x: (x[0], x[1]), reverse=True)
-    return scored[0][2]
+    scored.sort(key=lambda x: (x[0], x[1], x[2]), reverse=True)
+    return scored[0][3]
 
 
 # ---------------------------------------------------------------------------
