@@ -85,8 +85,8 @@ def _attach_movie_magnets(movie_docs: list[dict], magnets_col) -> None:
 
 def _magnet_export_item(movie: dict, magnet: dict) -> dict:
     return {
-        "code": movie.get("code") or movie.get("name", ""),
-        "title": movie.get("title") or movie.get("name", ""),
+        "code": movie.get("code") or "",
+        "title": movie.get("source_name") or "",
         "magnet": magnet.get("magnet", ""),
         "name": magnet.get("name") or magnet.get("title") or "",
         "size": magnet.get("size_text") or "",
@@ -174,9 +174,9 @@ def list_movies(
     if search:
         escaped = _escape_regex(search)
         query["$or"] = [
-            {"title": {"$regex": escaped, "$options": "i"}},
+            {"source_name": {"$regex": escaped, "$options": "i"}},
             {"code": {"$regex": escaped, "$options": "i"}},
-            {"name": {"$regex": escaped, "$options": "i"}},
+            {"config_task_name": {"$regex": escaped, "$options": "i"}},
         ]
 
     if source_task_name:
@@ -198,7 +198,7 @@ def list_movies(
     total = col.count_documents(query)
     total_pages = max(1, (total + limit - 1) // limit)
 
-    allowed_sort = {"created_at", "updated_at", "code", "title", "name", "release_date", "rating"}
+    allowed_sort = {"created_at", "updated_at", "code", "source_name", "config_task_name", "release_date", "rating"}
     if sort_by not in allowed_sort:
         sort_by = "created_at"
     if sort_order not in (-1, 1):
@@ -251,9 +251,9 @@ def export_magnets(
     if search:
         escaped = _escape_regex(search)
         query["$or"] = [
-            {"title": {"$regex": escaped, "$options": "i"}},
+            {"source_name": {"$regex": escaped, "$options": "i"}},
             {"code": {"$regex": escaped, "$options": "i"}},
-            {"name": {"$regex": escaped, "$options": "i"}},
+            {"config_task_name": {"$regex": escaped, "$options": "i"}},
         ]
 
     if source_task_name:
@@ -272,7 +272,7 @@ def export_magnets(
         if tag_list:
             query["tags"] = {"$all": tag_list}
 
-    movie_docs = list(col.find(query, {"code": 1, "title": 1, "name": 1}))
+    movie_docs = list(col.find(query, {"code": 1, "source_name": 1}))
     movies_by_id = {str(doc["_id"]): doc for doc in movie_docs}
     movie_ids = list(movies_by_id)
 
