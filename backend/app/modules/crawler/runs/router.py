@@ -3,7 +3,7 @@ from bson.errors import InvalidId
 from fastapi import APIRouter, HTTPException, Query
 
 from app.core.bson import stringify_objectids
-from app.db.collections import RUNS, RUN_DETAIL_TASKS
+from app.db.collections import CRAWL_RUNS, CRAWL_RUN_DETAIL_TASKS
 from app.modules.crawler.runs.logs import delete_run_logs, load_run_logs
 from app.modules.crawler.runs.queue import (
     get_queue_status,
@@ -17,7 +17,7 @@ from scraper.database.mongo_client import get_mongo_db
 
 router = APIRouter(prefix="/api/crawler/runs", tags=["crawler-runs"])
 
-COLLECTION = RUNS
+COLLECTION = CRAWL_RUNS
 
 
 def _col():
@@ -152,7 +152,7 @@ def delete_run(run_id: str):
     return {"deleted": True}
 
 
-DETAIL_TASKS_COLLECTION = RUN_DETAIL_TASKS
+DETAIL_TASKS_COLLECTION = CRAWL_RUN_DETAIL_TASKS
 
 
 def _detail_col():

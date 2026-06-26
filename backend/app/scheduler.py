@@ -1,6 +1,6 @@
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
-from app.db.collections import SCHEDULES, TASKS
+from app.db.collections import CRAWL_SCHEDULES, CRAWL_TASKS
 
 scheduler = BackgroundScheduler()
 
@@ -8,7 +8,7 @@ scheduler = BackgroundScheduler()
 def start_scheduler():
     from scraper.database.mongo_client import get_mongo_db
 
-    col = get_mongo_db()[SCHEDULES]
+    col = get_mongo_db()[CRAWL_SCHEDULES]
     for doc in col.find({"enabled": True}):
         _add_job(doc)
 
@@ -22,7 +22,7 @@ def _add_job(schedule_doc: dict):
         from scraper.database.mongo_client import get_mongo_db
         from app.modules.crawler.runs.queue import enqueue_task
 
-        tasks_col = get_mongo_db()[TASKS]
+        tasks_col = get_mongo_db()[CRAWL_TASKS]
 
         for task_id in schedule_doc.get("task_ids", []):
             from bson import ObjectId

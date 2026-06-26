@@ -4,7 +4,7 @@ import type { MovieListResponse } from "./types";
 export type { MovieListResponse } from "./types";
 
 export function fetchTaskNames(): Promise<{ _id: string; name: string }[]> {
-  return client.get("/tasks").then((res) => res.data);
+  return client.get("/crawler/tasks").then((res) => res.data);
 }
 
 export function fetchMovies(params: {

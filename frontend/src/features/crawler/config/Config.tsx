@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Form, Input, InputNumber, Button, Card, message, Typography } from "antd";
 import Editor, { type OnMount } from "@monaco-editor/react";
-import { fetchConfig, updateConfig, fetchCookiesConfig, updateCookiesConfig, syncMovieFilters, type AppConfig, type CookiesConfig } from "./api";
+import { fetchConfig, updateConfig, fetchCookiesConfig, updateCookiesConfig, type AppConfig, type CookiesConfig } from "./api";
+import {syncMovieFilters} from "@/features/content/movies/api";
 import { getErrorMessage } from "@/shared/hooks/useErrorMessage";
 import FullPageSpinner from "@/shared/components/FullPageSpinner";
 import styles from "@/shared/styles/pages.module.css";

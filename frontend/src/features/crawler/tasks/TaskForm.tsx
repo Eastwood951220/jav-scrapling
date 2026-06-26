@@ -208,7 +208,7 @@ export default function TaskForm() {
         await createTask(payload);
         message.success("任务已创建");
       }
-      navigate({ to: "/tasks" });
+      navigate({ to: "/crawler/tasks" });
     } catch (e: unknown) {
       message.error(getErrorMessage(e));
     } finally {
@@ -302,7 +302,7 @@ export default function TaskForm() {
           <Button type="primary" htmlType="submit" loading={submitting}>
             {isEdit ? "更新" : "创建"}
           </Button>
-          <Button style={{ marginLeft: 8 }} onClick={() => navigate({ to: "/tasks" })}>
+          <Button style={{ marginLeft: 8 }} onClick={() => navigate({ to: "/crawler/tasks" })}>
             取消
           </Button>
         </Form.Item>

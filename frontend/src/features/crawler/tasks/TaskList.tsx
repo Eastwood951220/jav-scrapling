@@ -46,7 +46,7 @@ export default function TaskList() {
     try {
       await deleteTask(id);
       message.success("任务已删除");
-      loadTasks();
+      await loadTasks();
     } catch (e: unknown) {
       message.error(getErrorMessage(e));
     }
@@ -57,7 +57,7 @@ export default function TaskList() {
       message.loading({ content: "正在加入队列...", key: "run" });
       const runDoc = await runTask(id);
       message.success({ content: `已加入队列 (${runDoc.status})`, key: "run", duration: 2 });
-      navigate({ to: "/runs" });
+      await navigate({to: "/crawler/runs"});
     } catch (e: unknown) {
       message.error({ content: getErrorMessage(e), key: "run" });
     }
@@ -67,7 +67,7 @@ export default function TaskList() {
     try {
       await updateTask(task._id, { is_skip: !task.is_skip });
       message.success(task.is_skip ? "任务已启用" : "任务已禁用");
-      loadTasks();
+      await loadTasks();
     } catch (e: unknown) {
       message.error(getErrorMessage(e));
     }
@@ -124,7 +124,7 @@ export default function TaskList() {
           <Button
             icon={<EditOutlined />}
             size="small"
-            onClick={() => navigate({ to: "/tasks/$id/edit", params: { id: record._id } })}
+            onClick={() => navigate({ to: "/crawler/tasks/$id/edit", params: { id: record._id } })}
           >
             编辑
           </Button>
@@ -144,7 +144,7 @@ export default function TaskList() {
   return (
     <div>
       <div style={{ marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate({ to: "/tasks/new" })}>
+        <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate({ to: "/crawler/tasks/new" })}>
           新建任务
         </Button>
         {queueStatus && (

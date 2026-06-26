@@ -105,7 +105,7 @@ export default function RunDetail() {
     <div>
       {contextHolder}
       <Space style={{ marginBottom: 16 }}>
-        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate({ to: "/runs" })}>
+        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate({ to: "/crawler/runs" })}>
           返回
         </Button>
       </Space>

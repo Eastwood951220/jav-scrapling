@@ -9,7 +9,7 @@ from bson import ObjectId
 from bson.errors import InvalidId
 
 from app.core.bson import stringify_objectids
-from app.db.collections import RUNS, RUN_DETAIL_TASKS, TASKS
+from app.db.collections import CRAWL_RUNS, CRAWL_RUN_DETAIL_TASKS, CRAWL_TASKS
 
 _Queue = queue.Queue[Any]
 _task_queue: _Queue = queue.Queue()
@@ -28,7 +28,7 @@ def enqueue_task(task_id: str) -> dict:
     except InvalidId:
         raise ValueError(f"Invalid task ID: {task_id}")
 
-    tasks_col = get_mongo_db()[TASKS]
+    tasks_col = get_mongo_db()[CRAWL_TASKS]
     task_doc = tasks_col.find_one({"_id": oid})
 
     run_doc = {
@@ -42,7 +42,7 @@ def enqueue_task(task_id: str) -> dict:
         "error": None,
     }
 
-    result = get_mongo_db()[RUNS].insert_one(run_doc)
+    result = get_mongo_db()[CRAWL_RUNS].insert_one(run_doc)
     run_doc["_id"] = str(result.inserted_id)
 
     _task_queue.put(str(result.inserted_id))
@@ -72,7 +72,7 @@ def recover_orphaned_runs() -> int:
     """
     from scraper.database.mongo_client import get_mongo_db
 
-    runs_col = get_mongo_db()[RUNS]
+    runs_col = get_mongo_db()[CRAWL_RUNS]
     orphaned = list(runs_col.find({"status": "queued"}))
 
     for run_doc in orphaned:
@@ -127,9 +127,9 @@ def _worker_loop():
         _current_run_id = run_id
         _stop_event.clear()
 
-        runs_col = get_mongo_db()[RUNS]
-        tasks_col = get_mongo_db()[TASKS]
-        detail_col = get_mongo_db()[RUN_DETAIL_TASKS]
+        runs_col = get_mongo_db()[CRAWL_RUNS]
+        tasks_col = get_mongo_db()[CRAWL_TASKS]
+        detail_col = get_mongo_db()[CRAWL_RUN_DETAIL_TASKS]
         repository = MovieRepository()
 
         runs_col.update_one(
@@ -293,7 +293,7 @@ def retry_detail_task(task_id: str, mode: str) -> dict:
     from scraper.database.mongo_client import get_mongo_db
     from scraper.database.repositories.movie_repository import MovieRepository
 
-    detail_col = get_mongo_db()[RUN_DETAIL_TASKS]
+    detail_col = get_mongo_db()[CRAWL_RUN_DETAIL_TASKS]
     doc = detail_col.find_one({"_id": ObjectId(task_id)})
     if not doc:
         return {"success": False, "error": "任务不存在"}

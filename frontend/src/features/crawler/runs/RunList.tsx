@@ -115,7 +115,7 @@ export default function RunList() {
         width: 160,
         render: (_: unknown, record: TaskRun) => (
           <Space>
-            <Button type="link" onClick={() => navigate({ to: "/runs/$id", params: { id: record._id } })}>
+            <Button type="link" onClick={() => navigate({ to: "/crawler/runs/$id", params: { id: record._id } })}>
               详情
             </Button>
             {record.status === "running" && (
