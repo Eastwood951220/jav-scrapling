@@ -35,10 +35,6 @@ MOVIE_INDEXES: list[IndexModel] = [
         [("updated_at", DESCENDING)],
         name="idx_movie_updated_at",
     ),
-    IndexModel(
-        [("title", ASCENDING), ("code", ASCENDING)],
-        name="idx_movie_title_code",
-    ),
 ]
 
 
