@@ -66,10 +66,6 @@ export function fetchTags(): Promise<string[]> {
   return client.get("/movies/tags").then((res) => res.data);
 }
 
-export function syncMovieFilters(): Promise<{ actors: number; tags: number }> {
-  return client.post("/movies/sync-filters").then((res) => res.data);
-}
-
 // ---------------------------------------------------------------------------
 // Storage task API
 // ---------------------------------------------------------------------------
