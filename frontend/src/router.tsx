@@ -33,6 +33,7 @@ import RunList from "@/features/runs/RunList";
 import RunDetail from "@/features/runs/RunDetail";
 import Movies from "@/features/movies/Movies";
 import StorageConfig from "@/features/storage-config/StorageConfig";
+import StorageTaskList from "@/features/storage-tasks/StorageTaskList";
 
 // ── Root ──────────────────────────────────────────────
 const rootRoute = createRootRoute({
@@ -216,12 +217,7 @@ const storageConfigRoute = createRoute({
 const storageTasksRoute = createRoute({
   path: "/storage/tasks",
   getParentRoute: () => appLayout,
-  component: () => (
-    <div style={{ padding: 24, textAlign: "center" }}>
-      <Typography.Title level={4}>存储任务</Typography.Title>
-      <Typography.Text type="secondary">即将在 Phase 3 实现</Typography.Text>
-    </div>
-  ),
+  component: StorageTaskList,
 });
 
 // ── Build tree ────────────────────────────────────────
