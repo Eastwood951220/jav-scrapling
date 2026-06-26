@@ -64,11 +64,23 @@ const loginRoute = createRoute({
 const { Sider, Content, Header } = AntLayout;
 
 const menuItems = [
-  { key: "/tasks", icon: <UnorderedListOutlined />, label: "任务配置" },
-  { key: "/schedules", icon: <ClockCircleOutlined />, label: "定时任务" },
-  { key: "/settings", icon: <SettingOutlined />, label: "系统设置" },
-  { key: "/runs", icon: <HistoryOutlined />, label: "运行历史" },
-  { key: "/movies", icon: <PlayCircleOutlined />, label: "内容浏览" },
+  {
+    type: "group" as const,
+    label: "爬虫模块",
+    children: [
+      { key: "/tasks", icon: <UnorderedListOutlined />, label: "任务配置" },
+      { key: "/schedules", icon: <ClockCircleOutlined />, label: "定时任务" },
+      { key: "/runs", icon: <HistoryOutlined />, label: "运行历史" },
+      { key: "/settings", icon: <SettingOutlined />, label: "爬虫设置" },
+    ],
+  },
+  {
+    type: "group" as const,
+    label: "存储模块",
+    children: [
+      { key: "/movies", icon: <PlayCircleOutlined />, label: "内容浏览" },
+    ],
+  },
 ];
 
 function AppLayoutComponent() {
@@ -76,13 +88,15 @@ function AppLayoutComponent() {
   const navigate = useNavigate();
   const location = useLocation();
 
+  const flatItems = menuItems.flatMap((g) => g.children || []);
+
   const selectedKey =
-    menuItems.find((item) => location.pathname.startsWith(item.key))?.key ||
+    flatItems.find((item) => location.pathname.startsWith(item.key))?.key ||
     "/tasks";
 
   const currentLabel =
-    menuItems.find((item) => location.pathname.startsWith(item.key))?.label ||
-    "配置管理";
+    flatItems.find((item) => location.pathname.startsWith(item.key))?.label ||
+    "爬虫模块";
 
   return (
     <AntLayout className={styles.root} hasSider>
