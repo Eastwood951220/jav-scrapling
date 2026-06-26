@@ -349,7 +349,7 @@ def select_magnet(movie_id: str, body: dict):
 
 @router.delete("/batch")
 def delete_movies_batch(body: dict):
-    """Delete multiple movies by IDs."""
+    """Delete multiple movies by IDs, including their magnets."""
     ids = body.get("ids", [])
     if not ids:
         raise HTTPException(status_code=400, detail="ids 不能为空")
@@ -365,12 +365,16 @@ def delete_movies_batch(body: dict):
     col = db[MOVIE_COLLECTION]
     result = col.delete_many({"_id": {"$in": oids}})
 
+    # Cascade: delete associated magnets for all deleted movies
+    if result.deleted_count > 0:
+        db[MAGNET_COLLECTION].delete_many({"movie_id": {"$in": ids}})
+
     return {"deleted": result.deleted_count}
 
 
 @router.delete("/{movie_id}")
 def delete_movie(movie_id: str):
-    """Delete a single movie by ID."""
+    """Delete a single movie by ID, including its magnets."""
     try:
         oid = ObjectId(movie_id)
     except InvalidId:
@@ -382,5 +386,8 @@ def delete_movie(movie_id: str):
 
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Movie not found")
+
+    # Cascade: delete associated magnets
+    db[MAGNET_COLLECTION].delete_many({"movie_id": movie_id})
 
     return {"deleted": True}
