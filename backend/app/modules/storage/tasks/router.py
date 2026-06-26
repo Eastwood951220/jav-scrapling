@@ -451,7 +451,7 @@ def list_storage_tasks(
         escaped = _escape_regex(search)
         query["$or"] = [
             {"movie_code": {"$regex": escaped, "$options": "i"}},
-            {"source_name": {"$regex": escaped, "$options": "i"}},
+            {"title": {"$regex": escaped, "$options": "i"}},
             {"task_id": {"$regex": escaped, "$options": "i"}},
         ]
 
