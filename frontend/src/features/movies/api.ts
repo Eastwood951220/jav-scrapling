@@ -17,8 +17,29 @@ export function fetchMovies(params: {
   rating_min?: number;
   actors?: string;
   tags?: string;
+  date_from?: string;
+  date_to?: string;
 }): Promise<MovieListResponse> {
   return client.get("/movies", { params }).then((res) => res.data);
+}
+
+export interface MagnetExportItem {
+  code: string;
+  title: string;
+  magnet: string;
+  size: string;
+}
+
+export function fetchAllMagnets(params: {
+  source_task_name?: string;
+  search?: string;
+  rating_min?: number;
+  actors?: string;
+  tags?: string;
+  date_from?: string;
+  date_to?: string;
+}): Promise<{ magnets: MagnetExportItem[]; total: number }> {
+  return client.get("/movies/magnets", { params }).then((res) => res.data);
 }
 
 export function fetchMovie(id: string): Promise<Record<string, unknown>> {

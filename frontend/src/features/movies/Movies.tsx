@@ -1,10 +1,11 @@
 import { useEffect, useState, useCallback } from "react";
 import {
-  Table, Input, Select, Button, Space, Card, message, Drawer, Descriptions, Tag, Typography, InputNumber, Image, Popconfirm,
+  Table, Input, Select, Button, Space, Card, message, Drawer, Descriptions, Tag, Typography, InputNumber, Image, Popconfirm, DatePicker,
 } from "antd";
 import { SearchOutlined, ReloadOutlined, DownloadOutlined, DeleteOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
-import { fetchTaskNames, fetchMovies, fetchMovie, deleteMovie, deleteMovies, fetchActors, fetchTags } from "./api";
+import type { Dayjs } from "dayjs";
+import { fetchTaskNames, fetchMovies, fetchMovie, deleteMovie, deleteMovies, fetchActors, fetchTags, fetchAllMagnets } from "./api";
 import type { Movie, MovieListResponse } from "./types";
 import { getErrorMessage } from "@/shared/hooks/useErrorMessage";
 
@@ -26,6 +27,7 @@ export default function Movies() {
   const [selectedActors, setSelectedActors] = useState<string[]>([]);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [filtersLoading, setFiltersLoading] = useState(false);
+  const [dateRange, setDateRange] = useState<[Dayjs | null, Dayjs | null]>([null, null]);
 
   const loadFilters = useCallback(async () => {
     setFiltersLoading(true);
@@ -63,6 +65,8 @@ export default function Movies() {
         rating_min: ratingMin,
         actors: selectedActors.length > 0 ? selectedActors.join(",") : undefined,
         tags: selectedTags.length > 0 ? selectedTags.join(",") : undefined,
+        date_from: dateRange[0]?.format("YYYY-MM-DD"),
+        date_to: dateRange[1]?.format("YYYY-MM-DD"),
       });
       setData(result);
     } catch (e: unknown) {
@@ -70,7 +74,7 @@ export default function Movies() {
     } finally {
       setLoading(false);
     }
-  }, [selectedTask, search, sortBy, sortOrder, ratingMin, pageSize, selectedActors, selectedTags]);
+  }, [selectedTask, search, sortBy, sortOrder, ratingMin, pageSize, selectedActors, selectedTags, dateRange]);
 
   useEffect(() => {
     loadTasks();
@@ -91,29 +95,47 @@ export default function Movies() {
     }
   };
 
-  const handleExportMagnets = () => {
-    // 有勾选则导出勾选项，无勾选则导出当前页全部
-    const itemsToExport = selectedRowKeys.length > 0
-      ? data.items.filter((item) => selectedRowKeys.includes(item._id))
-      : data.items;
+  const handleExportMagnets = async () => {
+    let magnetStrings: string[] = [];
 
-    const magnets = itemsToExport
-      .map((item) => item.magnet)
-      .filter((m): m is string => Boolean(m));
+    if (selectedRowKeys.length > 0) {
+      // 有勾选则导出勾选项
+      magnetStrings = data.items
+        .filter((item) => selectedRowKeys.includes(item._id))
+        .map((item) => item.magnet)
+        .filter((m): m is string => Boolean(m));
+    } else {
+      // 无勾选则调用后端接口导出当前筛选条件下的全部磁力
+      try {
+        const result = await fetchAllMagnets({
+          source_task_name: selectedTask,
+          search: search || undefined,
+          rating_min: ratingMin,
+          actors: selectedActors.length > 0 ? selectedActors.join(",") : undefined,
+          tags: selectedTags.length > 0 ? selectedTags.join(",") : undefined,
+          date_from: dateRange[0]?.format("YYYY-MM-DD"),
+          date_to: dateRange[1]?.format("YYYY-MM-DD"),
+        });
+        magnetStrings = result.magnets.map((m) => m.magnet).filter(Boolean);
+      } catch (e: unknown) {
+        message.error(getErrorMessage(e));
+        return;
+      }
+    }
 
-    if (magnets.length === 0) {
+    if (magnetStrings.length === 0) {
       message.warning("无可导出的磁力链接");
       return;
     }
 
-    const blob = new Blob([magnets.join("\n")], { type: "text/plain;charset=utf-8" });
+    const blob = new Blob([magnetStrings.join("\n")], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
     a.download = `magnets_${selectedTask ?? "all"}_${new Date().toISOString().slice(0, 10)}.txt`;
     a.click();
     URL.revokeObjectURL(url);
-    message.success(`已导出 ${magnets.length} 条磁力链接`);
+    message.success(`已导出 ${magnetStrings.length} 条磁力链接`);
   };
 
   const handleDelete = useCallback(async (id: string) => {
@@ -276,6 +298,12 @@ export default function Movies() {
             value={ratingMin}
             onChange={(v) => setRatingMin(v ?? undefined)}
           />
+          <DatePicker.RangePicker
+            value={dateRange}
+            onChange={(dates) => setDateRange(dates ?? [null, null])}
+            placeholder={["开始日期", "结束日期"]}
+            style={{ width: 240 }}
+          />
           <Select
             style={{ width: 140 }}
             value={`${sortBy}:${sortOrder}`}
@@ -298,7 +326,7 @@ export default function Movies() {
           <Button type="primary" onClick={() => loadMovies()}>
             搜索
           </Button>
-          <Button icon={<ReloadOutlined />} onClick={() => { setSearch(""); setRatingMin(undefined); setSortBy("code"); setSortOrder(-1); setSelectedActors([]); setSelectedTags([]); loadMovies(1); }}>
+          <Button icon={<ReloadOutlined />} onClick={() => { setSearch(""); setRatingMin(undefined); setSortBy("code"); setSortOrder(-1); setSelectedActors([]); setSelectedTags([]); setDateRange([null, null]); loadMovies(1); }}>
             刷新
           </Button>
           <Button
