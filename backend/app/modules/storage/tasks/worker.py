@@ -308,7 +308,7 @@ def _step_prepare(task: dict, config: dict) -> dict:
         raise ValueError("缺少磁力链接")
 
     # Load task name for target folder structure
-    source_task_name = movie.get("name") or movie.get("source_task_name", "")
+    source_task_name = movie.get("source_task_name", "")
 
     # Compute paths (target includes task name subfolder)
     task_with_name = {**task, "source_task_name": source_task_name}

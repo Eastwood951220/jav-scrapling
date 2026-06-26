@@ -207,13 +207,13 @@ def create_storage_task(body: dict):
     task_id = _generate_task_id()
     now = datetime.now()
 
-    movie_code = movie.get("code") or movie.get("name", "")
+    movie_code = movie.get("code") or movie.get("config_task_name", "")
 
     task_doc = {
         "task_id": task_id,
         "movie_id": str(movie_oid),
         "movie_code": movie_code,
-        "title": movie.get("title") or movie.get("name", ""),
+        "title": movie.get("source_name") or movie.get("config_task_name", ""),
         "magnet_url": magnet_url,
         "info_hash": info_hash,
         "status": "pending",
@@ -385,13 +385,13 @@ def batch_create_storage_tasks(body: dict):
         # Create new task
         task_id = _generate_task_id()
         now = datetime.now()
-        movie_code = movie.get("code") or movie.get("name", "")
+        movie_code = movie.get("code") or movie.get("config_task_name", "")
 
         task_doc = {
             "task_id": task_id,
             "movie_id": mid,
             "movie_code": movie_code,
-            "title": movie.get("title") or movie.get("name", ""),
+            "title": movie.get("source_name") or movie.get("config_task_name", ""),
             "magnet_url": magnet_url,
             "info_hash": info_hash,
             "status": "pending",
@@ -451,7 +451,7 @@ def list_storage_tasks(
         escaped = _escape_regex(search)
         query["$or"] = [
             {"movie_code": {"$regex": escaped, "$options": "i"}},
-            {"title": {"$regex": escaped, "$options": "i"}},
+            {"source_name": {"$regex": escaped, "$options": "i"}},
             {"task_id": {"$regex": escaped, "$options": "i"}},
         ]
 
