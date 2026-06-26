@@ -34,6 +34,7 @@ import RunDetail from "@/features/runs/RunDetail";
 import Movies from "@/features/movies/Movies";
 import StorageConfig from "@/features/storage-config/StorageConfig";
 import StorageTaskList from "@/features/storage-tasks/StorageTaskList";
+import StorageTaskDetail from "@/features/storage-tasks/StorageTaskDetail";
 
 // ── Root ──────────────────────────────────────────────
 const rootRoute = createRootRoute({
@@ -220,6 +221,12 @@ const storageTasksRoute = createRoute({
   component: StorageTaskList,
 });
 
+const storageTaskDetailRoute = createRoute({
+  path: "/storage/tasks/$id",
+  getParentRoute: () => appLayout,
+  component: StorageTaskDetail,
+});
+
 // ── Build tree ────────────────────────────────────────
 const routeTree = rootRoute.addChildren([
   authLayout.addChildren([loginRoute]),
@@ -235,6 +242,7 @@ const routeTree = rootRoute.addChildren([
     moviesRoute,
     storageConfigRoute,
     storageTasksRoute,
+    storageTaskDetailRoute,
   ]),
 ]);
 

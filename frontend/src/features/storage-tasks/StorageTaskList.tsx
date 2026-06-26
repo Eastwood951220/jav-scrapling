@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
+import { useNavigate } from "@tanstack/react-router";
 import {
   Table,
   Tag,
@@ -23,6 +24,7 @@ import {
   SearchOutlined,
   CopyOutlined,
   CheckOutlined,
+  EyeOutlined,
 } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import dayjs from "dayjs";
@@ -96,6 +98,8 @@ function CopyableText({ text }: { text: string }) {
 
 // ── Main component ──────────────────────────────────────
 export default function StorageTaskList() {
+  const navigate = useNavigate();
+
   // Data state
   const [tasks, setTasks] = useState<StorageTask[]>([]);
   const [loading, setLoading] = useState(false);
@@ -378,10 +382,20 @@ export default function StorageTaskList() {
       {
         title: "操作",
         key: "actions",
-        width: 200,
+        width: 250,
         fixed: "right",
         render: (_: unknown, record: StorageTask) => (
           <Space size="small">
+            {/* Detail button - always show */}
+            <Button
+              type="link"
+              size="small"
+              icon={<EyeOutlined />}
+              onClick={() => navigate({ to: "/storage/tasks/$id", params: { id: record.task_id } })}
+            >
+              详情
+            </Button>
+
             {/* Retry button - show if retryable or failed */}
             {(record.status === "failed" || record.status === "waiting_retry" || record.retryable) && (
               <Popconfirm

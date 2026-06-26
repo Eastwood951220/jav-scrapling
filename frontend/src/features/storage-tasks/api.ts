@@ -1,5 +1,24 @@
 import client from "@/shared/api/client";
 
+export interface StorageTaskStep {
+  name: string;
+  status: "pending" | "running" | "success" | "failed" | "skipped";
+  started_at?: string;
+  completed_at?: string;
+  duration_seconds?: number;
+  attempt?: number;
+  error?: string;
+}
+
+export interface StorageTaskFile {
+  filename: string;
+  path: string;
+  size?: number;
+  extension?: string;
+  category?: string;
+  result?: string;
+}
+
 export interface StorageTask {
   _id: string;
   task_id: string;
@@ -11,14 +30,18 @@ export interface StorageTask {
   current_step: string;
   failed_step: string | null;
   retryable: boolean;
-  magnet: { url: string; info_hash: string; size: string; size_bytes: number };
+  magnet: { url: string; info_hash: string; size: string; size_bytes: number; selected_reason?: string };
   download: { progress: number; status: string };
   target_folder: string;
   retry: { step_attempt: number; total_attempts: number; max_step_retries: number };
   error: { code: string | null; message: string | null };
   created_at: string;
+  started_at?: string | null;
   updated_at: string;
   completed_at: string | null;
+  steps?: StorageTaskStep[];
+  scanned_files?: StorageTaskFile[];
+  final_files?: string[];
 }
 
 export interface StorageTaskListResponse {
@@ -40,6 +63,22 @@ export interface StorageTaskStats {
 
 export function fetchStorageTasks(params?: Record<string, unknown>): Promise<StorageTaskListResponse> {
   return client.get("/storage/tasks", { params }).then((res) => res.data);
+}
+
+export function fetchStorageTask(taskId: string): Promise<StorageTask> {
+  return client.get(`/storage/tasks/${taskId}`).then((res) => res.data);
+}
+
+export interface StorageTaskLogEntry {
+  timestamp: string;
+  level: string;
+  step?: string;
+  message: string;
+  data?: Record<string, unknown>;
+}
+
+export function fetchStorageTaskLogs(taskId: string): Promise<StorageTaskLogEntry[]> {
+  return client.get(`/storage/tasks/${taskId}/logs`).then((res) => res.data.logs ?? []);
 }
 
 export function fetchStorageTaskStats(): Promise<StorageTaskStats> {
