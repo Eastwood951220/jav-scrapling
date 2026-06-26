@@ -14,7 +14,15 @@ export type RunStatus = "queued" | "running" | "completed" | "failed" | "stopped
 export interface MovieMagnet {
   magnet: string;
   title?: string;
-  size?: string;
+  size?: string | number;
+  name?: string;
+  size_text?: string;
+  size_mb?: number;
+  file_count?: number;
+  file_text?: string;
+  tags?: string[];
+  has_chinese_sub?: boolean;
+  date?: string;
 }
 
 /** Storage task summary embedded in a movie document. */

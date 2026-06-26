@@ -211,13 +211,37 @@ export default function Movies() {
         if (magnets.length > 0) {
             return magnets.map((m) => ({
                 value: m.magnet,
-                label: `${m.title || m.magnet.slice(0, 40)}${m.size ? ` (${m.size})` : ""}`,
+                label: `${m.title || m.name || m.magnet.slice(0, 40)}${getMagnetSizeText(m) ? ` (${getMagnetSizeText(m)})` : ""}`,
             }));
         }
         if (movie.magnet) {
             return [{value: movie.magnet, label: movie.magnet}];
         }
         return [];
+    };
+
+    const getDetailMagnets = (value: unknown): MovieMagnet[] => {
+        if (!Array.isArray(value)) return [];
+        return value.filter((item): item is MovieMagnet => typeof item === "object" && item !== null);
+    };
+
+    const getMagnetSizeText = (magnet: MovieMagnet): string => {
+        if (magnet.size_text) return magnet.size_text;
+        if (typeof magnet.size === "string" && magnet.size.trim()) return magnet.size;
+        const sizeMb = typeof magnet.size_mb === "number" ? magnet.size_mb : magnet.size;
+        return typeof sizeMb === "number" ? `${(sizeMb / 1024).toFixed(1)} GB` : "";
+    };
+
+    const getDetailSizeText = (size: unknown, magnets: MovieMagnet[]): string => {
+        if (typeof size === "number") return `${(size / 1024).toFixed(1)} GB`;
+        if (typeof size === "string" && size.trim()) return size;
+        const firstMagnetSize = magnets.length > 0 ? getMagnetSizeText(magnets[0]) : "";
+        return firstMagnetSize || "-";
+    };
+
+    const getMagnetDisplayText = (magnet: MovieMagnet): string => {
+        const metadata = [magnet.name || magnet.title, getMagnetSizeText(magnet), magnet.file_text].filter(Boolean).join(" · ");
+        return metadata ? `${metadata}\n${magnet.magnet}` : magnet.magnet;
     };
 
     const handleOpenPush = (movie: Movie) => {
@@ -412,6 +436,11 @@ export default function Movies() {
         }
 
     ];
+
+    const detailMagnets = getDetailMagnets(detail?.magnets);
+    const detailMagnetLinks = detailMagnets.filter((m) => typeof m.magnet === "string" && m.magnet.trim());
+    const detailHasChineseSub = Boolean(detail?.has_chinese_sub) || detailMagnets.some((m) => Boolean(m.has_chinese_sub));
+    const detailSizeText = getDetailSizeText(detail?.size, detailMagnets);
 
     return (
         <div>
@@ -612,16 +641,27 @@ export default function Movies() {
                                 ? (detail.tags as string[]).map((t) => <Tag key={t}>{t}</Tag>)
                                 : "-"}
                         </Descriptions.Item>
-                        <Descriptions.Item label="中文字幕">{detail.has_chinese_sub ? "是" : "否"}</Descriptions.Item>
-                        <Descriptions.Item
-                            label="大小">{detail.size != null ? `${(detail.size as number / 1024).toFixed(1)} GB` : "-"}</Descriptions.Item>
+                        <Descriptions.Item label="中文字幕">{detailHasChineseSub ? "是" : "否"}</Descriptions.Item>
+                        <Descriptions.Item label="大小">{detailSizeText}</Descriptions.Item>
                         <Descriptions.Item label="封面">
                             {detail.cover as string ? (
                                 <Image src={detail.cover as string} width={200} referrerPolicy="no-referrer"/>
                             ) : "-"}
                         </Descriptions.Item>
                         <Descriptions.Item label="磁力链接">
-                            {detail.magnet as string ? (
+                            {detailMagnetLinks.length > 0 ? (
+                                <Space direction="vertical" size={4} style={{width: "100%"}}>
+                                    {detailMagnetLinks.map((magnet, index) => (
+                                        <Typography.Paragraph
+                                            key={`${magnet.magnet}-${index}`}
+                                            copyable={{text: magnet.magnet}}
+                                            style={{marginBottom: 0, whiteSpace: "pre-wrap", wordBreak: "break-all"}}
+                                        >
+                                            {getMagnetDisplayText(magnet)}
+                                        </Typography.Paragraph>
+                                    ))}
+                                </Space>
+                            ) : detail.magnet as string ? (
                                 <Typography.Paragraph copyable style={{marginBottom: 0, wordBreak: "break-all"}}>
                                     {detail.magnet as string}
                                 </Typography.Paragraph>
