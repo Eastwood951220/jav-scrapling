@@ -11,7 +11,7 @@ from typing import Any
 import grpc
 from google.protobuf import empty_pb2
 
-from scraper.services.clouddrive_proto import clouddrive_pb2, clouddrive_pb2_grpc
+from clouddrive.clouddrive_proto import clouddrive_pb2, clouddrive_pb2_grpc
 
 logger = logging.getLogger(__name__)
 

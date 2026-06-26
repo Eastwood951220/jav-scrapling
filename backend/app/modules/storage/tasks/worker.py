@@ -20,7 +20,7 @@ from pathlib import PurePosixPath
 
 from app.db.collections import MOVIES, STORAGE_CONFIG, STORAGE_TASKS
 from app.modules.storage.tasks.logs import append_storage_task_log
-from scraper.services.clouddrive2_client import CloudDrive2Client
+from clouddrive.clouddrive2_client import CloudDrive2Client
 
 # ---------------------------------------------------------------------------
 # Module-level shared state (matches task_queue.py pattern)

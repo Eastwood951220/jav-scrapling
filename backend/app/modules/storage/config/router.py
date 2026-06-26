@@ -4,7 +4,7 @@ from datetime import datetime
 from fastapi import APIRouter, HTTPException
 
 from app.db.collections import STORAGE_CONFIG
-from scraper.services.clouddrive_grpc_client import CloudDriveGrpcClient
+from clouddrive.clouddrive_grpc_client import CloudDriveGrpcClient
 from app.modules.storage.config.schemas import (
     StorageConfig,
     StorageConfigResponse,
