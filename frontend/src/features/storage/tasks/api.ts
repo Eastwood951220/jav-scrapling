@@ -9,6 +9,24 @@ import type {
 function mapTask(raw: Record<string, unknown>): Task {
   return {
     ...raw,
+    // Field name mappings: backend → frontend
+    code: raw.code ?? raw.movie_code ?? "",
+    current_step: raw.current_step ?? raw.step ?? "",
+    target_folder: raw.target_folder ?? raw.target_path ?? "",
+    failed_step: raw.failed_step ?? raw.step ?? null,
+    // Magnet info: backend stores flat, frontend expects nested
+    magnet: raw.magnet ?? {
+      url: raw.magnet_url ?? "",
+      info_hash: raw.info_hash ?? "",
+      size: raw.size ?? "",
+      size_bytes: raw.size_bytes ?? 0,
+    },
+    // Download: progress is already 0-100 in backend
+    download: raw.download ?? {
+      progress: raw.progress ?? 0,
+      status: raw.download_status ?? "",
+    },
+    // Retry info
     retry: raw.retry ?? {
       step_attempt: 0,
       total_attempts: raw.retry_count ?? 0,
@@ -25,7 +43,7 @@ export function fetchTasks(params?: Record<string, unknown>): Promise<TaskListRe
 }
 
 export function fetchTask(taskId: string): Promise<Task> {
-  return client.get(`/storage/tasks/${taskId}`).then((res) => res.data);
+  return client.get(`/storage/tasks/${taskId}`).then((res) => mapTask(res.data));
 }
 
 export function fetchTaskLogs(taskId: string): Promise<TaskLogEntry[]> {

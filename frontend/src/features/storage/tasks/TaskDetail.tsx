@@ -183,7 +183,7 @@ export default function TaskDetail() {
               <Descriptions.Item label="下载进度">
                 {task.download?.progress != null && task.download.progress > 0 ? (
                   <Progress
-                    percent={Math.round(task.download.progress * 100)}
+                    percent={Math.round(task.download.progress)}
                     size="small"
                     status={task.download.status === "error" ? "exception" : "active"}
                     style={{ width: 200 }}
