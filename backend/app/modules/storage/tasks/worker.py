@@ -20,7 +20,7 @@ from pathlib import PurePosixPath
 
 from app.db.collections import MOVIES, STORAGE_CONFIG, STORAGE_TASKS
 from app.modules.storage.tasks.logs import append_storage_task_log
-from clouddrive.clouddrive2_client import CloudDrive2Client
+from clouddrive.clouddrive_grpc_client import CloudDriveGrpcClient
 
 # ---------------------------------------------------------------------------
 # Module-level shared state (matches task_queue.py pattern)
@@ -137,16 +137,40 @@ def _update_movie_summary(movie_id: str, task_id: str, status: str) -> None:
 # CloudDrive2 client builder
 # ---------------------------------------------------------------------------
 
-def _build_cd2_client(config: dict) -> CloudDrive2Client:
-    """Build a CloudDrive2Client from storage config."""
-    host = config.get("grpc_host", "localhost:9798")
+def _build_cd2_client(config: dict) -> CloudDriveGrpcClient:
+    """Build a CloudDriveGrpcClient from storage config."""
+    raw_host = config.get("grpc_host", "localhost:9798")
     token = config.get("api_token", "")
     timeout = config.get("request_timeout_seconds", 60)
 
-    if not host.startswith("http"):
-        host = f"http://{host}"
+    host = raw_host
+    if host.startswith("http://"):
+        host = host[7:]
+    elif host.startswith("https://"):
+        host = host[8:]
+    host = host.rstrip("/")
 
-    return CloudDrive2Client(host=host, token=token, timeout=timeout)
+    return CloudDriveGrpcClient(host=host, token=token, timeout=timeout)
+
+
+def _file_to_dict(f) -> dict:
+    """Convert a gRPC CloudDriveFile to a plain dict."""
+    return {
+        "name": f.name,
+        "path": f.fullPathName if hasattr(f, "fullPathName") else f.name,
+        "size": f.size,
+        "is_dir": f.isDirectory if hasattr(f, "isDirectory") else False,
+    }
+
+
+def _get_file_info(cd2, path: str) -> dict | None:
+    """Get file info via gRPC. Returns dict or None if not found."""
+    parent = PurePosixPath(path).parent.as_posix() or "/"
+    name = PurePosixPath(path).name
+    found = cd2.find_file_by_path(parent, name)
+    if found is None:
+        return None
+    return _file_to_dict(found)
 
 
 # ---------------------------------------------------------------------------
@@ -215,7 +239,7 @@ def _is_step_done(task: dict, step: str, config: dict) -> bool:
             if not target:
                 return False
             try:
-                files = cd2.list_files(target)
+                files = [_file_to_dict(f) for f in cd2.list_sub_files(target)]
                 video_exts = set(config.get("video_extensions", []))
                 has_videos = any(
                     PurePosixPath(f["name"]).suffix.lower() in video_exts
@@ -301,36 +325,37 @@ def _step_submit_magnet(task: dict, config: dict) -> dict:
         # Create download folder
         cd2.create_folder(download_path)
 
-        result = cd2.submit_offline_download(magnet_url, download_path)
-        cd2_task_name = result.get("task_name", "")
+        result = cd2.add_offline_download(magnet_url, download_path)
+        cd2_task_name = getattr(result, "taskName", "") or getattr(result, "task_name", "")
 
         _update_task(task_id, {
             "download.cd2_task_name": cd2_task_name,
             "download.submitted_at": datetime.now(timezone.utc),
-            "download.status": result.get("status", "submitted"),
+            "download.status": "submitted",
         })
 
         _append_log(task_id, f"磁力链接已提交: task_name={cd2_task_name}")
 
         return {**task, "download": {
             "cd2_task_name": cd2_task_name,
-            "status": result.get("status", "submitted"),
+            "status": "submitted",
         }}
     finally:
         cd2.close()
 
 
 def _step_waiting_download(task: dict, config: dict) -> dict:
-    """Step 3: Poll CloudDrive2 download status until complete or failed."""
+    """Step 3: Poll download folder until files appear (gRPC has no task-status API)."""
     task_id = task["task_id"]
-    download = task.get("download", {})
-    cd2_task_name = download.get("cd2_task_name", "")
+    download_path = task.get("download_path", "")
 
-    if not cd2_task_name:
-        raise ValueError("缺少 cd2_task_name，无法查询下载状态")
+    if not download_path:
+        raise ValueError("缺少 download_path，无法查询下载状态")
 
     poll_min = config.get("download_poll_interval_min", 5.0)
     poll_max = config.get("download_poll_interval_max", 15.0)
+    max_wait_min = config.get("download_max_wait_minutes", 120)
+    deadline = time.monotonic() + max_wait_min * 60
 
     cd2 = _build_cd2_client(config)
     try:
@@ -338,29 +363,33 @@ def _step_waiting_download(task: dict, config: dict) -> dict:
             if _check_stop(task_id):
                 return task
 
-            status_result = cd2.get_download_status(cd2_task_name)
-            status = status_result.get("status", "unknown")
-            progress = status_result.get("progress", 0.0)
+            if time.monotonic() > deadline:
+                raise RuntimeError(f"下载超时: 超过 {max_wait_min} 分钟")
 
-            _update_task(task_id, {
-                "download.status": status,
-                "download.progress": progress,
-                "progress": progress,
-            })
-
-            if status in ("completed", "done", "finished"):
-                _append_log(task_id, f"下载完成: progress={progress}")
-                return task
-
-            if status in ("failed", "error"):
-                raise RuntimeError(f"下载失败: status={status}")
+            try:
+                files = [_file_to_dict(f) for f in cd2.list_sub_files(download_path)]
+                non_dir_files = [f for f in files if not f.get("is_dir")]
+                if non_dir_files:
+                    total_size = sum(f.get("size", 0) for f in non_dir_files)
+                    _update_task(task_id, {
+                        "download.status": "completed",
+                        "download.progress": 100,
+                        "progress": 100,
+                    })
+                    _append_log(
+                        task_id,
+                        f"下载完成: 检测到 {len(non_dir_files)} 个文件, "
+                        f"总大小 {total_size / (1024*1024):.1f} MB",
+                    )
+                    return task
+            except Exception as exc:
+                _append_log(task_id, f"轮询下载目录失败: {exc}", "WARNING")
 
             # Sleep with stop check
             poll_interval = random.uniform(poll_min, poll_max)
             if _stop_event.wait(timeout=poll_interval):
                 _append_log(task_id, "下载轮询期间收到停止信号", "WARNING")
                 return task
-
     finally:
         cd2.close()
 
@@ -372,7 +401,7 @@ def _step_scan_files(task: dict, config: dict) -> dict:
 
     cd2 = _build_cd2_client(config)
     try:
-        files = cd2.list_files(download_path)
+        files = [_file_to_dict(f) for f in cd2.list_sub_files(download_path)]
 
         scanned = [
             {
@@ -501,7 +530,7 @@ def _step_rename_files(task: dict, config: dict) -> dict:
             new_path = str(PurePosixPath(old_path).parent / new_name)
 
             try:
-                cd2.rename(old_path, new_path)
+                cd2.rename_file(old_path, new_name)
                 renamed.append({**video, "renamed_path": new_path, "renamed_name": new_name})
                 _append_log(task_id, f"重命名: {video['name']} → {new_name}")
             except Exception as e:
@@ -548,14 +577,14 @@ def _step_move_files(task: dict, config: dict) -> dict:
             dst = str(PurePosixPath(target_path) / PurePosixPath(src).name)
 
             # Idempotent: skip if target file already exists
-            existing = cd2.get_file_info(dst)
+            existing = _get_file_info(cd2, dst)
             if existing and existing.get("size", 0) > 0:
                 _append_log(task_id, f"跳过已存在: {PurePosixPath(dst).name}")
                 moved.append({**f, "moved_path": dst})
                 continue
 
             try:
-                cd2.move(src, dst)
+                cd2.move_file([src], dst)
                 moved.append({**f, "moved_path": dst})
                 _append_log(task_id, f"已移动: {PurePosixPath(src).name} → {target_path}")
             except Exception as e:
@@ -584,7 +613,7 @@ def _step_verify_result(task: dict, config: dict) -> dict:
                 _append_log(task_id, f"验证失败: {video.get('name')} 缺少 moved_path", "ERROR")
                 continue
 
-            info = cd2.get_file_info(moved_path)
+            info = _get_file_info(cd2, moved_path)
             if not info:
                 all_ok = False
                 _append_log(task_id, f"验证失败: 文件不存在 {moved_path}", "ERROR")
@@ -623,7 +652,7 @@ def _step_cleanup_files(task: dict, config: dict) -> dict:
         # Delete the entire download subfolder
         if download_path and config.get("use_task_subfolder", True):
             try:
-                cd2.delete(download_path)
+                cd2.delete_file(download_path)
                 _append_log(task_id, f"已清理下载目录: {download_path}")
             except Exception as e:
                 _append_log(task_id, f"清理下载目录失败 (非致命): {e}", "WARNING")

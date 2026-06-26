@@ -6,6 +6,7 @@ Thin wrapper around the generated gRPC stubs for CloudDrive2 API.
 from __future__ import annotations
 
 import logging
+import posixpath
 from typing import Any
 
 import grpc
@@ -114,6 +115,38 @@ class CloudDriveGrpcClient:
         ):
             files.extend(response.subFiles)
         return files
+
+    def create_folder(self, path: str) -> Any:
+        """Create a folder. Returns CreateFolderResult."""
+        parent = posixpath.dirname(path) or "/"
+        name = posixpath.basename(path)
+        stub = self._get_stub()
+        request = clouddrive_pb2.CreateFolderRequest(parentPath=parent, folderName=name)
+        return stub.CreateFolder(request, metadata=self._auth_metadata(), timeout=self.timeout)
+
+    def rename_file(self, old_path: str, new_name: str) -> Any:
+        """Rename a file. Returns FileOperationResult."""
+        stub = self._get_stub()
+        request = clouddrive_pb2.RenameFileRequest(theFilePath=old_path, newName=new_name)
+        return stub.RenameFile(request, metadata=self._auth_metadata(), timeout=self.timeout)
+
+    def move_file(self, source_paths: list[str], dest_path: str) -> Any:
+        """Move files to destination. Returns FileOperationResult."""
+        stub = self._get_stub()
+        request = clouddrive_pb2.MoveFileRequest(theFilePaths=source_paths, destPath=dest_path)
+        return stub.MoveFile(request, metadata=self._auth_metadata(), timeout=self.timeout)
+
+    def delete_file(self, path: str) -> Any:
+        """Delete a file or folder. Returns FileOperationResult."""
+        stub = self._get_stub()
+        request = clouddrive_pb2.FileRequest(path=path)
+        return stub.DeleteFile(request, metadata=self._auth_metadata(), timeout=self.timeout)
+
+    def add_offline_download(self, urls: str, to_folder: str) -> Any:
+        """Submit offline download. Returns FileOperationResult."""
+        stub = self._get_stub()
+        request = clouddrive_pb2.AddOfflineFileRequest(urls=urls, toFolder=to_folder)
+        return stub.AddOfflineFiles(request, metadata=self._auth_metadata(), timeout=self.timeout)
 
     # ------------------------------------------------------------------
     # Lifecycle
