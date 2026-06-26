@@ -83,7 +83,11 @@ def _select_best_magnet(magnets: list[dict]) -> dict | None:
         return value * multipliers.get(unit, 1)
 
     def _has_chinese_sub(magnet: dict) -> bool:
-        title = (magnet.get("title") or "").lower()
+        # Parser stores has_chinese_sub as boolean from tag detection
+        if magnet.get("has_chinese_sub"):
+            return True
+        # Fallback: check title/name for keywords
+        title = (magnet.get("title") or magnet.get("name") or "").lower()
         return any(kw in title for kw in ["chs", "cht", "chinese", "中字", "中文", "字幕"])
 
     # Sort: (chinese-sub + >2GB) first, then chinese-sub, then largest size
