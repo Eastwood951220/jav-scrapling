@@ -6,8 +6,22 @@ import type {
   TaskStats,
 } from "./types";
 
+function mapTask(raw: Record<string, unknown>): Task {
+  return {
+    ...raw,
+    retry: raw.retry ?? {
+      step_attempt: 0,
+      total_attempts: raw.retry_count ?? 0,
+      max_step_retries: raw.max_retries ?? 3,
+    },
+  } as Task;
+}
+
 export function fetchTasks(params?: Record<string, unknown>): Promise<TaskListResponse> {
-  return client.get("/storage/tasks", { params }).then((res) => res.data);
+  return client.get("/storage/tasks", { params }).then((res) => ({
+    ...res.data,
+    items: res.data.items.map(mapTask),
+  }));
 }
 
 export function fetchTask(taskId: string): Promise<Task> {
@@ -38,8 +52,9 @@ export function batchRetryTasks(taskIds: string[]): Promise<{ retried: number; s
   return client.post("/storage/tasks/batch-retry", { task_ids: taskIds }).then((res) => res.data);
 }
 
-export function batchCancelTasks(taskIds: string[]): Promise<{ cancelled: number }> {
-  return client.post("/storage/tasks/batch-cancel", { task_ids: taskIds }).then((res) => res.data);
+export async function batchCancelTasks(taskIds: string[]): Promise<{ cancelled: number }> {
+  const res = await client.post("/storage/tasks/batch-cancel", {task_ids: taskIds});
+  return res.data;
 }
 
 export function batchDeleteTasks(taskIds: string[]): Promise<{ deleted: number }> {

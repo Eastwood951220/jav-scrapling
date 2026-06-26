@@ -31,7 +31,9 @@ export interface Task {
   magnet: { url: string; info_hash: string; size: string; size_bytes: number; selected_reason?: string };
   download: { progress: number; status: string };
   target_folder: string;
-  retry: { step_attempt: number; total_attempts: number; max_step_retries: number };
+  retry?: { step_attempt: number; total_attempts: number; max_step_retries: number };
+  retry_count?: number;
+  max_retries?: number;
   error: { code: string | null; message: string | null };
   created_at: string;
   started_at?: string | null;

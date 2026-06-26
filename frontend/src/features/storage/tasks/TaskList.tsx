@@ -236,8 +236,8 @@ export default function TaskList() {
       const result = await batchCancelTasks(selectedRowKeys as string[]);
       message.success(`批量取消完成: ${result.cancelled} 个任务已取消`);
       setSelectedRowKeys([]);
-      load();
-      loadStats();
+      await load();
+      await loadStats();
     } catch (e: unknown) {
       message.error(getErrorMessage(e));
     }
@@ -249,8 +249,8 @@ export default function TaskList() {
       const result = await batchDeleteTasks(selectedRowKeys as string[]);
       message.success(`批量删除完成: ${result.deleted} 个任务已删除`);
       setSelectedRowKeys([]);
-      load();
-      loadStats();
+      await load();
+      await loadStats();
     } catch (e: unknown) {
       message.error(getErrorMessage(e));
     }
@@ -358,7 +358,7 @@ export default function TaskList() {
         width: 100,
         render: (_: unknown, record: Task) => (
           <span>
-            {record.retry.total_attempts}/{record.retry.max_step_retries}
+            {record.retry?.total_attempts ?? record.retry_count ?? 0}/{record.retry?.max_step_retries ?? record.max_retries ?? 3}
           </span>
         ),
       },
