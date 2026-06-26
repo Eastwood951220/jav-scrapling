@@ -424,13 +424,24 @@ def _step_waiting_download(task: dict, config: dict) -> dict:
 
 
 def _step_scan_files(task: dict, config: dict) -> dict:
-    """Step 4: List files in the download folder."""
+    """Step 4: List files in the download folder (recursively for subdirectories)."""
     task_id = task["task_id"]
     download_path = task["download_path"]
 
     cd2 = _build_cd2_client(config)
     try:
-        files = [_file_to_dict(f) for f in cd2.list_sub_files(download_path)]
+        # Scan recursively — CloudDrive2 offline downloads create subdirectories
+        all_entries = [_file_to_dict(f) for f in cd2.list_sub_files(download_path)]
+        files = []
+        for entry in all_entries:
+            if entry.get("is_dir"):
+                try:
+                    sub_entries = [_file_to_dict(f) for f in cd2.list_sub_files(entry["path"])]
+                    files.extend(sub_entries)
+                except Exception:
+                    files.append(entry)
+            else:
+                files.append(entry)
 
         scanned = [
             {
