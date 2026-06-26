@@ -139,6 +139,14 @@ export default function Movies() {
         }
     };
 
+    const getMovieMagnetLinks = (movie: Movie): string[] => {
+        const magnetLinks = Array.isArray(movie.magnets)
+            ? movie.magnets.map((m) => m.magnet).filter((m): m is string => Boolean(m?.trim()))
+            : [];
+        if (magnetLinks.length > 0) return magnetLinks;
+        return movie.magnet ? [movie.magnet] : [];
+    };
+
     const handleExportMagnets = async () => {
         let magnetStrings: string[] = [];
 
@@ -146,8 +154,7 @@ export default function Movies() {
             // 有勾选则导出勾选项
             magnetStrings = data.items
                 .filter((item) => selectedRowKeys.includes(item._id))
-                .map((item) => item.magnet)
-                .filter((m): m is string => Boolean(m));
+                .flatMap(getMovieMagnetLinks);
         } else {
             // 无勾选则调用后端接口导出当前筛选条件下的全部磁力
             try {
