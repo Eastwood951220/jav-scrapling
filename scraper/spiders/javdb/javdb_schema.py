@@ -9,20 +9,22 @@ class MovieSearchItem(TypedDict, total=False):
 
 
 class MagnetItem(TypedDict, total=False):
-    url: str
+    magnet: str
+    name: str
     size: float
+    size_text: str
+    file_count: int | None
+    file_text: str
     tags: list[str]
-    meta_text: str
     has_chinese_sub: bool
+    date: str
 
 
 class MovieDetailItem(TypedDict, total=False):
     title: str
     code: str
     cover: str
-    magnet: str
-    size: float
-    has_chinese_sub: bool
+    magnets: list[MagnetItem]
     release_date: str
     duration: int
     director: str
