@@ -151,7 +151,6 @@ def is_fc2_task(name: str | None, url: str | None, code: str | None = None) -> b
 def parse_search_page(
     page,
     source_page: int,
-    parent_task_name: str | None = None,
 ) -> list[dict]:
     tasks: list[dict] = []
 
@@ -178,7 +177,6 @@ def parse_search_page(
             "name": clean_text(name),
             "code": clean_text(code),
             "source_page": source_page,
-            "parent_task_name": parent_task_name,
             "status": TASK_STATUS_PENDING,
         }
 
@@ -206,7 +204,7 @@ def parse_detail_page(page) -> dict:
     )
 
     detail: dict[str, Any] = {
-        "title": title,
+        "source_name": title,
         "cover": cover,
         "release_date": "",
         "duration": 0,

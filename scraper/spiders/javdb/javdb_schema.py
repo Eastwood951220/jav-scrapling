@@ -21,7 +21,7 @@ class MagnetItem(TypedDict, total=False):
 
 
 class MovieDetailItem(TypedDict, total=False):
-    title: str
+    source_name: str
     code: str
     cover: str
     magnets: list[MagnetItem]
@@ -41,6 +41,5 @@ class JavdbDetailTask(TypedDict, total=False):
     code: str
     status: str
     source_page: int
-    parent_task_name: str
     reason: str
     detail: dict[str, Any]
