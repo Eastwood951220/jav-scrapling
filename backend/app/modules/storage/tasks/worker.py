@@ -624,7 +624,7 @@ def _step_move_files(task: dict, config: dict) -> dict:
                 continue
 
             try:
-                cd2.move_file([src], dst)
+                cd2.move_file([src], target_path)
                 moved.append({**f, "moved_path": dst})
                 _append_log(task_id, f"已移动: {PurePosixPath(src).name} → {target_path}")
             except Exception as e:
