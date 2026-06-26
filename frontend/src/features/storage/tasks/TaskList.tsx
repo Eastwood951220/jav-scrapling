@@ -348,7 +348,7 @@ export default function TaskList() {
         width: 100,
         render: (progress: number) => (
           <span style={{ fontFamily: "monospace" }}>
-            {progress ? `${(progress * 100).toFixed(1)}%` : "-"}
+            {progress ? `${progress.toFixed(1)}%` : "-"}
           </span>
         ),
       },
