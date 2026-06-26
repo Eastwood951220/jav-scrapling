@@ -54,12 +54,12 @@ POLL_INTERVAL_SECONDS = 30  # how often the worker checks for new tasks
 logger = logging.getLogger("storage_worker")
 
 
-def _append_log(task_id: str, message: str, level: str = "INFO") -> None:
+def _append_log(task_id: str, message: str, level: str = "INFO", step: str | None = None) -> None:
     """Append a log entry to the task's JSONL log file."""
     log_entry = {
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "level": level,
-        "step": _current_step,
+        "step": step or _current_step,
         "message": message,
     }
     try:
@@ -334,7 +334,7 @@ def _step_submit_magnet(task: dict, config: dict) -> dict:
             "download.status": "submitted",
         })
 
-        _append_log(task_id, f"磁力链接已提交: task_name={cd2_task_name}")
+        _append_log(task_id, f"磁力链接已提交: task_name={cd2_task_name}", step="submit_magnet")
 
         return {**task, "download": {
             "cd2_task_name": cd2_task_name,
@@ -358,6 +358,7 @@ def _step_waiting_download(task: dict, config: dict) -> dict:
     deadline = time.monotonic() + max_wait_min * 60
 
     cd2 = _build_cd2_client(config)
+    poll_count = 0
     try:
         while True:
             if _check_stop(task_id):
@@ -366,6 +367,7 @@ def _step_waiting_download(task: dict, config: dict) -> dict:
             if time.monotonic() > deadline:
                 raise RuntimeError(f"下载超时: 超过 {max_wait_min} 分钟")
 
+            poll_count += 1
             try:
                 files = [_file_to_dict(f) for f in cd2.list_sub_files(download_path)]
                 non_dir_files = [f for f in files if not f.get("is_dir")]
@@ -380,15 +382,27 @@ def _step_waiting_download(task: dict, config: dict) -> dict:
                         task_id,
                         f"下载完成: 检测到 {len(non_dir_files)} 个文件, "
                         f"总大小 {total_size / (1024*1024):.1f} MB",
+                        step="waiting_download",
                     )
                     return task
+
+                _append_log(
+                    task_id,
+                    f"轮询 #{poll_count}: 目录为空，等待中...",
+                    step="waiting_download",
+                )
             except Exception as exc:
-                _append_log(task_id, f"轮询下载目录失败: {exc}", "WARNING")
+                _append_log(
+                    task_id,
+                    f"轮询 #{poll_count} 异常: {exc}",
+                    "WARNING",
+                    step="waiting_download",
+                )
 
             # Sleep with stop check
             poll_interval = random.uniform(poll_min, poll_max)
             if _stop_event.wait(timeout=poll_interval):
-                _append_log(task_id, "下载轮询期间收到停止信号", "WARNING")
+                _append_log(task_id, "下载轮询期间收到停止信号", "WARNING", step="waiting_download")
                 return task
     finally:
         cd2.close()
@@ -759,19 +773,20 @@ def _execute_task(task: dict, config: dict) -> None:
             return
 
         _update_task(task_id, {"step": current_step, "progress": i / len(PIPELINE_STEPS)})
+        _current_step = current_step
 
         # Idempotent check: skip if step already done
         if _is_step_done(task, current_step, config):
-            _append_log(task_id, f"步骤 {current_step} 已完成，跳过")
+            _append_log(task_id, f"步骤 {current_step} 已完成，跳过", step=current_step)
             continue
 
         handler = _STEP_HANDLERS.get(current_step)
         if not handler:
-            _append_log(task_id, f"未知步骤: {current_step}", "ERROR")
+            _append_log(task_id, f"未知步骤: {current_step}", "ERROR", step=current_step)
             continue
 
         try:
-            _append_log(task_id, f"执行步骤: {current_step}")
+            _append_log(task_id, f"执行步骤: {current_step}", step=current_step)
             task = handler(task, config)
         except Exception as e:
             _handle_step_failure(task, current_step, e, config)
