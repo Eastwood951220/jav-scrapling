@@ -369,10 +369,25 @@ def _step_waiting_download(task: dict, config: dict) -> dict:
 
             poll_count += 1
             try:
-                files = [_file_to_dict(f) for f in cd2.list_sub_files(download_path)]
-                non_dir_files = [f for f in files if not f.get("is_dir")]
-                if non_dir_files:
-                    total_size = sum(f.get("size", 0) for f in non_dir_files)
+                entries = [_file_to_dict(f) for f in cd2.list_sub_files(download_path)]
+                if entries:
+                    # CloudDrive2 offline downloads create subdirectories — any content means download exists
+                    dir_count = sum(1 for e in entries if e.get("is_dir"))
+                    file_count = len(entries) - dir_count
+                    total_size = sum(e.get("size", 0) for e in entries)
+
+                    # If there are subdirectories, scan inside them for actual files
+                    if dir_count > 0:
+                        for d in [e for e in entries if e.get("is_dir")]:
+                            try:
+                                sub_files = [_file_to_dict(f) for f in cd2.list_sub_files(d["path"])]
+                                sub_non_dir = [f for f in sub_files if not f.get("is_dir")]
+                                if sub_non_dir:
+                                    total_size += sum(f.get("size", 0) for f in sub_non_dir)
+                                    file_count += len(sub_non_dir)
+                            except Exception:
+                                pass
+
                     _update_task(task_id, {
                         "download.status": "completed",
                         "download.progress": 100,
@@ -380,7 +395,7 @@ def _step_waiting_download(task: dict, config: dict) -> dict:
                     })
                     _append_log(
                         task_id,
-                        f"下载完成: 检测到 {len(non_dir_files)} 个文件, "
+                        f"下载完成: 检测到 {file_count} 个文件, "
                         f"总大小 {total_size / (1024*1024):.1f} MB",
                         step="waiting_download",
                     )
