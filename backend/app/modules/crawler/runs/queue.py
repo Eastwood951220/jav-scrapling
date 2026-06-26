@@ -129,6 +129,7 @@ def _worker_loop():
     global _current_run_id, _worker_running, _stop_event
 
     from scraper.database.mongo_client import get_mongo_db
+    from scraper.database.repositories.filter_repository import sync_movie_filters
     from scraper.database.repositories.movie_magnet_repository import MovieMagnetRepository
     from scraper.database.repositories.movie_repository import MovieRepository
     from scraper.services.movie_service import MovieService
@@ -243,6 +244,17 @@ def _worker_loop():
                 f"任务完成: 总计={total_detail}, 已保存={saved_count}, 入库失败={save_failed}, 爬取失败={crawl_failed}",
                 "INFO",
             )
+
+            # Auto-sync actor/tag filters after crawl completes
+            try:
+                sync_result = sync_movie_filters(get_mongo_db())
+                _append_log(
+                    run_id,
+                    f"筛选列表已同步: 演员={sync_result['actors']}, 标签={sync_result['tags']}",
+                    "INFO",
+                )
+            except Exception as sync_exc:
+                _append_log(run_id, f"筛选列表同步失败: {sync_exc}", "WARNING")
 
             final_status = "stopped" if stop_requested else "completed"
 
