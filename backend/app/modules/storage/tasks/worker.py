@@ -188,14 +188,14 @@ def _download_folder(task: dict, config: dict) -> str:
 def _target_folder(task: dict, config: dict) -> str:
     """Return the CloudDrive2 path for a task's target folder.
 
-    Structure: {target_folder}/{actor_name}/{movie_code}
-    Falls back to movie_code if no actor name is available.
+    Structure: {target_folder}/{source_task_name}/{movie_code}
+    Falls back to movie_code if no task name is available.
     """
     target = config.get("target_folder", "/Movies")
-    actor_name = task.get("actor_name", "")
+    task_name = task.get("source_task_name", "")
     movie_code = task["movie_code"]
-    if actor_name:
-        return str(PurePosixPath(target) / actor_name / movie_code)
+    if task_name:
+        return str(PurePosixPath(target) / task_name / movie_code)
     return str(PurePosixPath(target) / movie_code)
 
 
@@ -307,25 +307,24 @@ def _step_prepare(task: dict, config: dict) -> dict:
     if not magnet_url:
         raise ValueError("缺少磁力链接")
 
-    # Load actor name for target folder structure
-    actors = movie.get("actors", [])
-    actor_name = actors[0] if actors else ""
+    # Load task name for target folder structure
+    source_task_name = movie.get("name") or movie.get("source_task_name", "")
 
-    # Compute paths (target includes actor subfolder)
-    task_with_actor = {**task, "actor_name": actor_name}
+    # Compute paths (target includes task name subfolder)
+    task_with_name = {**task, "source_task_name": source_task_name}
     download_path = _download_folder(task, config)
-    target_path = _target_folder(task_with_actor, config)
+    target_path = _target_folder(task_with_name, config)
 
     _update_task(task_id, {
         "download_path": download_path,
         "target_path": target_path,
         "magnet_url": magnet_url,
-        "actor_name": actor_name,
+        "source_task_name": source_task_name,
     })
 
     _append_log(task_id, f"准备完成: download={download_path}, target={target_path}")
 
-    return {**task_with_actor, "download_path": download_path, "target_path": target_path, "magnet_url": magnet_url}
+    return {**task_with_name, "download_path": download_path, "target_path": target_path, "magnet_url": magnet_url}
 
 
 def _step_submit_magnet(task: dict, config: dict) -> dict:
