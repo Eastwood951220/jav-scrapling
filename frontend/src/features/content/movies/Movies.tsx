@@ -216,10 +216,16 @@ export default function Movies() {
     const getMagnetOptions = (movie: Movie): { value: string; label: string }[] => {
         const magnets: MovieMagnet[] = (movie.magnets ?? []).filter((m) => Boolean(m.magnet?.trim()));
         if (magnets.length > 0) {
-            return magnets.map((m) => ({
-                value: m.magnet,
-                label: `${m.title || m.name || m.magnet.slice(0, 40)}${getMagnetSizeText(m) ? ` (${getMagnetSizeText(m)})` : ""}`,
-            }));
+            return magnets.map((m) => {
+                const labelName = m.name || m.title || m.magnet.slice(0, 40);
+                const labelSize = m.size_text || m.size;
+                const labelFiles = m.file_text ? `, ${m.file_text}` : "";
+                const labelTags = m.tags?.length ? ` [${m.tags.join(", ")}]` : "";
+                return {
+                    value: m.magnet,
+                    label: `${labelName}${labelSize ? ` (${labelSize}${labelFiles})` : ""}${labelTags}`,
+                };
+            });
         }
         if (movie.magnet) {
             return [{value: movie.magnet, label: movie.magnet}];

@@ -9,7 +9,7 @@ from bson.errors import InvalidId
 from fastapi import APIRouter, HTTPException, Query
 
 from app.core.bson import stringify_objectids
-from app.db.collections import MOVIES, STORAGE_COUNTERS, STORAGE_TASKS
+from app.db.collections import MOVIES, MOVIE_MAGNETS, STORAGE_COUNTERS, STORAGE_TASKS
 from app.modules.storage.tasks.id_generator import generate_storage_task_id
 from app.modules.storage.tasks.logs import load_storage_task_logs
 from scraper.database.mongo_client import get_mongo_db
@@ -19,6 +19,7 @@ router = APIRouter(prefix="/api/storage/tasks", tags=["storage-tasks"])
 TASKS_COLLECTION = STORAGE_TASKS
 MOVIES_COLLECTION = MOVIES
 COUNTERS_COLLECTION = STORAGE_COUNTERS
+MAGNETS_COLLECTION = MOVIE_MAGNETS
 
 # Task statuses that indicate a task is actively in progress or queued
 ACTIVE_STATUSES = {"pending", "running", "waiting_download", "waiting_retry", "retryable"}
@@ -32,6 +33,10 @@ def _col():
 
 def _movies_col():
     return get_mongo_db()[MOVIES_COLLECTION]
+
+
+def _movie_magnets_col():
+    return get_mongo_db()[MAGNETS_COLLECTION]
 
 
 def _counters_col():
@@ -60,53 +65,49 @@ def _extract_info_hash(magnet_url: str) -> str:
 
 
 def _select_best_magnet(magnets: list[dict]) -> dict | None:
-    """Pick the best magnet from a movie's magnet list.
-
-    Preference order:
-    1. Has Chinese subtitle indicator (chs / ch / cht / chinese in title)
-    2. Largest file size
-    """
+    """Pick the backend default magnet from normalized magnet rows."""
     if not magnets:
         return None
 
-    def _parse_size_mb(size_value) -> float:
-        """Parse a human-readable size string (e.g. '4.5 GB') into MB."""
-        if isinstance(size_value, (int, float)):
-            return float(size_value)
-        if not size_value:
+    def _parse_size_mb(value) -> float:
+        if isinstance(value, (int, float)):
+            return float(value)
+        if not value:
             return 0.0
-        size_str = str(size_value)
-        size_str = size_str.strip().upper()
+        size_str = str(value).strip().upper()
         match = re.match(r"([\d.]+)\s*(GB|MB|KB|TB)?", size_str)
         if not match:
             return 0.0
-        value = float(match.group(1))
+        number = float(match.group(1))
         unit = match.group(2) or "MB"
         multipliers = {"KB": 1 / 1024, "MB": 1, "GB": 1024, "TB": 1024 * 1024}
-        return value * multipliers.get(unit, 1)
+        return number * multipliers.get(unit, 1)
 
     def _has_chinese_sub(magnet: dict) -> bool:
-        # Parser stores has_chinese_sub as boolean from tag detection
         if magnet.get("has_chinese_sub"):
             return True
-        # Fallback: check title/name for keywords
+        tags = magnet.get("tags") or []
+        if any("字幕" in str(tag) or "中字" in str(tag) for tag in tags):
+            return True
         title = (magnet.get("title") or magnet.get("name") or "").lower()
         return any(kw in title for kw in ["chs", "cht", "chinese", "中字", "中文", "字幕"])
 
-    # Sort: (chinese-sub + >2GB) first, then chinese-sub, then largest size
     scored = []
-    for m in magnets:
-        if not isinstance(m, dict) or not m.get("magnet"):
+    for magnet in magnets:
+        if not isinstance(magnet, dict):
             continue
-        has_sub = _has_chinese_sub(m)
-        size_mb = _parse_size_mb(m.get("size")) or _parse_size_mb(m.get("size_text", ""))
-        is_4k_chinese = has_sub and size_mb > 2048  # >2GB with Chinese sub = highest priority
-        scored.append((is_4k_chinese, has_sub, size_mb, m))
+        magnet_url = magnet.get("magnet") or magnet.get("magnet_url")
+        if not magnet_url:
+            continue
+        has_sub = _has_chinese_sub(magnet)
+        size_mb = _parse_size_mb(magnet.get("size") or magnet.get("size_text"))
+        is_large_sub = has_sub and size_mb > 2048
+        scored.append((is_large_sub, has_sub, size_mb, magnet))
 
     if not scored:
         return None
 
-    scored.sort(key=lambda x: (x[0], x[1], x[2]), reverse=True)
+    scored.sort(key=lambda item: (item[0], item[1], item[2]), reverse=True)
     return scored[0][3]
 
 
@@ -293,7 +294,7 @@ def batch_create_storage_tasks(body: dict):
             skipped += 1
             continue
 
-        magnets = movie.get("magnets", [])
+        magnets = list(_movie_magnets_col().find({"movie_id": mid}))
         best_magnet = _select_best_magnet(magnets)
 
         # Fallback: singular "magnet" field (string) when "magnets" array is empty
@@ -306,7 +307,7 @@ def batch_create_storage_tasks(body: dict):
                 skipped += 1
                 continue
         else:
-            magnet_url = best_magnet.get("magnet", "")
+            magnet_url = best_magnet.get("magnet") or best_magnet.get("magnet_url") or ""
         info_hash = _extract_info_hash(magnet_url)
 
         # Check existing tasks for this movie + magnet

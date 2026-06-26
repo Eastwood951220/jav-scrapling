@@ -7,6 +7,7 @@ from fastapi import APIRouter, HTTPException, Query
 
 from app.db.collections import (
     MOVIES,
+    MOVIE_MAGNETS,
     CRAWL_COOKIES_CONFIG,
     CRAWL_RUNS,
     CRAWL_RUN_DETAIL_TASKS,
@@ -26,6 +27,7 @@ router = APIRouter(prefix="/api/movies", tags=["movies"])
 MOVIE_COLLECTION = MOVIES
 ACTORS_COLLECTION = "movie_actors"
 TAGS_COLLECTION = "movie_tags"
+MAGNET_COLLECTION = MOVIE_MAGNETS
 
 
 def _escape_regex(value: str) -> str:
@@ -42,6 +44,53 @@ def _stringify_objectids(obj):
     if isinstance(obj, list):
         return [_stringify_objectids(item) for item in obj]
     return obj
+
+
+def _public_magnet_doc(doc: dict) -> dict:
+    name = doc.get("name") or doc.get("title") or ""
+    size_text = doc.get("size_text") or ""
+    return {
+        "_id": str(doc["_id"]) if doc.get("_id") else "",
+        "movie_id": doc.get("movie_id", ""),
+        "magnet": doc.get("magnet", ""),
+        "name": name,
+        "title": name,
+        "size": size_text,
+        "size_mb": doc.get("size", 0.0),
+        "size_text": size_text,
+        "file_count": doc.get("file_count"),
+        "file_text": doc.get("file_text", ""),
+        "tags": doc.get("tags", []),
+        "has_chinese_sub": bool(doc.get("has_chinese_sub")),
+        "date": doc.get("date", ""),
+    }
+
+
+def _attach_movie_magnets(movie_docs: list[dict], magnets_col) -> None:
+    movie_ids = [str(doc["_id"]) for doc in movie_docs if doc.get("_id")]
+    if not movie_ids:
+        return
+
+    grouped: dict[str, list[dict]] = {movie_id: [] for movie_id in movie_ids}
+    cursor = magnets_col.find({"movie_id": {"$in": movie_ids}})
+    for magnet in cursor:
+        movie_id = magnet.get("movie_id")
+        if movie_id in grouped:
+            grouped[movie_id].append(_public_magnet_doc(magnet))
+
+    for doc in movie_docs:
+        doc["magnets"] = grouped.get(str(doc.get("_id")), [])
+
+
+def _magnet_export_item(movie: dict, magnet: dict) -> dict:
+    return {
+        "code": movie.get("code") or movie.get("name", ""),
+        "title": movie.get("title") or movie.get("name", ""),
+        "magnet": magnet.get("magnet", ""),
+        "name": magnet.get("name") or magnet.get("title") or "",
+        "size": magnet.get("size_text") or "",
+        "size_mb": magnet.get("size", 0.0),
+    }
 
 
 @router.get("/collections")
@@ -188,8 +237,11 @@ def list_movies(
 
     cursor = col.find(query).sort(sort_by, sort_order).skip((page - 1) * limit).limit(limit)
 
+    movie_docs = list(cursor)
+    _attach_movie_magnets(movie_docs, db[MAGNET_COLLECTION])
+
     items = []
-    for doc in cursor:
+    for doc in movie_docs:
         doc["_id"] = str(doc["_id"])
         items.append(_stringify_objectids(doc))
 
@@ -251,17 +303,19 @@ def export_magnets(
         if tag_list:
             query["tags"] = {"$all": tag_list}
 
-    cursor = col.find(query, {"magnets": 1, "code": 1, "title": 1, "name": 1, "_id": 0})
+    movie_docs = list(col.find(query, {"code": 1, "title": 1, "name": 1}))
+    movies_by_id = {str(doc["_id"]): doc for doc in movie_docs}
+    movie_ids = list(movies_by_id)
+
     magnets = []
-    for doc in cursor:
-        for m in doc.get("magnets", []):
-            if isinstance(m, dict) and m.get("magnet"):
-                magnets.append({
-                    "code": doc.get("code") or doc.get("name", ""),
-                    "title": doc.get("title") or doc.get("name", ""),
-                    "magnet": m["magnet"],
-                    "size": m.get("size", ""),
-                })
+    if movie_ids:
+        cursor = db[MAGNET_COLLECTION].find({"movie_id": {"$in": movie_ids}})
+        for magnet in cursor:
+            if not magnet.get("magnet"):
+                continue
+            movie = movies_by_id.get(magnet.get("movie_id"))
+            if movie:
+                magnets.append(_magnet_export_item(movie, magnet))
 
     return {"magnets": magnets, "total": len(magnets)}
 
@@ -280,6 +334,8 @@ def get_movie(movie_id: str):
 
     if not doc:
         raise HTTPException(status_code=404, detail="Movie not found")
+
+    _attach_movie_magnets([doc], db[MAGNET_COLLECTION])
 
     doc["_id"] = str(doc["_id"])
     return _stringify_objectids(doc)

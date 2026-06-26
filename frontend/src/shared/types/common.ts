@@ -12,12 +12,14 @@ export type RunStatus = "queued" | "running" | "completed" | "failed" | "stopped
 
 /** Magnet entry attached to a movie. */
 export interface MovieMagnet {
+  _id?: string;
+  movie_id?: string;
   magnet: string;
-  title?: string;
-  size?: string | number;
   name?: string;
-  size_text?: string;
+  title?: string;
+  size?: string;
   size_mb?: number;
+  size_text?: string;
   file_count?: number;
   file_text?: string;
   tags?: string[];

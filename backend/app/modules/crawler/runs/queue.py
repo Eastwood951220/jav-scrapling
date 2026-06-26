@@ -114,10 +114,22 @@ def _append_log(run_id: str, message: str, level: str = "INFO"):
         )
 
 
+def _persist_crawled_item(repository, magnet_repository, cleaned_item: dict):
+    movie_doc = dict(cleaned_item)
+    magnets = movie_doc.pop("magnets", []) or []
+    movie_id = repository.upsert_movie(movie_doc)
+
+    if movie_id and magnets:
+        magnet_repository.upsert_many(movie_id, movie_doc, magnets)
+
+    return movie_id
+
+
 def _worker_loop():
     global _current_run_id, _worker_running, _stop_event
 
     from scraper.database.mongo_client import get_mongo_db
+    from scraper.database.repositories.movie_magnet_repository import MovieMagnetRepository
     from scraper.database.repositories.movie_repository import MovieRepository
     from scraper.services.movie_service import MovieService
     from scraper.tasks.task_utils import build_crawl_task_from_doc
@@ -131,6 +143,7 @@ def _worker_loop():
         tasks_col = get_mongo_db()[CRAWL_TASKS]
         detail_col = get_mongo_db()[CRAWL_RUN_DETAIL_TASKS]
         repository = MovieRepository()
+        magnet_repository = MovieMagnetRepository()
 
         runs_col.update_one(
             {"_id": ObjectId(run_id)},
@@ -185,7 +198,7 @@ def _worker_loop():
 
             def on_item_saved(detail_task: dict, cleaned_item: dict) -> None:
                 try:
-                    repository.upsert_movie(cleaned_item)
+                    _persist_crawled_item(repository, magnet_repository, cleaned_item)
                     detail_col.update_one(
                         {"run_id": run_id, "source_url": detail_task.get("url")},
                         {"$set": {
@@ -291,6 +304,7 @@ def retry_detail_task(task_id: str, mode: str) -> dict:
         mode: "crawl" 或 "save"
     """
     from scraper.database.mongo_client import get_mongo_db
+    from scraper.database.repositories.movie_magnet_repository import MovieMagnetRepository
     from scraper.database.repositories.movie_repository import MovieRepository
 
     detail_col = get_mongo_db()[CRAWL_RUN_DETAIL_TASKS]
@@ -318,8 +332,9 @@ def retry_detail_task(task_id: str, mode: str) -> dict:
             return {"success": False, "error": "无数据可入库"}
 
         repository = MovieRepository()
+        magnet_repository = MovieMagnetRepository()
         try:
-            repository.upsert_movie(item_data)
+            _persist_crawled_item(repository, magnet_repository, item_data)
             detail_col.update_one(
                 {"_id": ObjectId(task_id)},
                 {"$set": {"status": "saved", "saved_at": datetime.now(timezone.utc), "error": None}},
