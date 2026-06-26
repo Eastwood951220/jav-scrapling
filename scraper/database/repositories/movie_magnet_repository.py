@@ -119,14 +119,13 @@ class MovieMagnetRepository:
         if not isinstance(tags, list):
             tags = []
 
-        return {
+        document = {
             "movie_id": movie_id,
             "movie_code": movie.get("code") or movie.get("movie_code") or "",
             "movie_title": movie.get("title") or movie.get("movie_title") or "",
             "source_url": movie.get("source_url") or "",
             "source_task_name": movie.get("source_task_name") or "",
             "magnet": magnet_url,
-            "info_hash": info_hash,
             "dedupe_key": build_magnet_dedupe_key(
                 movie_id,
                 {
@@ -148,6 +147,9 @@ class MovieMagnetRepository:
             "date": magnet.get("date") or "",
             "updated_at": datetime.now(),
         }
+        if info_hash:
+            document["info_hash"] = info_hash
+        return document
 
     @staticmethod
     def _to_float(value: Any) -> float | None:

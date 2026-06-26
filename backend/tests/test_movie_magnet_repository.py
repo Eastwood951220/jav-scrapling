@@ -109,3 +109,38 @@ def test_upsert_many_normalizes_upserts_and_skips_empty_rows():
     assert set_doc["file_count"] == 1
     assert set_doc["tags"] == ["高清", "字幕"]
     assert "created_at" in update["$setOnInsert"]
+
+
+def test_upsert_many_omits_info_hash_for_metadata_only_rows():
+    fake = FakeDb()
+    repository = MovieMagnetRepository(db=fake)
+    movie_id = ObjectId("507f1f77bcf86cd799439011")
+    movie = {
+        "code": "SSIS-889",
+        "title": "SSIS-889 Title",
+        "source_url": "https://javdb.com/v/abc",
+        "source_task_name": "javdb-daily",
+    }
+    magnets = [
+        {
+            "magnet": "",
+            "name": "SSIS-889",
+            "size": 2816.0,
+            "size_text": "2.75GB",
+            "file_count": 20,
+            "file_text": "20個文件",
+            "tags": [],
+            "has_chinese_sub": False,
+            "date": "2023-10-17",
+        },
+    ]
+
+    saved = repository.upsert_many(movie_id, movie, magnets)
+
+    assert saved == 1
+    query, update, upsert = fake.collection.updates[0]
+    assert query["movie_id"] == "507f1f77bcf86cd799439011"
+    assert len(query["dedupe_key"]) == 40
+    assert upsert is True
+    assert "dedupe_key" in update["$set"]
+    assert "info_hash" not in update["$set"]
