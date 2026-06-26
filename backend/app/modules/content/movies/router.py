@@ -8,6 +8,8 @@ from fastapi import APIRouter, HTTPException, Query
 from app.db.collections import (
     MOVIES,
     MOVIE_MAGNETS,
+    MOVIE_ACTORS,
+    MOVIE_TAGS,
     CRAWL_COOKIES_CONFIG,
     CRAWL_RUNS,
     CRAWL_RUN_DETAIL_TASKS,
@@ -25,8 +27,6 @@ router = APIRouter(prefix="/api/movies", tags=["movies"])
 
 # Unified collection name for all movies
 MOVIE_COLLECTION = MOVIES
-ACTORS_COLLECTION = "movie_actors"
-TAGS_COLLECTION = "movie_tags"
 MAGNET_COLLECTION = MOVIE_MAGNETS
 
 
@@ -126,43 +126,11 @@ def delete_collection(collection_name: str):
     return {"deleted": True, "collection": safe_name}
 
 
-@router.post("/sync-filters")
-def sync_filters():
-    """Scan all movies, dedup actors/tags, and write to movie_actors/movie_tags."""
-    db = get_mongo_db()
-    col = db[MOVIE_COLLECTION]
-
-    actors_set: set[str] = set()
-    tags_set: set[str] = set()
-
-    for doc in col.find({}, {"actors": 1, "tags": 1}):
-        for actor in doc.get("actors", []):
-            if isinstance(actor, str) and actor.strip():
-                actors_set.add(actor.strip())
-        for tag in doc.get("tags", []):
-            if isinstance(tag, str) and tag.strip():
-                tags_set.add(tag.strip())
-
-    db[ACTORS_COLLECTION].drop()
-    db[TAGS_COLLECTION].drop()
-
-    if actors_set:
-        db[ACTORS_COLLECTION].insert_many(
-            [{"name": name} for name in sorted(actors_set)]
-        )
-    if tags_set:
-        db[TAGS_COLLECTION].insert_many(
-            [{"name": name} for name in sorted(tags_set)]
-        )
-
-    return {"actors": len(actors_set), "tags": len(tags_set)}
-
-
 @router.get("/actors")
 def list_actors():
     """Return deduplicated actor names."""
     db = get_mongo_db()
-    col = db[ACTORS_COLLECTION]
+    col = db[MOVIE_ACTORS]
     return [doc["name"] for doc in col.find({}, {"name": 1, "_id": 0}).sort("name", 1)]
 
 
@@ -170,7 +138,7 @@ def list_actors():
 def list_tags():
     """Return deduplicated tag names."""
     db = get_mongo_db()
-    col = db[TAGS_COLLECTION]
+    col = db[MOVIE_TAGS]
     return [doc["name"] for doc in col.find({}, {"name": 1, "_id": 0}).sort("name", 1)]
 
 
