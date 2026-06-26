@@ -17,6 +17,7 @@ from app.api.cookies_config import router as cookies_config_router
 from app.api.storage_config import router as storage_config_router
 from app.api.storage_tasks import router as storage_tasks_router
 from app.scheduler import start_scheduler
+from app.storage_worker import start_storage_worker, stop_storage_worker
 
 # Ensure startup errors go to stderr for docker logs
 logging.basicConfig(
@@ -81,9 +82,17 @@ async def lifespan(app: FastAPI):
     except Exception:
         _startup_logger.exception("WARNING: Failed to recover orphaned runs")
 
+    try:
+        _startup_logger.info("Starting storage worker...")
+        start_storage_worker()
+        _startup_logger.info("Storage worker started successfully")
+    except Exception:
+        _startup_logger.exception("WARNING: Failed to start storage worker")
+
     _startup_logger.info("Backend startup complete, listening on port 18642")
     yield
     _startup_logger.info("Shutting down...")
+    stop_storage_worker()
     close_mongo()
     _startup_logger.info("Backend stopped")
 
