@@ -15,6 +15,7 @@ from app.api.runs import router as runs_router
 from app.api.tasks import router as tasks_router
 from app.api.cookies_config import router as cookies_config_router
 from app.api.storage_config import router as storage_config_router
+from app.api.storage_tasks import router as storage_tasks_router
 from app.scheduler import start_scheduler
 
 # Ensure startup errors go to stderr for docker logs
@@ -33,6 +34,9 @@ def ensure_storage_task_indexes(db) -> None:
 
     collection = db["storage_tasks"]
     collection.create_indexes([
+        IndexModel([("task_id", ASCENDING)], name="idx_storage_task_id", unique=True),
+        IndexModel([("movie_id", ASCENDING), ("info_hash", ASCENDING), ("status", ASCENDING)],
+                   name="idx_storage_task_dedup"),
         IndexModel([("movie_code", ASCENDING)], name="idx_storage_task_movie_code"),
         IndexModel([("status", ASCENDING)], name="idx_storage_task_status"),
         IndexModel([("created_at", DESCENDING)], name="idx_storage_task_created_at"),
@@ -97,6 +101,7 @@ app.include_router(runs_router)
 app.include_router(tasks_router)
 app.include_router(cookies_config_router)
 app.include_router(storage_config_router)
+app.include_router(storage_tasks_router)
 
 app.add_middleware(
     CORSMiddleware,
