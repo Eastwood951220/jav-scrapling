@@ -76,19 +76,23 @@ class MovieMagnetRepository:
             self._ensure_indexes()
             collection = self.get_collection()
             for magnet in magnets:
-                document = self._normalize(movie_id_str, movie, magnet)
+                now = datetime.now()
+                document = self._normalize(movie_id_str, movie, magnet, now)
                 if document is None:
                     continue
+                update = {
+                    "$set": document,
+                    "$setOnInsert": {"created_at": now},
+                }
+                if "info_hash" not in document:
+                    update["$unset"] = {"info_hash": ""}
 
                 collection.update_one(
                     {
                         "movie_id": document["movie_id"],
                         "dedupe_key": document["dedupe_key"],
                     },
-                    {
-                        "$set": document,
-                        "$setOnInsert": {"created_at": datetime.now()},
-                    },
+                    update,
                     upsert=True,
                 )
                 saved_count += 1
@@ -103,6 +107,7 @@ class MovieMagnetRepository:
         movie_id: str,
         movie: dict[str, Any],
         magnet: dict[str, Any],
+        now: datetime,
     ) -> dict[str, Any] | None:
         magnet_url = str(magnet.get("magnet") or magnet.get("magnet_url") or "").strip()
         name = str(magnet.get("name") or "").strip()
@@ -145,7 +150,7 @@ class MovieMagnetRepository:
             "tags": tags,
             "has_chinese_sub": bool(magnet.get("has_chinese_sub")),
             "date": magnet.get("date") or "",
-            "updated_at": datetime.now(),
+            "updated_at": now,
         }
         if info_hash:
             document["info_hash"] = info_hash

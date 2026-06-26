@@ -108,7 +108,9 @@ def test_upsert_many_normalizes_upserts_and_skips_empty_rows():
     assert set_doc["size_text"] == "8.75GB"
     assert set_doc["file_count"] == 1
     assert set_doc["tags"] == ["高清", "字幕"]
+    assert "info_hash" not in update.get("$unset", {})
     assert "created_at" in update["$setOnInsert"]
+    assert update["$setOnInsert"]["created_at"] == set_doc["updated_at"]
 
 
 def test_upsert_many_omits_info_hash_for_metadata_only_rows():
@@ -144,3 +146,5 @@ def test_upsert_many_omits_info_hash_for_metadata_only_rows():
     assert upsert is True
     assert "dedupe_key" in update["$set"]
     assert "info_hash" not in update["$set"]
+    assert update["$unset"] == {"info_hash": ""}
+    assert update["$setOnInsert"]["created_at"] == update["$set"]["updated_at"]
