@@ -5,7 +5,7 @@ from fastapi import APIRouter
 from app.modules.crawler.cookies.schemas import CookiesConfig
 from scraper.config.settings import COOKIE_DIR
 
-router = APIRouter(prefix="/api/config", tags=["config"])
+router = APIRouter(prefix="/api/crawler/config", tags=["crawler-config"])
 DEFAULT_COOKIE_FILE = "javdb_cookies.json"
 
 

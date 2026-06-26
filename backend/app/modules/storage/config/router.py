@@ -11,7 +11,7 @@ from app.modules.storage.config.schemas import (
 )
 from scraper.database.mongo_client import get_mongo_db
 
-router = APIRouter(prefix="/api/storage", tags=["storage"])
+router = APIRouter(prefix="/api/storage/config", tags=["storage-config"])
 
 STORAGE_CONFIG_COLLECTION = STORAGE_CONFIG
 
@@ -37,7 +37,7 @@ def _is_masked(token: str) -> bool:
     return stripped and all(c == "*" for c in stripped) and len(stripped) >= 4
 
 
-@router.get("/config", response_model=StorageConfigResponse)
+@router.get("/", response_model=StorageConfigResponse)
 def get_storage_config():
     """Read storage config from MongoDB. Token is always masked in response."""
     db = get_mongo_db()
@@ -56,7 +56,7 @@ def get_storage_config():
     return StorageConfigResponse(**doc)
 
 
-@router.put("/config", response_model=StorageConfigResponse)
+@router.put("", response_model=StorageConfigResponse)
 def update_storage_config(body: StorageConfig):
     """Save storage config to MongoDB."""
     db = get_mongo_db()
@@ -104,7 +104,7 @@ def update_storage_config(body: StorageConfig):
     return StorageConfigResponse(**response_data)
 
 
-@router.post("/config/test", response_model=StorageTestResult)
+@router.post("/test", response_model=StorageTestResult)
 def test_storage_connection():
     """Test CloudDrive2 connection. Stub implementation for now."""
     # TODO: Implement real CloudDrive2 gRPC health check

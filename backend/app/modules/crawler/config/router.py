@@ -4,7 +4,7 @@ from fastapi import APIRouter
 
 from app.modules.crawler.config.schemas import ConfigUpdate
 
-router = APIRouter(prefix="/api/config", tags=["config"])
+router = APIRouter(prefix="/api/crawler/config", tags=["crawler-config"])
 
 CONFIG_KEYS = [
     "MAX_LIST_PAGES", "LIST_PAGE_DELAY_MIN", "LIST_PAGE_DELAY_MAX",

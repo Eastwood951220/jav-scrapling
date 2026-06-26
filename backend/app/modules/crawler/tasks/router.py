@@ -13,7 +13,7 @@ from app.modules.crawler.tasks.schemas import TaskCreate, TaskUpdate
 from scraper.database.mongo_client import get_mongo_db
 from scraper.tasks.task_utils import build_final_url, determine_source
 
-router = APIRouter(prefix="/api/tasks", tags=["tasks"])
+router = APIRouter(prefix="/api/crawler/tasks", tags=["crawler-tasks"])
 
 TASKS_COLLECTION = TASKS
 

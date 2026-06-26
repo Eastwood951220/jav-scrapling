@@ -15,7 +15,7 @@ from app.modules.crawler.runs.detail_schemas import RunDetailTaskListResponse
 from app.modules.crawler.runs.schemas import QueueStatusResponse, RunListResponse, RunResponse
 from scraper.database.mongo_client import get_mongo_db
 
-router = APIRouter(prefix="/api/runs", tags=["runs"])
+router = APIRouter(prefix="/api/crawler/runs", tags=["crawler-runs"])
 
 COLLECTION = RUNS
 

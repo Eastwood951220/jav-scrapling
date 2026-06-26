@@ -10,7 +10,7 @@ from app.modules.crawler.schedules.schemas import ScheduleCreate, ScheduleUpdate
 from app.scheduler import add_schedule_job, remove_schedule_job
 from scraper.database.mongo_client import get_mongo_db
 
-router = APIRouter(prefix="/api/schedules", tags=["schedules"])
+router = APIRouter(prefix="/api/crawler/schedules", tags=["crawler-schedules"])
 
 COLLECTION = SCHEDULES
 
