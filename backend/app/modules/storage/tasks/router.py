@@ -524,7 +524,7 @@ def get_storage_task_logs(task_id: str):
 def retry_storage_task(task_id: str):
     """Reset a failed or waiting_retry task back to pending."""
     result = _col().update_one(
-        {"task_id": task_id, "status": {"$in": ["failed", "waiting_retry"]}},
+        {"task_id": task_id, "status": {"$in": ["failed", "waiting_retry", "retryable"]}},
         {"$set": {"status": "pending", "step": None, "error_message": None, "updated_at": datetime.now()}},
     )
     if result.matched_count == 0:
