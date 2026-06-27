@@ -79,19 +79,6 @@ export default function TaskList() {
       dataIndex: "name",
       key: "name",
       width: 200,
-      render: (_: unknown, record: CrawlTask) => (
-        <div>
-          <div>{record.name}</div>
-          {record.urls?.some((u) => u.url_name) && (
-            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-              {record.urls
-                .filter((u) => u.url_name)
-                .map((u) => u.url_name)
-                .join(", ")}
-            </Typography.Text>
-          )}
-        </div>
-      ),
     },
     {
       title: "URL数量",
@@ -102,16 +89,22 @@ export default function TaskList() {
       ),
     },
     {
-      title: "URL类型",
-      key: "url_types",
-      width: 150,
-      render: (_: unknown, record: CrawlTask) => (
-        <Space size={4} wrap>
-          {record.urls?.map((u, i) => (
-            <Tag key={i}>{u.url_type}</Tag>
-          ))}
-        </Space>
-      ),
+      title: "URL名称",
+      key: "url_names",
+      width: 250,
+      render: (_: unknown, record: CrawlTask) => {
+        const names = record.urls?.filter((u) => u.url_name).map((u) => u.url_name) ?? [];
+        if (names.length === 0) {
+          return <Typography.Text type="secondary">-</Typography.Text>;
+        }
+        return (
+          <Space size={4} wrap>
+            {names.map((name, i) => (
+              <Tag key={i}>{name}</Tag>
+            ))}
+          </Space>
+        );
+      },
     },
     {
       title: "状态",
