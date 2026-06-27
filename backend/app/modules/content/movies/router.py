@@ -125,20 +125,20 @@ def delete_collection(collection_name: str):
     return {"deleted": True, "collection": safe_name}
 
 
-@router.get("/actors")
-def list_actors():
-    """Return deduplicated actor names."""
-    db = get_mongo_db()
-    col = db[MOVIE_FILTERS]
-    return [doc["name"] for doc in col.find({"type": "actor"}, {"name": 1, "_id": 0}).sort("name", 1)]
+_VALID_FILTER_TYPES = {"actor", "tag", "director", "maker", "series"}
 
 
-@router.get("/tags")
-def list_tags():
-    """Return deduplicated tag names."""
+@router.get("/filters")
+def list_filters(type: str = Query(..., description="Filter type: actor, tag, director, maker, series")):
+    """Return deduplicated filter names for the given type."""
+    if type not in _VALID_FILTER_TYPES:
+        raise HTTPException(status_code=400, detail=f"Invalid filter type: {type}. Valid: {_VALID_FILTER_TYPES}")
     db = get_mongo_db()
     col = db[MOVIE_FILTERS]
-    return [doc["name"] for doc in col.find({"type": "tag"}, {"name": 1, "_id": 0}).sort("name", 1)]
+    return [
+        doc["name"]
+        for doc in col.find({"type": type}, {"name": 1, "_id": 0}).sort("name", 1)
+    ]
 
 
 @router.get("", response_model=MovieListResponse)
@@ -152,6 +152,9 @@ def list_movies(
     rating_min: float | None = Query(default=None, ge=0, le=5),
     actors: str | None = Query(default=None),
     tags: str | None = Query(default=None),
+    director: str | None = Query(default=None),
+    maker: str | None = Query(default=None),
+    series: str | None = Query(default=None),
     date_from: str | None = Query(default=None, description="YYYY-MM-DD"),
     date_to: str | None = Query(default=None, description="YYYY-MM-DD"),
 ):
@@ -194,6 +197,27 @@ def list_movies(
         if tag_list:
             query["tags"] = {"$all": tag_list}
 
+    if director:
+        director_list = [d.strip() for d in director.split(",") if d.strip()]
+        if len(director_list) == 1:
+            query["director"] = director_list[0]
+        elif director_list:
+            query["director"] = {"$in": director_list}
+
+    if maker:
+        maker_list = [m.strip() for m in maker.split(",") if m.strip()]
+        if len(maker_list) == 1:
+            query["maker"] = maker_list[0]
+        elif maker_list:
+            query["maker"] = {"$in": maker_list}
+
+    if series:
+        series_list = [s.strip() for s in series.split(",") if s.strip()]
+        if len(series_list) == 1:
+            query["series"] = series_list[0]
+        elif series_list:
+            query["series"] = {"$in": series_list}
+
     total = col.count_documents(query)
     total_pages = max(1, (total + limit - 1) // limit)
 
@@ -229,6 +253,9 @@ def export_magnets(
     rating_min: float | None = Query(default=None, ge=0, le=5),
     actors: str | None = Query(default=None),
     tags: str | None = Query(default=None),
+    director: str | None = Query(default=None),
+    maker: str | None = Query(default=None),
+    series: str | None = Query(default=None),
     date_from: str | None = Query(default=None, description="YYYY-MM-DD"),
     date_to: str | None = Query(default=None, description="YYYY-MM-DD"),
 ):
@@ -270,6 +297,27 @@ def export_magnets(
         tag_list = [t.strip() for t in tags.split(",") if t.strip()]
         if tag_list:
             query["tags"] = {"$all": tag_list}
+
+    if director:
+        director_list = [d.strip() for d in director.split(",") if d.strip()]
+        if len(director_list) == 1:
+            query["director"] = director_list[0]
+        elif director_list:
+            query["director"] = {"$in": director_list}
+
+    if maker:
+        maker_list = [m.strip() for m in maker.split(",") if m.strip()]
+        if len(maker_list) == 1:
+            query["maker"] = maker_list[0]
+        elif maker_list:
+            query["maker"] = {"$in": maker_list}
+
+    if series:
+        series_list = [s.strip() for s in series.split(",") if s.strip()]
+        if len(series_list) == 1:
+            query["series"] = series_list[0]
+        elif series_list:
+            query["series"] = {"$in": series_list}
 
     movie_docs = list(col.find(query, {"code": 1, "source_name": 1}))
     movies_by_id = {str(doc["_id"]): doc for doc in movie_docs}
