@@ -6,7 +6,7 @@ from bson.errors import InvalidId
 from fastapi import APIRouter, HTTPException
 
 from app.core.bson import stringify_objectids
-from app.db.collections import CRAWL_RUNS, CRAWL_RUN_DETAIL_TASKS, CRAWL_TASKS
+from app.db.collections import CRAWL_RUNS, CRAWL_RUN_DETAIL_TASKS, CRAWL_TASKS, MOVIES, MOVIE_MAGNETS
 from app.modules.crawler.runs.logs import delete_run_logs
 from app.modules.crawler.runs.queue import enqueue_task
 from app.modules.crawler.runs.schemas import RunResponse
@@ -202,21 +202,25 @@ def update_task(task_id: str, body: TaskUpdate):
 
 
 @router.delete("/{task_id}")
-def delete_task(task_id: str):
-    import logging
+def delete_task(task_id: str, mode: str = "normal"):
     logger = logging.getLogger("tasks")
+
+    if mode not in ("normal", "complete"):
+        raise HTTPException(status_code=400, detail="mode must be 'normal' or 'complete'")
 
     try:
         oid = ObjectId(task_id)
     except InvalidId:
         raise HTTPException(status_code=400, detail="Invalid task ID")
 
-    # 先获取任务文档以找到集合名称
+    # Get task document to retrieve the task name
     task_doc = _collection().find_one({"_id": oid})
     if not task_doc:
         raise HTTPException(status_code=404, detail="Task not found")
 
-    # 检查是否有正在运行或排队中的任务
+    task_name = task_doc.get("name", "")
+
+    # Check for active runs
     runs_col = get_mongo_db()[CRAWL_RUNS]
     active_run = runs_col.find_one({
         "task_id": str(oid),
@@ -225,13 +229,12 @@ def delete_task(task_id: str):
     if active_run:
         raise HTTPException(status_code=400, detail="不能删除有运行中或排队中任务的配置")
 
-    # 删除任务文档
+    # Delete the task document
     _collection().delete_one({"_id": oid})
 
-    # 删除关联的运行记录及文件存储
+    # Delete associated runs and detail tasks
     run_ids = [str(r["_id"]) for r in runs_col.find({"task_id": str(oid)}, {"_id": 1})]
     if run_ids:
-        # 删除关联的详情任务
         detail_col = get_mongo_db()[CRAWL_RUN_DETAIL_TASKS]
         for rid in run_ids:
             detail_col.delete_many({"run_id": rid})
@@ -243,7 +246,56 @@ def delete_task(task_id: str):
                 logger.warning("删除运行文件失败 %s: %s", run_id, e)
         logger.info("已删除 %d 条运行记录", len(run_ids))
 
-    return {"deleted": True}
+    # Mode-specific cleanup
+    movies_col = get_mongo_db()[MOVIES]
+    movies_affected = 0
+    magnets_deleted = 0
+
+    if mode == "normal":
+        # Remove task name from movies.source_task_name arrays
+        if task_name:
+            result = movies_col.update_many(
+                {"source_task_name": task_name},
+                {"$pull": {"source_task_name": task_name}},
+            )
+            movies_affected = result.modified_count
+            logger.info("普通删除: 从 %d 部电影中移除 source_task_name='%s'", movies_affected, task_name)
+
+    elif mode == "complete":
+        # Delete movies where source_task_name contains this task name
+        if task_name:
+            # Find movie IDs first (for magnet cleanup)
+            movie_ids = [
+                str(m["_id"])
+                for m in movies_col.find(
+                    {"source_task_name": task_name},
+                    {"_id": 1},
+                )
+            ]
+            movies_affected = len(movie_ids)
+
+            if movie_ids:
+                # Delete associated magnets
+                magnets_col = get_mongo_db()[MOVIE_MAGNETS]
+                magnet_result = magnets_col.delete_many(
+                    {"movie_id": {"$in": movie_ids}},
+                )
+                magnets_deleted = magnet_result.deleted_count
+
+                # Delete movies
+                movies_col.delete_many({"source_task_name": task_name})
+
+                logger.info(
+                    "彻底删除: 删除 %d 部电影和 %d 条磁力链接 (source_task_name='%s')",
+                    movies_affected, magnets_deleted, task_name,
+                )
+
+    return {
+        "deleted": True,
+        "mode": mode,
+        "movies_affected": movies_affected,
+        "magnets_deleted": magnets_deleted,
+    }
 
 
 @router.post("/{task_id}/run", status_code=202, response_model=RunResponse)
