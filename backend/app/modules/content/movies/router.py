@@ -170,6 +170,7 @@ def list_movies(
     series: str | None = Query(default=None),
     date_from: str | None = Query(default=None, description="YYYY-MM-DD"),
     date_to: str | None = Query(default=None, description="YYYY-MM-DD"),
+    storage_status: str | None = Query(default=None, description="Filter by storage status: completed, failed, pending, etc."),
 ):
     """Get a paginated movie list with optional filters."""
     db = get_mongo_db()
@@ -196,6 +197,9 @@ def list_movies(
 
     if source_task_name:
         query["source_task_name"] = source_task_name
+
+    if storage_status:
+        query["storage_summary.last_status"] = storage_status
 
     if rating_min is not None:
         query["rating"] = {"$gte": rating_min}
