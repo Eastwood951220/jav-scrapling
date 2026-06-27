@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import { Form, Input, Switch, Select, Button, Card, message } from "antd";
-import { PlusOutlined, MinusCircleOutlined } from "@ant-design/icons";
-import { createTask, fetchTask, updateTask } from "./api";
+import { PlusOutlined, MinusCircleOutlined, SearchOutlined } from "@ant-design/icons";
+import { createTask, fetchTask, updateTask, extractName } from "./api";
 import FullPageSpinner from "@/shared/components/FullPageSpinner";
 import { getErrorMessage } from "@/shared/hooks/useErrorMessage";
 import type { TaskCreatePayload } from "./types";
@@ -91,7 +91,17 @@ function buildFinalUrl(
 }
 
 /** A single URL entry form card. */
-function UrlEntryCard({ index, remove }: { index: number; remove?: () => void }) {
+function UrlEntryCard({
+  index,
+  remove,
+  onNameExtracted,
+}: {
+  index: number;
+  remove?: () => void;
+  onNameExtracted?: (name: string) => void;
+}) {
+  const [extracting, setExtracting] = useState(false);
+
   return (
     <Card
       size="small"
@@ -168,6 +178,44 @@ function UrlEntryCard({ index, remove }: { index: number; remove?: () => void })
             <Form.Item label="最终 URL 预览">
               <Input value={finalUrl} disabled />
             </Form.Item>
+          );
+        }}
+      </Form.Item>
+
+      <Form.Item noStyle shouldUpdate={(prev, cur) => {
+        const prevUrls = prev.urls?.[index];
+        const curUrls = cur.urls?.[index];
+        return prevUrls?.url !== curUrls?.url || prevUrls?.url_type !== curUrls?.url_type;
+      }}>
+        {({ getFieldValue }) => {
+          const url = getFieldValue(["urls", index, "url"]) as string;
+          const urlType = getFieldValue(["urls", index, "url_type"]) as string;
+          const canExtract = url && urlType && urlType !== "search" && urlType !== "tags";
+
+          return (
+            <Button
+              icon={<SearchOutlined />}
+              loading={extracting}
+              disabled={!canExtract}
+              onClick={async () => {
+                if (!url || !urlType) return;
+                setExtracting(true);
+                try {
+                  const result = await extractName(url, urlType);
+                  if (result.name && onNameExtracted) {
+                    onNameExtracted(result.name);
+                  } else if (!result.name) {
+                    message.warning("未能提取到名称");
+                  }
+                } catch (e: unknown) {
+                  message.error(getErrorMessage(e));
+                } finally {
+                  setExtracting(false);
+                }
+              }}
+            >
+              获取名称
+            </Button>
           );
         }}
       </Form.Item>
@@ -276,6 +324,13 @@ export default function TaskForm() {
                     key={field.key}
                     index={field.name}
                     remove={fields.length > 1 ? () => remove(field.name) : undefined}
+                    onNameExtracted={(name) => {
+                      // 自动填充任务名称（仅当名称为空时）
+                      const currentName = form.getFieldValue("name");
+                      if (!currentName) {
+                        form.setFieldsValue({ name });
+                      }
+                    }}
                   />
                 ))}
                 <Button
