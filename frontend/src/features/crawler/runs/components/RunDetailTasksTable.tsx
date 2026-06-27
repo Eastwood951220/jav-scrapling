@@ -35,9 +35,13 @@ export default function RunDetailTasksTable({
       dataIndex: "status",
       key: "status",
       width: 100,
-      render: (status: RunDetailTask["status"]) => (
-        <Tag color={detailTaskStatusColors[status]}>{detailTaskStatusLabels[status]}</Tag>
-      ),
+      render: (status: RunDetailTask["status"], record: RunDetailTask) => {
+        let label = detailTaskStatusLabels[status];
+        if (status === "skipped" && record.error === "already_exists") {
+          label = "已存在";
+        }
+        return <Tag color={detailTaskStatusColors[status]}>{label}</Tag>;
+      },
     },
     { title: "创建时间", dataIndex: "created_at", key: "created_at", width: 170, render: formatTime },
     { title: "爬取时间", dataIndex: "crawled_at", key: "crawled_at", width: 170, render: formatTime },

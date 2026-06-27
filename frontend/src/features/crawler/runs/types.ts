@@ -36,7 +36,8 @@ export type DetailTaskStatus =
   | "crawled"
   | "crawl_failed"
   | "saved"
-  | "save_failed";
+  | "save_failed"
+  | "skipped";
 
 /** A single detail task within a run. */
 export interface RunDetailTask {

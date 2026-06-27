@@ -23,6 +23,7 @@ export const detailTaskStatusColors: Record<DetailTaskStatus, string> = {
   crawl_failed: "error",
   saved: "success",
   save_failed: "error",
+  skipped: "warning",
 };
 
 export const detailTaskStatusLabels: Record<DetailTaskStatus, string> = {
@@ -31,6 +32,7 @@ export const detailTaskStatusLabels: Record<DetailTaskStatus, string> = {
   crawl_failed: "爬取失败",
   saved: "已入库",
   save_failed: "入库失败",
+  skipped: "已跳过",
 };
 
 export const logLevelColors: Record<string, string> = {
