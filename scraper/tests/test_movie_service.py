@@ -35,7 +35,7 @@ def test_crawl_javdb_task_returns_items_in_result(monkeypatch):
     assert "items" in result
     assert len(result["items"]) == 2
     assert result["items"][0]["code"] == "ABC-001"
-    assert result["items"][0]["config_task_name"] == "test"
+    assert result["items"][0]["source_task_name"] == ["test"]
 
 
 def test_crawl_javdb_task_does_not_import_repository():
