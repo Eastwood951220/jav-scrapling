@@ -1,5 +1,5 @@
 from unittest.mock import MagicMock
-from scraper.database.repositories.movie_magnet_repository import select_best_magnet, MovieMagnetRepository
+from scraper.database.repositories.movie_magnet_repository import select_best_magnet, compute_magnet_weight, MovieMagnetRepository
 
 
 def test_select_best_magnet_prefers_large_subtitle():
@@ -69,3 +69,47 @@ def test_auto_select_best_magnet_persists_dedupe_key():
     call_args = mock_movies_col.update_one.call_args
     assert call_args[0][0] == {"_id": movie_oid}
     assert call_args[0][1] == {"$set": {"selected_magnet_dedupe_key": "key_b"}}
+
+
+def test_compute_magnet_weight_basic():
+    """Weight includes all factors: subtitle, size, file count."""
+    magnet = {
+        "magnet": "magnet:?xt=urn:btih:abc",
+        "has_chinese_sub": True,
+        "size": 5000.0,
+        "file_count": 3,
+    }
+    weight = compute_magnet_weight(magnet)
+    # is_large_sub=True(5000>2048) -> 100000, has_sub=True -> 10000, size=5000, file_penalty=10000-300=9700
+    assert weight == 100000 + 10000 + 5000 + 9700
+
+
+def test_compute_magnet_weight_no_subtitle():
+    """No subtitle gives lower weight."""
+    magnet = {
+        "magnet": "magnet:?xt=urn:btih:abc",
+        "has_chinese_sub": False,
+        "tags": [],
+        "size": 5000.0,
+        "file_count": 3,
+    }
+    weight = compute_magnet_weight(magnet)
+    # is_large_sub=False, has_sub=False, size=5000, file_penalty=9700
+    assert weight == 0 + 0 + 5000 + 9700
+
+
+def test_compute_magnet_weight_fewer_files_higher():
+    """Fewer files = higher weight."""
+    magnet_few = {"magnet": "magnet:?xt=urn:btih:a", "size": 1000.0, "file_count": 1}
+    magnet_many = {"magnet": "magnet:?xt=urn:btih:b", "size": 1000.0, "file_count": 50}
+    assert compute_magnet_weight(magnet_few) > compute_magnet_weight(magnet_many)
+
+
+def test_select_best_magnet_considers_file_count():
+    """When subtitle and size are equal, fewer files wins."""
+    magnets = [
+        {"magnet": "magnet:?xt=urn:btih:many", "size": 5000.0, "has_chinese_sub": True, "tags": [], "file_count": 20},
+        {"magnet": "magnet:?xt=urn:btih:few", "size": 5000.0, "has_chinese_sub": True, "tags": [], "file_count": 2},
+    ]
+    result = select_best_magnet(magnets)
+    assert result["magnet"] == "magnet:?xt=urn:btih:few"

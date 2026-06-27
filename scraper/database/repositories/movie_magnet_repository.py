@@ -71,13 +71,42 @@ def _has_chinese_sub(magnet: dict) -> bool:
     return any(kw in title for kw in ["chs", "cht", "chinese", "中字", "中文", "字幕"])
 
 
+def compute_magnet_weight(magnet: dict) -> int:
+    """Compute a numeric weight score for a magnet.
+
+    Higher score = better magnet. Factors:
+    - Chinese subtitle + size > 2GB: +100000
+    - Chinese subtitle (any size): +10000
+    - Size in MB: +min(size_mb, 50000)
+    - Fewer files: +max(0, 10000 - file_count * 100)
+
+    Args:
+        magnet: Magnet dict with size, has_chinese_sub, tags, file_count fields.
+
+    Returns:
+        Integer weight score (higher is better).
+    """
+    has_sub = _has_chinese_sub(magnet)
+    size_mb = _parse_size_mb(magnet.get("size") or magnet.get("size_text"))
+    is_large_sub = has_sub and size_mb > 2048
+
+    file_count = magnet.get("file_count")
+    if isinstance(file_count, (int, float)) and file_count > 0:
+        file_penalty = max(0, 10000 - int(file_count) * 100)
+    else:
+        file_penalty = 5000  # unknown file count gets neutral score
+
+    return int(is_large_sub * 100000 + has_sub * 10000 + min(size_mb, 50000) + file_penalty)
+
+
 def select_best_magnet(magnets: list[dict] | None) -> dict | None:
     """Pick the best magnet using weight-based ranking.
 
     Ranking priority (descending):
     1. is_large_sub: Chinese subtitle AND size > 2 GB
     2. has_sub: has Chinese subtitles (any size)
-    3. size_mb: raw file size in MB (tiebreaker)
+    3. size_mb: raw file size in MB
+    4. neg_file_count: negative file count (fewer files = higher rank)
 
     Args:
         magnets: List of magnet dicts (from MongoDB or raw crawl data).
@@ -98,13 +127,15 @@ def select_best_magnet(magnets: list[dict] | None) -> dict | None:
         has_sub = _has_chinese_sub(magnet)
         size_mb = _parse_size_mb(magnet.get("size") or magnet.get("size_text"))
         is_large_sub = has_sub and size_mb > 2048
-        scored.append((is_large_sub, has_sub, size_mb, magnet))
+        file_count = magnet.get("file_count")
+        neg_fc = -int(file_count) if isinstance(file_count, (int, float)) and file_count > 0 else 0
+        scored.append((is_large_sub, has_sub, size_mb, neg_fc, magnet))
 
     if not scored:
         return None
 
-    scored.sort(key=lambda item: (item[0], item[1], item[2]), reverse=True)
-    return scored[0][3]
+    scored.sort(key=lambda item: (item[0], item[1], item[2], item[3]), reverse=True)
+    return scored[0][4]
 
 
 class MovieMagnetRepository:
@@ -248,6 +279,7 @@ class MovieMagnetRepository:
             "file_text": file_text,
             "tags": tags,
             "has_chinese_sub": bool(magnet.get("has_chinese_sub")),
+            "weight": compute_magnet_weight(magnet),
             "date": magnet.get("date") or "",
             "updated_at": now,
         }
