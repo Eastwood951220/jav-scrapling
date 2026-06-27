@@ -3,6 +3,29 @@
 import re
 from pathlib import PurePosixPath
 
+# Uncensored keywords in tags
+UNCENSORED_TAG_KEYWORDS = ("破解", "无码破解", "无码")
+
+
+def derive_code_suffix(has_chinese_sub: bool, tags: list[str]) -> str:
+    """Derive code suffix from magnet metadata.
+
+    Returns:
+        "-C" for Chinese subtitle only
+        "-U" for uncensored only
+        "-UC" for both
+        "" for neither
+    """
+    has_uncensored = any(kw in tag for tag in tags for kw in UNCENSORED_TAG_KEYWORDS)
+
+    if has_chinese_sub and has_uncensored:
+        return "-UC"
+    if has_chinese_sub:
+        return "-C"
+    if has_uncensored:
+        return "-U"
+    return ""
+
 
 def disc_number(file_name: str) -> int | None:
     """Try to extract a disc/part number from a filename.
@@ -19,17 +42,20 @@ def build_video_name(
     index: int,
     total: int,
     template: str,
+    code_suffix: str = "",
 ) -> str:
     """Build a video filename from template and metadata.
 
     For multi-file sets where the template lacks {disc}, appends -CD{n}.
     """
     ext = PurePosixPath(original_name).suffix
+    code_with_suffix = movie_code + code_suffix
+
     if total <= 1:
-        return template.replace("{code}", movie_code).replace("{ext}", ext)
+        return template.replace("{code}", code_with_suffix).replace("{ext}", ext)
 
     number = disc_number(original_name) or (index + 1)
-    name = template.replace("{code}", movie_code).replace("{ext}", ext).replace("{disc}", str(number))
+    name = template.replace("{code}", code_with_suffix).replace("{ext}", ext).replace("{disc}", str(number))
     if "{disc}" not in template:
         path = PurePosixPath(name)
         return f"{path.stem}-CD{number}{path.suffix}"

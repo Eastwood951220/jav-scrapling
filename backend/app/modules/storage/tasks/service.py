@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 from datetime import datetime, timezone
 
+from app.modules.storage.domain.filename_policy import derive_code_suffix
 from app.modules.storage.tasks.id_generator import generate_storage_task_id
 from shared.database.repositories.magnet_repository import select_best_magnet
 
@@ -39,6 +40,15 @@ class StorageTaskService:
             if existing:
                 return {"task_id": existing["task_id"], "status": "existing"}
 
+        # Derive code suffix from magnet metadata
+        code_suffix = ""
+        magnet = self.magnet_repository.find_by_url(magnet_url)
+        if magnet:
+            code_suffix = derive_code_suffix(
+                has_chinese_sub=magnet.get("has_chinese_sub", False),
+                tags=magnet.get("tags", []),
+            )
+
         task_id = self._generate_task_id()
         now = datetime.now(timezone.utc)
         movie_code = movie.get("code") or movie.get("config_task_name", "")
@@ -46,6 +56,7 @@ class StorageTaskService:
             "task_id": task_id,
             "movie_id": movie_id,
             "movie_code": movie_code,
+            "code_suffix": code_suffix,
             "title": movie.get("source_name") or movie.get("config_task_name", ""),
             "magnet_url": magnet_url,
             "info_hash": info_hash,

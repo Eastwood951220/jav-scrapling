@@ -93,6 +93,28 @@ def test_batch_retry_updates_failed_tasks():
     assert result["skipped"] == 1
 
 
+def test_create_storage_task_derives_code_suffix():
+    from app.modules.storage.tasks.service import StorageTaskService
+
+    task_repo = MagicMock()
+    task_repo.get_by_movie_hash_status.return_value = None
+    task_repo.create.side_effect = lambda doc: doc
+    movie_repo = MagicMock()
+    movie_repo.get_by_id.return_value = {"_id": "60f7c2d4e13823a3c8b45678", "code": "SSIS-945", "source_name": "Movie"}
+    magnet_repo = MagicMock()
+    magnet_repo.find_by_url.return_value = {
+        "has_chinese_sub": True,
+        "tags": ["中文字幕"],
+    }
+
+    service = StorageTaskService(task_repository=task_repo, movie_repository=movie_repo, magnet_repository=magnet_repo)
+
+    result = service.create_task({"movie_id": "60f7c2d4e13823a3c8b45678", "magnet_url": "magnet:?xt=urn:btih:ABC123"})
+
+    created_doc = task_repo.create.call_args[0][0]
+    assert created_doc["code_suffix"] == "-C"
+
+
 def test_batch_retry_requires_task_ids():
     from app.modules.storage.tasks.service import StorageTaskService
 

@@ -17,6 +17,7 @@ class RenameFilesStep:
         task_id = task["task_id"]
         selected = task.get("selected_videos", [])
         movie_code = task.get("movie_code", "UNKNOWN")
+        code_suffix = task.get("code_suffix", "")
 
         if not selected:
             context.logger.log("无需重命名，没有选中的视频文件")
@@ -37,6 +38,7 @@ class RenameFilesStep:
                     index=i,
                     total=len(selected),
                     template=multi_tpl,
+                    code_suffix=code_suffix,
                 )
             else:
                 new_name = build_video_name(
@@ -45,6 +47,7 @@ class RenameFilesStep:
                     index=0,
                     total=1,
                     template=single_tpl,
+                    code_suffix=code_suffix,
                 )
 
             new_path = str(PurePosixPath(old_path).parent / new_name)

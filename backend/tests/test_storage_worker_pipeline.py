@@ -45,6 +45,34 @@ def test_path_policy_target_folder_empty_name():
     assert target_folder(task, config) == "/Movies/GHI-010"
 
 
+def test_target_folder_with_code_suffix():
+    from app.modules.storage.domain.path_policy import target_folder
+
+    task = {"task_id": "ST0001", "movie_code": "SSIS-945", "source_task_name": "taskA"}
+    config = {"target_folder": "/Movies"}
+
+    assert target_folder(task, config, code_suffix="-C") == "/Movies/taskA/SSIS-945-C"
+    assert target_folder(task, config, code_suffix="-U") == "/Movies/taskA/SSIS-945-U"
+    assert target_folder(task, config, code_suffix="-UC") == "/Movies/taskA/SSIS-945-UC"
+    assert target_folder(task, config, code_suffix="") == "/Movies/taskA/SSIS-945"
+
+
+def test_all_target_folders_with_code_suffix():
+    from app.modules.storage.domain.path_policy import all_target_folders
+
+    task = {"task_id": "ST0001", "movie_code": "SSIS-945", "source_task_name": ["taskA", "taskB"]}
+    config = {"target_folder": "/Movies"}
+
+    assert all_target_folders(task, config, code_suffix="-C") == [
+        "/Movies/taskA/SSIS-945-C",
+        "/Movies/taskB/SSIS-945-C",
+    ]
+    assert all_target_folders(task, config, code_suffix="") == [
+        "/Movies/taskA/SSIS-945",
+        "/Movies/taskB/SSIS-945",
+    ]
+
+
 def test_filename_policy_multi_file_appends_cd_when_template_has_no_disc():
     from app.modules.storage.domain.filename_policy import build_video_name
 
@@ -231,3 +259,78 @@ def test_prepare_step_not_completed_when_paths_missing():
     context.task = {"download_path": None, "target_path": None}
 
     assert step.is_completed(context) is False
+
+
+def test_prepare_step_derives_code_suffix():
+    from app.modules.storage.worker.steps.prepare import PrepareStep
+
+    step = PrepareStep()
+    context = MagicMock()
+    context.task = {
+        "task_id": "ST0001",
+        "movie_id": "60f7c2d4e13823a3c8b45678",
+        "movie_code": "SSIS-945",
+        "magnet_url": "magnet:?xt=urn:btih:abc123",
+    }
+    context.config = {
+        "download_root_folder": "/Downloads",
+        "target_folder": "/Movies",
+        "use_task_subfolder": True,
+    }
+    context.movie_repository = MagicMock()
+    context.movie_repository.get_by_id.return_value = {
+        "_id": "60f7c2d4e13823a3c8b45678",
+        "code": "SSIS-945",
+        "source_task_name": "taskA",
+    }
+    context.magnet_repository = MagicMock()
+    context.magnet_repository.find_by_url.return_value = {
+        "magnet_url": "magnet:?xt=urn:btih:abc123",
+        "has_chinese_sub": True,
+        "tags": ["中文字幕"],
+    }
+    context.task_repository = MagicMock()
+
+    result = step.execute(context)
+
+    # Should derive -C suffix
+    update_call = context.task_repository.update.call_args[0][1]
+    assert update_call["code_suffix"] == "-C"
+    assert "SSIS-945-C" in update_call["target_path"]
+
+
+def test_filename_policy_single_file_with_code_suffix():
+    from app.modules.storage.domain.filename_policy import build_video_name
+
+    name = build_video_name(
+        movie_code="SSIS-945", original_name="movie.mkv", index=0, total=1, template="{code}{ext}", code_suffix="-C"
+    )
+
+    assert name == "SSIS-945-C.mkv"
+
+
+def test_rename_step_uses_code_suffix():
+    from app.modules.storage.worker.steps.rename_files import RenameFilesStep
+
+    step = RenameFilesStep()
+    context = MagicMock()
+    context.task = {
+        "task_id": "ST0001",
+        "movie_code": "SSIS-945",
+        "code_suffix": "-C",
+        "selected_videos": [
+            {"name": "SSIS-945-C.mp4", "path": "/Downloads/ST0001/SSIS-945-C.mp4"}
+        ],
+    }
+    context.config = {
+        "single_filename_template": "{code}{ext}",
+        "multi_filename_template": "{code}{ext}",
+    }
+    context.provider = MagicMock()
+    context.provider.rename_file.return_value = MagicMock(success=True)
+    context.task_repository = MagicMock()
+
+    result = step.execute(context)
+
+    video = result["selected_videos"][0]
+    assert video["renamed_name"] == "SSIS-945-C.mp4"

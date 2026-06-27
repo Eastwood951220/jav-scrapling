@@ -11,6 +11,10 @@ class MagnetRepository:
     def list_by_movie_id(self, movie_id: str) -> list[dict]:
         return list(self.collection.find({"movie_id": movie_id}))
 
+    def find_by_url(self, magnet_url: str) -> dict | None:
+        """Find a magnet document by its magnet URL."""
+        return self.collection.find_one({"magnet_url": magnet_url})
+
 
 def select_best_magnet(magnets: list[dict]) -> dict | None:
     if not magnets:

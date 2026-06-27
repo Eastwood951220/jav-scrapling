@@ -3,6 +3,7 @@
 from bson import ObjectId
 from bson.errors import InvalidId
 
+from app.modules.storage.domain.filename_policy import derive_code_suffix
 from app.modules.storage.domain.path_policy import all_target_folders, download_folder, target_folder
 
 
@@ -29,11 +30,20 @@ class PrepareStep:
         if not magnet_url:
             raise ValueError("缺少磁力链接")
 
+        # Derive code suffix from magnet metadata
+        code_suffix = ""
+        magnet = context.magnet_repository.find_by_url(magnet_url)
+        if magnet:
+            code_suffix = derive_code_suffix(
+                has_chinese_sub=magnet.get("has_chinese_sub", False),
+                tags=magnet.get("tags", []),
+            )
+
         source_task_name = movie.get("source_task_name", "")
         task_with_name = {**task, "source_task_name": source_task_name}
         download_path = download_folder(task, context.config)
-        target_path = target_folder(task_with_name, context.config)
-        target_paths = all_target_folders(task_with_name, context.config)
+        target_path = target_folder(task_with_name, context.config, code_suffix)
+        target_paths = all_target_folders(task_with_name, context.config, code_suffix)
 
         context.task_repository.update(
             task_id,
@@ -43,9 +53,10 @@ class PrepareStep:
                 "target_paths": target_paths,
                 "magnet_url": magnet_url,
                 "source_task_name": source_task_name,
+                "code_suffix": code_suffix,
             },
         )
-        context.logger.log(f"准备完成: download={download_path}, target={target_path}, targets={target_paths}")
+        context.logger.log(f"准备完成: download={download_path}, target={target_path}, targets={target_paths}, suffix={code_suffix}")
 
         return {
             **task_with_name,
@@ -53,4 +64,5 @@ class PrepareStep:
             "target_path": target_path,
             "target_paths": target_paths,
             "magnet_url": magnet_url,
+            "code_suffix": code_suffix,
         }
