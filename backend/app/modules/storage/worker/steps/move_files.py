@@ -40,6 +40,22 @@ class MoveFilesStep:
             # For other errors, assume file exists and let move attempt handle it
             return True
 
+    def _ensure_target_folder(self, context, folder_path: str) -> bool:
+        """Ensure target folder exists, create if needed."""
+        try:
+            # Try to list the folder first
+            context.provider.list_files(folder_path)
+            return True
+        except Exception:
+            # Folder doesn't exist, try to create it
+            try:
+                context.provider.ensure_directory(folder_path)
+                context.logger.log(f"已创建目标文件夹: {folder_path}")
+                return True
+            except Exception as e:
+                context.logger.log(f"创建目标文件夹失败: {folder_path}: {e}", "ERROR")
+                return False
+
     def execute(self, context) -> dict:
         task = context.task
         task_id = task["task_id"]
@@ -59,10 +75,8 @@ class MoveFilesStep:
         # Ensure all target folders exist
         if context.config.get("auto_create_target_folder", True):
             for tp in target_paths:
-                try:
-                    context.provider.ensure_directory(tp)
-                except Exception:
-                    pass
+                if not self._ensure_target_folder(context, tp):
+                    raise ValueError(f"无法创建目标文件夹: {tp}")
 
         moved = []
         skipped = []

@@ -3,7 +3,7 @@
 from bson import ObjectId
 from bson.errors import InvalidId
 
-from app.modules.storage.domain.filename_policy import derive_code_suffix
+from app.modules.storage.domain.filename_policy import derive_code_suffix, derive_code_suffix_from_filename
 from app.modules.storage.domain.path_policy import all_target_folders, download_folder, target_folder
 
 
@@ -38,6 +38,18 @@ class PrepareStep:
                 has_chinese_sub=magnet.get("has_chinese_sub", False),
                 tags=magnet.get("tags", []),
             )
+            context.logger.log(f"从磁力元数据推导后缀: {code_suffix or '(无)'}")
+        else:
+            context.logger.log(f"未找到磁力记录: {magnet_url[:50]}...", "WARNING")
+
+        # Fallback: try to derive suffix from original filename
+        if not code_suffix:
+            selected_videos = task.get("selected_videos", [])
+            if selected_videos:
+                original_name = selected_videos[0].get("name", "")
+                code_suffix = derive_code_suffix_from_filename(original_name)
+                if code_suffix:
+                    context.logger.log(f"从原始文件名推导后缀: {code_suffix}")
 
         source_task_name = movie.get("source_task_name", "")
         task_with_name = {**task, "source_task_name": source_task_name}

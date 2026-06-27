@@ -127,3 +127,33 @@ def test_move_files_step_skips_files_with_rename_error():
     assert len(result["skipped_files"]) == 1
     assert result["skipped_files"][0]["skip_reason"] == "rename_failed"
     context.provider.move_files.assert_not_called()
+
+
+def test_move_files_step_creates_target_folder():
+    """Move files step should create target folder if it doesn't exist."""
+    from backend.app.modules.storage.worker.steps.move_files import MoveFilesStep
+
+    step = MoveFilesStep()
+    context = MagicMock()
+    context.task = {
+        "task_id": "ST0001",
+        "selected_videos": [
+            {"name": "SSIS-978.mp4", "path": "/Downloads/ST0001/SSIS-978.mp4"}
+        ],
+        "target_path": "/Movies/SSIS-978",
+        "target_paths": ["/Movies/SSIS-978"],
+    }
+    context.config = {"auto_create_target_folder": True}
+    context.provider = MagicMock()
+    # list_files raises exception to simulate folder not existing
+    context.provider.list_files.side_effect = CloudDriveNotFoundError("folder not found")
+    # find_file returns a file for target (idempotent check)
+    context.provider.find_file.return_value = MagicMock(size=0)
+    context.provider.move_files.return_value = MagicMock(success=True, error_message=None)
+
+    result = step.execute(context)
+
+    # Should call ensure_directory for target folder
+    context.provider.ensure_directory.assert_called_with("/Movies/SSIS-978")
+    # Should move the file
+    assert len(result["moved_files"]) == 1

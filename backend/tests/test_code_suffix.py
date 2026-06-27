@@ -21,3 +21,12 @@ def test_derive_code_suffix_none():
 def test_derive_code_suffix_uncensored_from_tags():
     from backend.app.modules.storage.domain.filename_policy import derive_code_suffix
     assert derive_code_suffix(has_chinese_sub=False, tags=["无码破解"]) == "-U"
+
+
+def test_derive_code_suffix_from_filename():
+    from backend.app.modules.storage.domain.filename_policy import derive_code_suffix_from_filename
+    assert derive_code_suffix_from_filename("SSIS-978-C.mp4") == "-C"
+    assert derive_code_suffix_from_filename("SSIS-978-U.mp4") == "-U"
+    assert derive_code_suffix_from_filename("SSIS-978-UC.mp4") == "-UC"
+    assert derive_code_suffix_from_filename("SSIS-978.mp4") == ""
+    assert derive_code_suffix_from_filename("SSIS-978-C") == "-C"

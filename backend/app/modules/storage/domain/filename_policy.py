@@ -6,6 +6,9 @@ from pathlib import PurePosixPath
 # Uncensored keywords in tags
 UNCENSORED_TAG_KEYWORDS = ("破解", "无码破解", "无码")
 
+# Suffix pattern in filename: -C, -U, -UC before extension or end of string
+_SUFFIX_PATTERN = re.compile(r"-(UC|C|U)(?:\.[^.]*$|$)", re.IGNORECASE)
+
 
 def derive_code_suffix(has_chinese_sub: bool, tags: list[str]) -> str:
     """Derive code suffix from magnet metadata.
@@ -24,6 +27,19 @@ def derive_code_suffix(has_chinese_sub: bool, tags: list[str]) -> str:
         return "-C"
     if has_uncensored:
         return "-U"
+    return ""
+
+
+def derive_code_suffix_from_filename(filename: str) -> str:
+    """Derive code suffix from original filename.
+
+    Looks for -C, -U, -UC patterns in the filename.
+    Returns the suffix with dash prefix, or empty string if not found.
+    """
+    match = _SUFFIX_PATTERN.search(filename)
+    if match:
+        suffix = match.group(1).upper()
+        return f"-{suffix}"
     return ""
 
 
