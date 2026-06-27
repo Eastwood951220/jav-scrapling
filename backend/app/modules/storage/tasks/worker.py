@@ -220,6 +220,25 @@ def _all_target_folders(task: dict, config: dict) -> list[str]:
     return [_target_folder(task, config)]
 
 
+def _ensure_folder(cd2, path: str) -> None:
+    """Create folder and all missing ancestors (like ``mkdir -p``).
+
+    CloudDrive2 ``CreateFolder`` requires the parent to already exist.
+    This walks from root to leaf, creating each component that is missing.
+    """
+    parts = PurePosixPath(path).parts  # ('/', 'Movies', 'taskA', 'ABC-001')
+    if not parts or parts[0] != "/":
+        return
+    current = "/"
+    for part in parts[1:]:
+        current = str(PurePosixPath(current) / part)
+        try:
+            cd2.create_folder(current)
+        except Exception:
+            # Folder likely already exists — safe to ignore
+            pass
+
+
 def _disc_number(file_name: str) -> int | None:
     """Try to extract a disc/part number from a filename.
 
@@ -649,10 +668,10 @@ def _step_move_files(task: dict, config: dict) -> dict:
 
     cd2 = _build_cd2_client(config)
     try:
-        # Ensure all target folders exist
+        # Ensure all target folders exist (including ancestors)
         if config.get("auto_create_target_folder", True):
             for tp in target_paths:
-                cd2.create_folder(tp)
+                _ensure_folder(cd2, tp)
 
         moved = []
         for i, f in enumerate(files_to_move):

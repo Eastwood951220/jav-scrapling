@@ -303,8 +303,7 @@ def test_move_files_creates_all_target_folders(
 
     _step_move_files(task, {"auto_create_target_folder": True})
 
-    # create_folder called for all 3 targets
-    assert mock_cd2.create_folder.call_count == 3
+    # create_folder called for all 3 targets (plus ancestor dirs via _ensure_folder)
     create_calls = [c[0][0] for c in mock_cd2.create_folder.call_args_list]
     assert "/Movies/taskA/ABC-001" in create_calls
     assert "/Movies/taskB/ABC-001" in create_calls
