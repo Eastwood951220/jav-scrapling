@@ -13,6 +13,7 @@ from pathlib import PurePosixPath
 
 from app.core.dependencies import (
     get_clouddrive_client_factory,
+    get_magnet_repository,
     get_movie_repository,
     get_storage_config_repository,
     get_storage_task_repository,
@@ -43,6 +44,7 @@ from shared.integrations.storage_providers.clouddrive2.gateway import CloudDrive
 _worker = StorageWorker(
     task_repository=get_storage_task_repository(),
     movie_repository=get_movie_repository(),
+    magnet_repository=get_magnet_repository(),
     config_repository=get_storage_config_repository(),
     provider_factory=get_clouddrive_client_factory(),
     state_machine=StorageStateMachine([

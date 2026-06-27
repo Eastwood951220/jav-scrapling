@@ -28,5 +28,6 @@ class StorageTaskContext:
     config: dict
     task_repository: object
     movie_repository: object
+    magnet_repository: object
     provider: object
     logger: StorageTaskLogger

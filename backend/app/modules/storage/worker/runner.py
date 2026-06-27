@@ -20,12 +20,14 @@ class StorageWorker:
         self,
         task_repository,
         movie_repository,
+        magnet_repository,
         config_repository,
         provider_factory,
         state_machine: StorageStateMachine,
     ) -> None:
         self.task_repository = task_repository
         self.movie_repository = movie_repository
+        self.magnet_repository = magnet_repository
         self.config_repository = config_repository
         self.provider_factory = provider_factory
         self.state_machine = state_machine
@@ -69,6 +71,7 @@ class StorageWorker:
                     config=config,
                     task_repository=self.task_repository,
                     movie_repository=self.movie_repository,
+                    magnet_repository=self.magnet_repository,
                     provider=CloudDrive2Gateway(client),
                     logger=StorageTaskLogger(task["task_id"]),
                 )
