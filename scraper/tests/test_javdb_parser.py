@@ -4,6 +4,7 @@ from scraper.spiders.javdb.javdb_constants import TASK_STATUS_PENDING, TASK_STAT
 from scraper.spiders.javdb.javdb_parser import (
     is_fc2_task,
     parse_detail_page,
+    parse_page_section_name,
     parse_search_page,
 )
 
@@ -115,3 +116,126 @@ def test_parse_detail_page_fields_and_best_magnet():
     assert result["magnets"][0]["size"] == 1228.8
     assert result["magnets"][0]["has_chinese_sub"] is True
     assert "中文字幕" in result["magnets"][0]["tags"]
+
+
+class TestParsePageSectionName:
+    def test_actors_extracts_first_name_before_comma(self):
+        html = '''
+        <html><body>
+          <div class="column section-title">
+            <h2 class="title is-4">
+              <span class="actor-section-name">吹石玲奈, 吹石れな</span>
+              <br>
+              <span class="section-meta">39部影片</span>
+            </h2>
+          </div>
+        </body></html>
+        '''
+        page = Selector(html)
+        result = parse_page_section_name(page, "actors")
+        assert result == "吹石玲奈"
+
+    def test_actors_single_name_no_comma(self):
+        html = '''
+        <html><body>
+          <div class="column section-title">
+            <h2 class="title is-4">
+              <span class="actor-section-name">明日花キラ</span>
+            </h2>
+          </div>
+        </body></html>
+        '''
+        page = Selector(html)
+        result = parse_page_section_name(page, "actors")
+        assert result == "明日花キラ"
+
+    def test_series_extracts_section_name(self):
+        html = '''
+        <html><body>
+          <div class="column section-title">
+            <h2 class="title is-4">
+              <span class="section-subtitle">系列</span>
+              <span class="section-name">狙われた母娘娘の同級生に私も犯されました</span>
+            </h2>
+          </div>
+        </body></html>
+        '''
+        page = Selector(html)
+        result = parse_page_section_name(page, "series")
+        assert result == "狙われた母娘娘の同級生に私も犯されました"
+
+    def test_makers_extracts_section_name(self):
+        html = '''
+        <html><body>
+          <div class="column section-title">
+            <h2 class="title is-4">
+              <span class="section-subtitle">片商</span>
+              <span class="section-name">ワンズファクトリー</span>
+            </h2>
+          </div>
+        </body></html>
+        '''
+        page = Selector(html)
+        result = parse_page_section_name(page, "makers")
+        assert result == "ワンズファクトリー"
+
+    def test_directors_extracts_section_name(self):
+        html = '''
+        <html><body>
+          <div class="column section-title">
+            <h2 class="title is-4">
+              <span class="section-subtitle">導演</span>
+              <span class="section-name">さうだーぢ</span>
+            </h2>
+          </div>
+        </body></html>
+        '''
+        page = Selector(html)
+        result = parse_page_section_name(page, "directors")
+        assert result == "さうだーぢ"
+
+    def test_video_codes_extracts_section_name(self):
+        html = '''
+        <html><body>
+          <div class="column section-title">
+            <h2 class="title is-4">
+              <span class="section-subtitle">番號</span>
+              <span class="section-name">OFES</span>
+            </h2>
+          </div>
+        </body></html>
+        '''
+        page = Selector(html)
+        result = parse_page_section_name(page, "video_codes")
+        assert result == "OFES"
+
+    def test_lists_extracts_actor_section_name(self):
+        html = '''
+        <html><body>
+          <div class="column section-title">
+            <h2 class="title is-4 has-text-justified">
+              <span class="actor-section-name">最高分全中文丝袜(连裤袜)</span>
+              <br>
+              <span class="section-meta">39部影片</span>
+            </h2>
+          </div>
+        </body></html>
+        '''
+        page = Selector(html)
+        result = parse_page_section_name(page, "lists")
+        assert result == "最高分全中文丝袜(连裤袜)"
+
+    def test_search_returns_empty(self):
+        page = Selector("<html><body></body></html>")
+        result = parse_page_section_name(page, "search")
+        assert result == ""
+
+    def test_tags_returns_empty(self):
+        page = Selector("<html><body></body></html>")
+        result = parse_page_section_name(page, "tags")
+        assert result == ""
+
+    def test_missing_element_returns_empty(self):
+        page = Selector("<html><body></body></html>")
+        result = parse_page_section_name(page, "actors")
+        assert result == ""

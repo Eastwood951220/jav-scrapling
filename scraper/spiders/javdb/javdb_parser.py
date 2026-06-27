@@ -230,6 +230,39 @@ def parse_detail_page(page) -> dict:
     return detail
 
 
+# Different url_type section name extraction config
+_SECTION_NAME_CONFIG: dict[str, dict[str, str | bool]] = {
+    "actors": {"selector": ".actor-section-name::text", "split_comma": True},
+    "lists": {"selector": ".actor-section-name::text", "split_comma": False},
+    "series": {"selector": ".section-title .section-name::text", "split_comma": False},
+    "makers": {"selector": ".section-title .section-name::text", "split_comma": False},
+    "directors": {"selector": ".section-title .section-name::text", "split_comma": False},
+    "video_codes": {"selector": ".section-title .section-name::text", "split_comma": False},
+}
+
+
+def parse_page_section_name(page, url_type: str) -> str:
+    """Extract name from the section-title area of a page.
+
+    actors: take actor-section-name, split by comma, return first part
+    lists: take actor-section-name, return full text
+    series/makers/directors/video_codes: take section-name
+    search/tags: return empty string (no extraction)
+    """
+    config = _SECTION_NAME_CONFIG.get(url_type)
+    if not config:
+        return ""
+
+    raw = _first_text(page, [config["selector"]])
+    if not raw:
+        return ""
+
+    if config.get("split_comma"):
+        return raw.split(",")[0].strip()
+
+    return raw
+
+
 def parse_magnets(page) -> list[dict]:
     magnets: list[dict] = []
 
