@@ -245,12 +245,13 @@ def _worker_loop():
                 "INFO",
             )
 
-            # Auto-sync actor/tag filters after crawl completes
+            # Auto-sync filter collection after crawl completes
             try:
                 sync_result = sync_movie_filters(get_mongo_db())
                 _append_log(
                     run_id,
-                    f"筛选列表已同步: 演员={sync_result['actors']}, 标签={sync_result['tags']}",
+                    f"筛选列表已同步: 演员={sync_result['actors']}, 标签={sync_result['tags']}, "
+                    f"导演={sync_result['directors']}, 片商={sync_result['makers']}, 系列={sync_result['series']}",
                     "INFO",
                 )
             except Exception as sync_exc:
