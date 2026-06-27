@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "@tanstack/react-router";
-import { Form, Input, Switch, Select, Button, Card, message } from "antd";
+import { Form, Input, Switch, Select, Button, Card, Row, Col, message } from "antd";
 import { PlusOutlined, MinusCircleOutlined, SearchOutlined } from "@ant-design/icons";
 import { createTask, fetchTask, updateTask, extractName } from "./api";
 import FullPageSpinner from "@/shared/components/FullPageSpinner";
@@ -424,7 +424,7 @@ export default function TaskForm() {
   if (loading) return <FullPageSpinner />;
 
   return (
-    <Card title={isEdit ? "编辑任务" : "新建任务"} style={{ maxWidth: 800 }}>
+    <Card title={isEdit ? "编辑任务" : "新建任务"}>
       <Form
         form={form}
         layout="vertical"
@@ -434,17 +434,28 @@ export default function TaskForm() {
           is_skip: false,
         }}
       >
-        <Form.Item name="name" label="任务名称" rules={[{ required: true, message: "请输入任务名称" }]}>
-          <Input placeholder="例如：某演员名称" />
+        <Row gutter={24}>
+          <Col flex="auto">
+            <Form.Item name="name" label="任务名称" rules={[{ required: true, message: "请输入任务名称" }]}>
+              <Input placeholder="例如：某演员名称" />
+            </Form.Item>
+          </Col>
+          <Col flex="120px">
+            <Form.Item name="is_skip" label="启用状态" valuePropName="checked">
+              <Switch checkedChildren="启用" unCheckedChildren="禁用" />
+            </Form.Item>
+          </Col>
+        </Row>
+
+        <Form.Item label="URL 列表" required style={{ marginBottom: 8 }}>
         </Form.Item>
 
-        <Form.Item label="URL 列表" required>
-          <Form.List name="urls">
-            {(fields, { add, remove }) => (
-              <>
-                {fields.map((field) => (
+        <Form.List name="urls">
+          {(fields, { add, remove }) => (
+            <Row gutter={[16, 16]}>
+              {fields.map((field) => (
+                <Col key={field.key} xs={24} lg={12} xl={8}>
                   <UrlEntryCard
-                    key={field.key}
                     index={field.name}
                     remove={fields.length > 1 ? () => remove(field.name) : undefined}
                     onNameExtracted={(idx, name) => {
@@ -469,25 +480,23 @@ export default function TaskForm() {
                       form.setFieldsValue({ urls: updated });
                     }}
                   />
-                ))}
+                </Col>
+              ))}
+              <Col xs={24} lg={12} xl={8}>
                 <Button
                   type="dashed"
                   onClick={() => add({ has_magnet: true, has_chinese_sub: false, sort_type: 0 })}
                   icon={<PlusOutlined />}
-                  block
+                  style={{ height: "100%", minHeight: 200, width: "100%" }}
                 >
                   添加 URL
                 </Button>
-              </>
-            )}
-          </Form.List>
-        </Form.Item>
+              </Col>
+            </Row>
+          )}
+        </Form.List>
 
-        <Form.Item name="is_skip" label="禁用此任务" valuePropName="checked">
-          <Switch />
-        </Form.Item>
-
-        <Form.Item>
+        <Form.Item style={{ marginTop: 24 }}>
           <Button type="primary" htmlType="submit" loading={submitting}>
             {isEdit ? "更新" : "创建"}
           </Button>
