@@ -26,7 +26,18 @@ def extract_name(body: ExtractNameRequest):
     """从目标页面提取名称，用于自动填充任务名称。"""
     logger = logging.getLogger("tasks")
 
-    if body.url_type in ("search", "tags"):
+    # search 类型从 URL 的 q 参数提取名称，无需爬虫
+    if body.url_type == "search":
+        try:
+            from urllib.parse import parse_qs, urlparse
+            parsed = urlparse(body.url)
+            q_values = parse_qs(parsed.query).get("q", [])
+            name = q_values[0].strip() if q_values else ""
+            return {"name": name}
+        except Exception:
+            return {"name": ""}
+
+    if body.url_type == "tags":
         return {"name": ""}
 
     try:
