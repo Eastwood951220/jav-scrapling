@@ -1,22 +1,41 @@
 from typing import Any
 from urllib.parse import parse_qsl, quote, urlencode, urlparse, urlunparse
 
-from scraper.tasks.task_schema import CrawlTask
+from scraper.tasks.task_schema import CrawlTask, CrawlTaskUrlEntry
 
 
 def build_crawl_task_from_doc(doc: dict[str, Any]) -> CrawlTask:
-    """Build a CrawlTask from a MongoDB config_tasks document."""
+    """Build a CrawlTask from a MongoDB crawl_tasks document."""
+    urls: list[CrawlTaskUrlEntry] = []
+
+    # New format: urls array
+    if "urls" in doc and isinstance(doc["urls"], list):
+        for entry in doc["urls"]:
+            urls.append(CrawlTaskUrlEntry(
+                url=entry["url"],
+                url_type=entry["url_type"],
+                has_magnet=entry.get("has_magnet", False),
+                has_chinese_sub=entry.get("has_chinese_sub", False),
+                sort_type=entry.get("sort_type", 0),
+                source=entry.get("source"),
+                final_url=entry.get("final_url"),
+            ))
+    # Legacy format: single url field
+    elif "url" in doc:
+        urls.append(CrawlTaskUrlEntry(
+            url=doc["url"],
+            url_type=doc.get("url_type", ""),
+            has_magnet=doc.get("has_magnet", False),
+            has_chinese_sub=doc.get("has_chinese_sub", False),
+            sort_type=doc.get("sort_type", 0),
+            source=doc.get("source"),
+            final_url=doc.get("final_url"),
+        ))
+
     return CrawlTask(
         name=doc["name"],
-        url=doc["url"],
-        url_type=doc["url_type"],
+        urls=urls,
         is_skip=False,
-        has_magnet=doc.get("has_magnet", False),
-        has_chinese_sub=doc.get("has_chinese_sub", False),
-        sort_type=doc.get("sort_type", 0),
-        max_list_pages=doc.get("max_list_pages", 50),
-        source=doc.get("source"),
-        final_url=doc.get("final_url"),
     )
 
 
