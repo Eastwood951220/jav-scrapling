@@ -13,6 +13,7 @@ from app.db.collections import MOVIES, MOVIE_MAGNETS, STORAGE_COUNTERS, STORAGE_
 from app.modules.storage.tasks.id_generator import generate_storage_task_id
 from app.modules.storage.tasks.logs import load_storage_task_logs
 from scraper.database.mongo_client import get_mongo_db
+from scraper.database.repositories.movie_magnet_repository import select_best_magnet as _select_best_magnet
 
 router = APIRouter(prefix="/api/storage/tasks", tags=["storage-tasks"])
 
@@ -62,53 +63,6 @@ def _extract_info_hash(magnet_url: str) -> str:
     if match:
         return match.group(1).lower()
     return ""
-
-
-def _select_best_magnet(magnets: list[dict]) -> dict | None:
-    """Pick the backend default magnet from normalized magnet rows."""
-    if not magnets:
-        return None
-
-    def _parse_size_mb(value) -> float:
-        if isinstance(value, (int, float)):
-            return float(value)
-        if not value:
-            return 0.0
-        size_str = str(value).strip().upper()
-        match = re.match(r"([\d.]+)\s*(GB|MB|KB|TB)?", size_str)
-        if not match:
-            return 0.0
-        number = float(match.group(1))
-        unit = match.group(2) or "MB"
-        multipliers = {"KB": 1 / 1024, "MB": 1, "GB": 1024, "TB": 1024 * 1024}
-        return number * multipliers.get(unit, 1)
-
-    def _has_chinese_sub(magnet: dict) -> bool:
-        if magnet.get("has_chinese_sub"):
-            return True
-        tags = magnet.get("tags") or []
-        if any("字幕" in str(tag) or "中字" in str(tag) for tag in tags):
-            return True
-        title = (magnet.get("title") or magnet.get("name") or "").lower()
-        return any(kw in title for kw in ["chs", "cht", "chinese", "中字", "中文", "字幕"])
-
-    scored = []
-    for magnet in magnets:
-        if not isinstance(magnet, dict):
-            continue
-        magnet_url = magnet.get("magnet") or magnet.get("magnet_url")
-        if not magnet_url:
-            continue
-        has_sub = _has_chinese_sub(magnet)
-        size_mb = _parse_size_mb(magnet.get("size") or magnet.get("size_text"))
-        is_large_sub = has_sub and size_mb > 2048
-        scored.append((is_large_sub, has_sub, size_mb, magnet))
-
-    if not scored:
-        return None
-
-    scored.sort(key=lambda item: (item[0], item[1], item[2]), reverse=True)
-    return scored[0][3]
 
 
 # ---------------------------------------------------------------------------

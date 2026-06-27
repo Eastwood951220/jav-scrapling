@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 import hashlib
+import re
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 
@@ -41,6 +42,69 @@ def build_magnet_dedupe_key(movie_id: str, magnet: dict[str, Any]) -> str:
         str(magnet.get("date") or ""),
     ]
     return hashlib.sha1("|".join(parts).encode("utf-8")).hexdigest()
+
+
+def _parse_size_mb(value) -> float:
+    """Parse a size value (float, int, or string like '8.75GB') into MB."""
+    if isinstance(value, (int, float)):
+        return float(value)
+    if not value:
+        return 0.0
+    size_str = str(value).strip().upper()
+    match = re.match(r"([\d.]+)\s*(GB|MB|KB|TB)?", size_str)
+    if not match:
+        return 0.0
+    number = float(match.group(1))
+    unit = match.group(2) or "MB"
+    multipliers = {"KB": 1 / 1024, "MB": 1, "GB": 1024, "TB": 1024 * 1024}
+    return number * multipliers.get(unit, 1)
+
+
+def _has_chinese_sub(magnet: dict) -> bool:
+    """Check if a magnet has Chinese subtitles via field, tags, or title keywords."""
+    if magnet.get("has_chinese_sub"):
+        return True
+    tags = magnet.get("tags") or []
+    if any("字幕" in str(tag) or "中字" in str(tag) for tag in tags):
+        return True
+    title = (magnet.get("title") or magnet.get("name") or "").lower()
+    return any(kw in title for kw in ["chs", "cht", "chinese", "中字", "中文", "字幕"])
+
+
+def select_best_magnet(magnets: list[dict] | None) -> dict | None:
+    """Pick the best magnet using weight-based ranking.
+
+    Ranking priority (descending):
+    1. is_large_sub: Chinese subtitle AND size > 2 GB
+    2. has_sub: has Chinese subtitles (any size)
+    3. size_mb: raw file size in MB (tiebreaker)
+
+    Args:
+        magnets: List of magnet dicts (from MongoDB or raw crawl data).
+
+    Returns:
+        The best magnet dict, or None if no valid magnets.
+    """
+    if not magnets:
+        return None
+
+    scored = []
+    for magnet in magnets:
+        if not isinstance(magnet, dict):
+            continue
+        magnet_url = magnet.get("magnet") or magnet.get("magnet_url")
+        if not magnet_url:
+            continue
+        has_sub = _has_chinese_sub(magnet)
+        size_mb = _parse_size_mb(magnet.get("size") or magnet.get("size_text"))
+        is_large_sub = has_sub and size_mb > 2048
+        scored.append((is_large_sub, has_sub, size_mb, magnet))
+
+    if not scored:
+        return None
+
+    scored.sort(key=lambda item: (item[0], item[1], item[2]), reverse=True)
+    return scored[0][3]
 
 
 class MovieMagnetRepository:
@@ -101,6 +165,41 @@ class MovieMagnetRepository:
             self.logger.warning("Failed to upsert movie magnets: %s", exc)
 
         return saved_count
+
+    def auto_select_best_magnet(self, movie_id: str) -> str | None:
+        """Select the best magnet for a movie and persist the selection.
+
+        Queries all magnets for the given movie, ranks them using
+        select_best_magnet(), and writes selected_magnet_dedupe_key
+        to the movie document.
+
+        Args:
+            movie_id: The movie's ObjectId as a string.
+
+        Returns:
+            The selected dedupe_key, or None if no magnets found.
+        """
+        try:
+            magnets = list(self.get_collection().find({"movie_id": movie_id}))
+            best = select_best_magnet(magnets)
+            if not best:
+                return None
+
+            dedupe_key = best.get("dedupe_key", "")
+            if not dedupe_key:
+                return None
+
+            from bson import ObjectId
+            from app.db.collections import MOVIES
+
+            self.db[MOVIES].update_one(
+                {"_id": ObjectId(movie_id)},
+                {"$set": {"selected_magnet_dedupe_key": dedupe_key}},
+            )
+            return dedupe_key
+        except Exception as exc:
+            self.logger.warning("Failed to auto-select best magnet for %s: %s", movie_id, exc)
+            return None
 
     def _normalize(
         self,
