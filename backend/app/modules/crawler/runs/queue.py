@@ -121,6 +121,7 @@ def _persist_crawled_item(repository, magnet_repository, cleaned_item: dict):
 
     if movie_id and magnets:
         magnet_repository.upsert_many(movie_id, movie_doc, magnets)
+        magnet_repository.auto_select_best_magnet(str(movie_id))
 
     return movie_id
 
