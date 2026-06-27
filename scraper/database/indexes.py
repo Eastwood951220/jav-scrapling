@@ -15,8 +15,8 @@ MOVIE_INDEXES: list[IndexModel] = [
         name="idx_movie_source_url_unique",
     ),
     IndexModel(
-        [("source_task_name", ASCENDING), ("code", ASCENDING)],
-        name="idx_movie_source_task_code",
+        [("source_task_name", ASCENDING)],
+        name="idx_movie_source_task_name",
     ),
     IndexModel(
         [("release_date", DESCENDING)],

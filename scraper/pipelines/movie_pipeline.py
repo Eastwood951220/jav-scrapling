@@ -35,7 +35,7 @@ class MoviePipeline(BasePipeline):
             result["tags"] = ["中文字幕"]
 
         if task_name:
-            result["source_task_name"] = task_name
+            result["source_task_name"] = [task_name]
 
         # Enrich magnet tags from name
         magnets = item.get("magnets")

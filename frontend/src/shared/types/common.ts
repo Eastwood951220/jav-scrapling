@@ -58,7 +58,6 @@ export interface Movie {
   has_chinese_sub?: boolean;
   source_url?: string;
   source_code?: string;
-  source_page?: number;
   storage_summary?: StorageSummary;
   created_at?: string;
   updated_at?: string;

@@ -123,7 +123,6 @@ class MovieService:
             "source_url": detail_task.get("url"),
             "source_name": detail_task.get("name") or detail.get("source_name"),
             "source_code": source_code,
-            "source_page": detail_task.get("source_page"),
             "config_task_name": task.name,
         }
 

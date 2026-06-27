@@ -180,6 +180,7 @@ def list_movies(
             {"source_name": {"$regex": escaped, "$options": "i"}},
             {"code": {"$regex": escaped, "$options": "i"}},
             {"config_task_name": {"$regex": escaped, "$options": "i"}},
+            {"source_task_name": {"$regex": escaped, "$options": "i"}},
         ]
 
     if source_task_name:
@@ -281,6 +282,7 @@ def export_magnets(
             {"source_name": {"$regex": escaped, "$options": "i"}},
             {"code": {"$regex": escaped, "$options": "i"}},
             {"config_task_name": {"$regex": escaped, "$options": "i"}},
+            {"source_task_name": {"$regex": escaped, "$options": "i"}},
         ]
 
     if source_task_name:

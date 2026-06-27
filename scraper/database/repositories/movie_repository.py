@@ -59,6 +59,26 @@ class MovieRepository:
             self.logger.warning("Failed to insert movie: %s", exc)
             return None
 
+    def add_source_task_name(self, code: str, task_name: str) -> bool:
+        """Add a task name to an existing movie's source_task_name list.
+        Returns True if the movie was found and updated."""
+        if not self.available or not code:
+            return False
+
+        try:
+            collection = self.get_collection()
+            result = collection.update_one(
+                {"code": code},
+                {
+                    "$addToSet": {"source_task_name": task_name},
+                    "$set": {"updated_at": datetime.now()},
+                },
+            )
+            return result.modified_count > 0
+        except PyMongoError as exc:
+            self.logger.warning("Failed to add source_task_name: %s", exc)
+            return False
+
     def upsert_movie(self, item: dict):
         if not self.available:
             return None
