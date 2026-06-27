@@ -23,11 +23,17 @@ const URL_TYPE_PARAMS: Record<string, CondParamConfig> = {
   video_codes: { magnet: "f=download", sub: "f=cnsub", both: "" },
   lists: { magnet: "f=download", sub: "f=cnsub", both: "" },
   tags: { magnet: "c10=1", sub: "c10=2", both: "c10=1,2" },
+  search: { magnet: "f=download", sub: "f=cnsub", both: "" },
 };
 
 const SORT_OPTIONS = [
   { value: 0, label: "日期降序" },
   { value: 5, label: "番号降序" },
+];
+
+const SEARCH_SORT_OPTIONS = [
+  { value: 0, label: "按相关度" },
+  { value: 1, label: "按发布日期" },
 ];
 
 const URL_TYPE_OPTIONS = [
@@ -41,7 +47,7 @@ const URL_TYPE_OPTIONS = [
   { value: "search", label: "搜索 (search)" },
 ];
 
-const PARAM_KEYS = ["t", "f", "c10", "sort", "page"] as const;
+const PARAM_KEYS = ["t", "f", "c10", "sort", "page", "sb"] as const;
 
 function stripQueryParams(rawUrl: string): string {
   try {
@@ -61,7 +67,37 @@ function buildFinalUrl(
   hasSub: boolean,
   sortType: number,
 ): string {
-  if (!baseUrl || !(urlType in URL_TYPE_PARAMS)) return baseUrl;
+  if (!baseUrl) return baseUrl;
+
+  // search 类型不使用 URL_TYPE_PARAMS，直接处理
+  if (urlType === "search") {
+    const stripped = stripQueryParams(baseUrl);
+    const parts: string[] = [];
+
+    if (hasMagnet && hasSub) {
+      // 同时勾选磁力和字幕时，优先显示磁力
+      parts.push("f=download");
+    } else if (hasMagnet) {
+      parts.push("f=download");
+    } else if (hasSub) {
+      parts.push("f=cnsub");
+    }
+
+    // sb 排序参数
+    parts.push(`sb=${sortType}`);
+
+    if (parts.length === 0) return stripped;
+
+    try {
+      const u = new URL(baseUrl);
+      const base = u.origin + stripped;
+      return base + (stripped.includes("?") ? "&" : "?") + parts.join("&");
+    } catch {
+      return stripped + (stripped.includes("?") ? "&" : "?") + parts.join("&");
+    }
+  }
+
+  if (!(urlType in URL_TYPE_PARAMS)) return baseUrl;
 
   const stripped = stripQueryParams(baseUrl);
   const parts: string[] = [];
@@ -141,7 +177,8 @@ function UrlEntryCard({
         {({ getFieldValue }) => {
           const urlType = getFieldValue(["urls", index, "url_type"]) as UrlType;
           const showConditions = urlType in URL_TYPE_PARAMS;
-          const showSort = urlType === "video_codes";
+          const showSort = urlType === "video_codes" || urlType === "search";
+          const sortOptions = urlType === "search" ? SEARCH_SORT_OPTIONS : SORT_OPTIONS;
 
           if (!showConditions) return null;
 
@@ -157,7 +194,7 @@ function UrlEntryCard({
 
               {showSort && (
                 <Form.Item name={[index, "sort_type"]} label="排序方式">
-                  <Select options={SORT_OPTIONS} />
+                  <Select options={sortOptions} />
                 </Form.Item>
               )}
             </>
@@ -207,7 +244,7 @@ function UrlEntryCard({
         {({ getFieldValue }) => {
           const url = getFieldValue(["urls", index, "url"]) as string;
           const urlType = getFieldValue(["urls", index, "url_type"]) as string;
-          const canExtract = url && urlType && urlType !== "search" && urlType !== "tags";
+          const canExtract = url && urlType && urlType !== "tags";
 
           return (
             <Button
@@ -294,7 +331,7 @@ export default function TaskForm() {
         let urlName = entry.url_name as string | undefined;
 
         // If no url_name and the type supports extraction, auto-fetch
-        if (!urlName && urlType && urlType !== "search" && urlType !== "tags") {
+        if (!urlName && urlType && urlType !== "tags") {
           try {
             const result = await extractName(entry.url as string, urlType);
             if (result.name) {
