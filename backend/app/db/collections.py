@@ -1,7 +1,6 @@
 MOVIES = "movies"
 MOVIE_MAGNETS = "movie_magnets"
-MOVIE_ACTORS = "movie_actors"
-MOVIE_TAGS = "movie_tags"
+MOVIE_FILTERS = "movie_filters"
 CRAWL_TASKS = "crawl_tasks"
 CRAWL_RUNS = "crawl_runs"
 CRAWL_RUN_DETAIL_TASKS = "crawl_run_detail_tasks"

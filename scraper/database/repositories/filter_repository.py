@@ -1,40 +1,64 @@
-"""Repository for maintaining actor and tag filter collections."""
+"""Repository for maintaining the unified movie_filters collection."""
 
-from app.db.collections import MOVIES, MOVIE_ACTORS, MOVIE_TAGS
+from app.db.collections import MOVIES, MOVIE_FILTERS
+
+# Fields that are arrays on movie documents
+_ARRAY_FIELDS: dict[str, str] = {
+    "actors": "actor",
+    "tags": "tag",
+}
+
+# Fields that are scalars on movie documents
+_SCALAR_FIELDS: dict[str, str] = {
+    "director": "director",
+    "maker": "maker",
+    "series": "series",
+}
+
+# All fields to project from movies collection
+_PROJECT_FIELDS = {f: 1 for f in list(_ARRAY_FIELDS) + list(_SCALAR_FIELDS)}
 
 
 def sync_movie_filters(db) -> dict[str, int]:
-    """Scan all movies, deduplicate actors/tags, and write to movie_actors/movie_tags.
+    """Scan all movies, deduplicate filter values, and write to movie_filters.
 
     Args:
         db: MongoDB database instance from get_mongo_db().
 
     Returns:
-        Dict with 'actors' and 'tags' counts.
+        Dict with counts per filter type: actors, tags, directors, makers, series.
     """
     col = db[MOVIES]
 
-    actors_set: set[str] = set()
-    tags_set: set[str] = set()
+    accumulators: dict[str, set[str]] = {v: set() for v in _ARRAY_FIELDS.values()}
+    accumulators.update({v: set() for v in _SCALAR_FIELDS.values()})
 
-    for doc in col.find({}, {"actors": 1, "tags": 1}):
-        for actor in doc.get("actors", []):
-            if isinstance(actor, str) and actor.strip():
-                actors_set.add(actor.strip())
-        for tag in doc.get("tags", []):
-            if isinstance(tag, str) and tag.strip():
-                tags_set.add(tag.strip())
+    for doc in col.find({}, _PROJECT_FIELDS):
+        # Array fields
+        for field, filter_type in _ARRAY_FIELDS.items():
+            for val in doc.get(field, []):
+                if isinstance(val, str) and val.strip():
+                    accumulators[filter_type].add(val.strip())
+        # Scalar fields
+        for field, filter_type in _SCALAR_FIELDS.items():
+            val = doc.get(field, "")
+            if isinstance(val, str) and val.strip():
+                accumulators[filter_type].add(val.strip())
 
-    db[MOVIE_ACTORS].drop()
-    db[MOVIE_TAGS].drop()
+    db[MOVIE_FILTERS].drop()
 
-    if actors_set:
-        db[MOVIE_ACTORS].insert_many(
-            [{"name": name} for name in sorted(actors_set)]
-        )
-    if tags_set:
-        db[MOVIE_TAGS].insert_many(
-            [{"name": name} for name in sorted(tags_set)]
-        )
+    docs_to_insert = []
+    for filter_type, names in accumulators.items():
+        for name in sorted(names):
+            docs_to_insert.append({"type": filter_type, "name": name})
 
-    return {"actors": len(actors_set), "tags": len(tags_set)}
+    if docs_to_insert:
+        db[MOVIE_FILTERS].insert_many(docs_to_insert)
+
+    return {
+        "actors": len(accumulators.get("actor", set())),
+        "tags": len(accumulators.get("tag", set())),
+        "directors": len(accumulators.get("director", set())),
+        "makers": len(accumulators.get("maker", set())),
+        "series": len(accumulators.get("series", set())),
+    }

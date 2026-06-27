@@ -72,6 +72,19 @@ MAGNET_INDEXES: list[IndexModel] = [
 ]
 
 
+MOVIE_FILTERS_INDEXES: list[IndexModel] = [
+    IndexModel(
+        [("type", ASCENDING), ("name", ASCENDING)],
+        unique=True,
+        name="idx_movie_filters_type_name",
+    ),
+    IndexModel(
+        [("type", ASCENDING)],
+        name="idx_movie_filters_type",
+    ),
+]
+
+
 def ensure_indexes(db, collection_name: str = "movies") -> None:
     """Ensure all movie indexes exist on the target collection."""
     collection = db[collection_name]
@@ -82,3 +95,9 @@ def ensure_magnet_indexes(db, collection_name: str = "movie_magnets") -> None:
     """Ensure all movie magnet indexes exist on the target collection."""
     collection = db[collection_name]
     collection.create_indexes(MAGNET_INDEXES)
+
+
+def ensure_filters_indexes(db, collection_name: str = "movie_filters") -> None:
+    """Ensure all movie filter indexes exist on the target collection."""
+    collection = db[collection_name]
+    collection.create_indexes(MOVIE_FILTERS_INDEXES)

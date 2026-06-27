@@ -8,8 +8,7 @@ from fastapi import APIRouter, HTTPException, Query
 from app.db.collections import (
     MOVIES,
     MOVIE_MAGNETS,
-    MOVIE_ACTORS,
-    MOVIE_TAGS,
+    MOVIE_FILTERS,
     CRAWL_COOKIES_CONFIG,
     CRAWL_RUNS,
     CRAWL_RUN_DETAIL_TASKS,
@@ -130,16 +129,16 @@ def delete_collection(collection_name: str):
 def list_actors():
     """Return deduplicated actor names."""
     db = get_mongo_db()
-    col = db[MOVIE_ACTORS]
-    return [doc["name"] for doc in col.find({}, {"name": 1, "_id": 0}).sort("name", 1)]
+    col = db[MOVIE_FILTERS]
+    return [doc["name"] for doc in col.find({"type": "actor"}, {"name": 1, "_id": 0}).sort("name", 1)]
 
 
 @router.get("/tags")
 def list_tags():
     """Return deduplicated tag names."""
     db = get_mongo_db()
-    col = db[MOVIE_TAGS]
-    return [doc["name"] for doc in col.find({}, {"name": 1, "_id": 0}).sort("name", 1)]
+    col = db[MOVIE_FILTERS]
+    return [doc["name"] for doc in col.find({"type": "tag"}, {"name": 1, "_id": 0}).sort("name", 1)]
 
 
 @router.get("", response_model=MovieListResponse)
