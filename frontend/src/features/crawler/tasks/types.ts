@@ -7,6 +7,7 @@ export interface TaskUrlEntry {
   sort_type?: number;
   source?: string;
   final_url?: string;
+  url_name?: string;
 }
 
 /** Crawl task model. */

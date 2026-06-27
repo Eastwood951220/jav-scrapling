@@ -27,3 +27,7 @@ export function deleteTask(id: string): Promise<{ deleted: boolean }> {
 export function runTask(id: string): Promise<TaskRun> {
   return client.post(`/crawler/tasks/${id}/run`).then((res) => res.data);
 }
+
+export function extractName(url: string, url_type: string): Promise<{ name: string }> {
+  return client.post("/crawler/tasks/extract-name", { url, url_type }).then((res) => res.data);
+}

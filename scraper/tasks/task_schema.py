@@ -12,6 +12,7 @@ class CrawlTaskUrlEntry:
     sort_type: int = 0
     source: str | None = None
     final_url: str | None = None
+    url_name: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -22,6 +23,7 @@ class CrawlTaskUrlEntry:
             "sort_type": self.sort_type,
             "source": self.source,
             "final_url": self.final_url,
+            "url_name": self.url_name,
         }
 
 

@@ -19,6 +19,7 @@ def build_crawl_task_from_doc(doc: dict[str, Any]) -> CrawlTask:
                 sort_type=entry.get("sort_type", 0),
                 source=entry.get("source"),
                 final_url=entry.get("final_url"),
+                url_name=entry.get("url_name"),
             ))
     # Legacy format: single url field
     elif "url" in doc:

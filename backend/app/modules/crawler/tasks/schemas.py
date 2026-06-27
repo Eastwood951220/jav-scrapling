@@ -9,6 +9,7 @@ class TaskUrlEntry(BaseModel):
     has_chinese_sub: bool = False
     sort_type: int = 0
     final_url: str | None = None
+    url_name: str | None = None
 
 
 class TaskCreate(BaseModel):

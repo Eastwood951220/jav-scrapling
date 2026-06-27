@@ -114,6 +114,7 @@ def create_task(body: TaskCreate):
             "sort_type": entry.sort_type,
             "source": source,
             "final_url": final_url,
+            "url_name": entry.url_name,
         })
 
     doc = {
@@ -176,6 +177,7 @@ def update_task(task_id: str, body: TaskUpdate):
                 "sort_type": entry.get("sort_type", 0),
                 "source": source,
                 "final_url": final_url,
+                "url_name": entry.get("url_name"),
             })
         update_data["urls"] = url_entries
 
