@@ -37,9 +37,6 @@ def extract_name(body: ExtractNameRequest):
         except Exception:
             return {"name": ""}
 
-    if body.url_type == "tags":
-        return {"name": ""}
-
     try:
         from scraper.config.sites import JAVDB_SITE
         from scraper.cookies.cookie_manager import CookieManager

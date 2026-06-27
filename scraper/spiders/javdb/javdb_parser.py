@@ -245,10 +245,17 @@ _SECTION_NAME_CONFIG: dict[str, dict[str, str | bool]] = {
 
 
 def _extract_tags_name(page) -> str:
-    """从页面的 #tags 区域提取标签名称。
+    """从页面提取标签名称。
 
-    查找 div.tag.is-info 元素，过滤掉含磁鏈/含字幕，多个用 - 拼接。
+    优先从 .section-title .section-name 提取（列表页），
+    回退到 #tags 区域的 div.tag.is-info 提取（详情页）。
     """
+    # Try listing page structure first: .section-title .section-name
+    raw = _first_text(page, [".section-title .section-name::text"])
+    if raw:
+        return raw
+
+    # Fall back to detail page structure: #tags div.tag.is-info
     tags_div = page.css("#tags")
     if not tags_div:
         return ""
