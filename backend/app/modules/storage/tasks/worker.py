@@ -18,6 +18,8 @@ import traceback
 from datetime import datetime, timezone
 from pathlib import PurePosixPath
 
+import grpc
+
 from app.db.collections import MOVIES, STORAGE_CONFIG, STORAGE_TASKS
 from app.modules.storage.tasks.logs import append_storage_task_log
 from clouddrive.clouddrive_grpc_client import CloudDriveGrpcClient
@@ -114,8 +116,19 @@ def _update_task(task_id: str, update: dict) -> None:
     _tasks_col().update_one({"task_id": task_id}, {"$set": update})
 
 
-def _update_movie_summary(movie_id: str, task_id: str, status: str) -> None:
-    """Update the movie's storage_summary subdocument."""
+def _update_movie_summary(
+    movie_id: str,
+    task_id: str,
+    status: str,
+    moved_files: list[dict] | None = None,
+) -> None:
+    """Update the movie's storage_summary subdocument.
+
+    When *moved_files* is provided (list of dicts with ``moved_path`` and
+    ``copied_paths``), the function builds a ``locations`` array where each
+    entry contains ``{path, target_folder}`` derived from the file path's
+    parent directory.
+    """
     from bson import ObjectId
     from bson.errors import InvalidId
 
@@ -123,13 +136,32 @@ def _update_movie_summary(movie_id: str, task_id: str, status: str) -> None:
         oid = ObjectId(movie_id)
     except (InvalidId, TypeError):
         return
+
+    update_fields: dict = {
+        "storage_summary.last_task_id": task_id,
+        "storage_summary.last_status": status,
+        "storage_summary.updated_at": datetime.now(timezone.utc),
+    }
+
+    # Record storage locations from moved/copied files
+    if moved_files is not None:
+        locations: list[dict] = []
+        for f in moved_files:
+            moved_path = f.get("moved_path")
+            if moved_path:
+                parent = PurePosixPath(moved_path).parent.as_posix()
+                locations.append({"path": moved_path, "target_folder": parent})
+            for cp in f.get("copied_paths", []):
+                parent = PurePosixPath(cp).parent.as_posix()
+                locations.append({"path": cp, "target_folder": parent})
+        update_fields["storage_summary.locations"] = locations
+    elif status == "completed":
+        # Clear locations when completing without moved_files (retry/reset)
+        update_fields["storage_summary.locations"] = []
+
     _movies_col().update_one(
         {"_id": oid},
-        {"$set": {
-            "storage_summary.last_task_id": task_id,
-            "storage_summary.last_status": status,
-            "storage_summary.updated_at": datetime.now(timezone.utc),
-        }},
+        {"$set": update_fields},
     )
 
 
@@ -261,8 +293,9 @@ def _is_step_done(task: dict, step: str, config: dict) -> bool:
     cd2 = _build_cd2_client(config)
     try:
         if step == "submit_magnet":
-            # Already submitted if task has a cd2_task_name
-            if task.get("download", {}).get("cd2_task_name"):
+            # Already submitted if task has a cd2_task_name or found existing download
+            dl = task.get("download", {})
+            if dl.get("cd2_task_name") or dl.get("status") in ("submitted", "found_existing"):
                 return True
 
         elif step == "scan_files":
@@ -375,32 +408,117 @@ def _step_prepare(task: dict, config: dict) -> dict:
     }
 
 
+def _is_duplicate_magnet_error(error: Exception) -> bool:
+    """Check if a gRPC error indicates the magnet was already submitted (code 10008)."""
+    if not isinstance(error, grpc.RpcError):
+        return False
+    details = str(error.details()) if hasattr(error, "details") else str(error)
+    return "10008" in details or "任务已存在" in details
+
+
+def _find_existing_download(cd2, download_root: str, task_id: str) -> list[dict]:
+    """Search download root and subdirectories for existing download files.
+
+    When a magnet was already submitted, the download may exist in:
+    - {download_root}/{task_id}/ (use_task_subfolder=True)
+    - {download_root}/ (use_task_subfolder=False)
+    - Any subdirectory of download_root
+    """
+    found_files = []
+
+    try:
+        entries = [_file_to_dict(f) for f in cd2.list_sub_files(download_root)]
+        for entry in entries:
+            if entry.get("is_dir"):
+                # Scan subdirectories for actual files
+                try:
+                    sub_files = [_file_to_dict(f) for f in cd2.list_sub_files(entry["path"])]
+                    found_files.extend([f for f in sub_files if not f.get("is_dir")])
+                except Exception:
+                    pass
+            else:
+                found_files.append(entry)
+    except Exception:
+        pass
+
+    return found_files
+
+
 def _step_submit_magnet(task: dict, config: dict) -> dict:
-    """Step 2: Submit magnet to CloudDrive2 offline download."""
+    """Step 2: Submit magnet to CloudDrive2 offline download.
+
+    If the magnet was already submitted (error code 10008), searches for
+    existing download files and continues the pipeline.
+    """
     task_id = task["task_id"]
     magnet_url = task["magnet_url"]
     download_path = task["download_path"]
 
     cd2 = _build_cd2_client(config)
     try:
-        # Create download folder
-        cd2.create_folder(download_path)
+        # Create download folder (may already exist)
+        try:
+            cd2.create_folder(download_path)
+        except Exception:
+            pass
 
-        result = cd2.add_offline_download(magnet_url, download_path)
-        cd2_task_name = getattr(result, "taskName", "") or getattr(result, "task_name", "")
+        try:
+            result = cd2.add_offline_download(magnet_url, download_path)
+            cd2_task_name = getattr(result, "taskName", "") or getattr(result, "task_name", "")
 
-        _update_task(task_id, {
-            "download.cd2_task_name": cd2_task_name,
-            "download.submitted_at": datetime.now(timezone.utc),
-            "download.status": "submitted",
-        })
+            _update_task(task_id, {
+                "download.cd2_task_name": cd2_task_name,
+                "download.submitted_at": datetime.now(timezone.utc),
+                "download.status": "submitted",
+            })
+            _append_log(task_id, f"磁力链接已提交: task_name={cd2_task_name}", step="submit_magnet")
 
-        _append_log(task_id, f"磁力链接已提交: task_name={cd2_task_name}", step="submit_magnet")
+            return {**task, "download": {
+                "cd2_task_name": cd2_task_name,
+                "status": "submitted",
+            }}
 
-        return {**task, "download": {
-            "cd2_task_name": cd2_task_name,
-            "status": "submitted",
-        }}
+        except grpc.RpcError as rpc_err:
+            if not _is_duplicate_magnet_error(rpc_err):
+                raise
+
+            # Duplicate magnet — the download already exists on CloudDrive2
+            _append_log(
+                task_id,
+                "磁力链接已存在 (code 10008)，搜索现有下载...",
+                "WARNING",
+                step="submit_magnet",
+            )
+
+            # Search for existing files in the download folder
+            download_root = config.get("download_root_folder", "/Downloads")
+            existing_files = _find_existing_download(cd2, download_root, task_id)
+
+            if existing_files:
+                _append_log(
+                    task_id,
+                    f"找到现有下载: {len(existing_files)} 个文件",
+                    step="submit_magnet",
+                )
+                _update_task(task_id, {
+                    "download.status": "found_existing",
+                    "download.found_files": len(existing_files),
+                })
+            else:
+                _append_log(
+                    task_id,
+                    "未找到现有文件，将在等待下载步骤中继续轮询",
+                    "WARNING",
+                    step="submit_magnet",
+                )
+                _update_task(task_id, {
+                    "download.status": "submitted_duplicate",
+                })
+
+            return {**task, "download": {
+                "status": "found_existing" if existing_files else "submitted_duplicate",
+                "found_files": len(existing_files),
+            }}
     finally:
         cd2.close()
 
@@ -915,7 +1033,10 @@ def _execute_task(task: dict, config: dict) -> None:
         "error_message": None,
         "completed_at": datetime.now(timezone.utc),
     })
-    _update_movie_summary(task["movie_id"], task_id, "completed")
+    _update_movie_summary(
+        task["movie_id"], task_id, "completed",
+        moved_files=task.get("moved_files"),
+    )
     _append_log(task_id, "任务全部完成")
 
 
