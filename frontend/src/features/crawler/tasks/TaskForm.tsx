@@ -48,7 +48,7 @@ const URL_TYPE_LABELS: Record<UrlType, string> = {
 };
 
 /** 从 URL 路径自动检测 URL 类型 */
-function detectUrlType(url: string): UrlType | null {
+export function detectUrlType(url: string): UrlType | null {
   try {
     const u = new URL(url);
     const path = u.pathname;
@@ -60,7 +60,7 @@ function detectUrlType(url: string): UrlType | null {
     if (path.startsWith("/directors/")) return "directors";
     if (path.startsWith("/video_codes/")) return "video_codes";
     if (path.startsWith("/lists/")) return "lists";
-    if (path.startsWith("/tags/")) return "tags";
+    if (path === "/tags" || path.startsWith("/tags/")) return "tags";
 
     return null;
   } catch {
