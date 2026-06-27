@@ -29,11 +29,20 @@ export interface MovieMagnet {
   weight?: number;
 }
 
+/** A single storage location entry with existence check. */
+export interface StorageLocation {
+  path: string;
+  target_folder: string;
+  exists?: boolean;
+}
+
 /** Storage task summary embedded in a movie document. */
 export interface StorageSummary {
   last_task_id?: string;
   last_status?: string;
   updated_at?: string;
+  synced_at?: string;
+  locations?: StorageLocation[];
 }
 
 /** Movie document returned by the backend. */

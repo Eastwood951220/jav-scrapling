@@ -1,5 +1,5 @@
 import client from "@/shared/api/client";
-import type { MovieListResponse } from "./types";
+import type { MovieListResponse, StorageLocation } from "./types";
 
 export type { MovieListResponse } from "./types";
 
@@ -24,6 +24,7 @@ export function fetchMovies(params: {
   series?: string;
   date_from?: string;
   date_to?: string;
+  storage_status?: string;
 }): Promise<MovieListResponse> {
   return client.get("/movies", { params }).then((res) => res.data);
 }
@@ -111,4 +112,26 @@ export function batchCreateStorageTasks(
   options?: { skip_running?: boolean; skip_completed?: boolean; retry_failed?: boolean },
 ): Promise<StorageBatchResponse> {
   return client.post("/storage/tasks/batch", { movie_ids: movieIds, ...options }).then((res) => res.data);
+}
+
+// ---------------------------------------------------------------------------
+// Storage location sync API
+// ---------------------------------------------------------------------------
+
+export interface SyncLocationResult {
+  locations: StorageLocation[];
+  synced: boolean;
+}
+
+export interface SyncBatchResult {
+  results: { movie_id: string; synced: boolean; locations: StorageLocation[] }[];
+  total: number;
+}
+
+export function syncMovieLocation(movieId: string): Promise<SyncLocationResult> {
+  return client.post(`/movies/${movieId}/sync-location`).then((res) => res.data);
+}
+
+export function syncMovieLocationsBatch(ids: string[]): Promise<SyncBatchResult> {
+  return client.post("/movies/sync-location/batch", { ids }).then((res) => res.data);
 }

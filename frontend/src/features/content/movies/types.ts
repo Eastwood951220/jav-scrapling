@@ -1,6 +1,6 @@
-import type { Movie } from "@/shared/types/common";
+import type { Movie, StorageLocation } from "@/shared/types/common";
 
-export type { Movie };
+export type { Movie, StorageLocation };
 
 /** Paginated movie list response. */
 export interface MovieListResponse {

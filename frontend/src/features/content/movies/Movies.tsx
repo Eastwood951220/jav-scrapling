@@ -21,7 +21,7 @@ import {
     Row,
     Col,
 } from "antd";
-import {SearchOutlined, ReloadOutlined, DownloadOutlined, DeleteOutlined, CloudUploadOutlined} from "@ant-design/icons";
+import {SearchOutlined, ReloadOutlined, DownloadOutlined, DeleteOutlined, CloudUploadOutlined, SyncOutlined} from "@ant-design/icons";
 import type {ColumnsType} from "antd/es/table";
 import type {Dayjs} from "dayjs";
 import {
@@ -34,9 +34,11 @@ import {
     fetchAllMagnets,
     createStorageTask,
     batchCreateStorageTasks,
-    selectMagnet
+    selectMagnet,
+    syncMovieLocation,
+    syncMovieLocationsBatch,
 } from "./api";
-import type {StorageBatchResponse} from "./api";
+import type {StorageBatchResponse, SyncBatchResult} from "./api";
 import type {Movie, MovieListResponse} from "./types";
 import type {MovieMagnet} from "@/shared/types/common";
 import {getErrorMessage} from "@/shared/hooks/useErrorMessage";
@@ -66,6 +68,7 @@ export default function Movies() {
     const [selectedSeries, setSelectedSeries] = useState<string[]>([]);
     const [filtersLoading, setFiltersLoading] = useState(false);
     const [dateRange, setDateRange] = useState<[Dayjs | null, Dayjs | null]>([null, null]);
+    const [storageStatus, setStorageStatus] = useState<string | undefined>(undefined);
 
     // Storage push state
     const [pushModalOpen, setPushModalOpen] = useState(false);
@@ -81,6 +84,9 @@ export default function Movies() {
     const [selectMagnetOpen, setSelectMagnetOpen] = useState(false);
     const [selectMagnetMovie, setSelectMagnetMovie] = useState<Movie | null>(null);
     const [selectMagnetLoading, setSelectMagnetLoading] = useState(false);
+    const [syncLoading, setSyncLoading] = useState(false);
+    const [batchSyncLoading, setBatchSyncLoading] = useState(false);
+    const [batchSyncResult, setBatchSyncResult] = useState<SyncBatchResult | null>(null);
 
     const loadFilters = useCallback(async () => {
         setFiltersLoading(true);
@@ -132,6 +138,7 @@ export default function Movies() {
                 series: selectedSeries.length > 0 ? selectedSeries.join(",") : undefined,
                 date_from: dateRange[0]?.format("YYYY-MM-DD"),
                 date_to: dateRange[1]?.format("YYYY-MM-DD"),
+                storage_status: storageStatus,
             });
             setData(result);
         } catch (e: unknown) {
@@ -139,7 +146,7 @@ export default function Movies() {
         } finally {
             setLoading(false);
         }
-    }, [selectedTask, search, sortBy, sortOrder, ratingMin, pageSize, selectedActors, selectedTags, selectedDirectors, selectedMakers, selectedSeries, dateRange]);
+    }, [selectedTask, search, sortBy, sortOrder, ratingMin, pageSize, selectedActors, selectedTags, selectedDirectors, selectedMakers, selectedSeries, dateRange, storageStatus]);
 
     useEffect(() => {
         loadTasks();
@@ -363,6 +370,48 @@ export default function Movies() {
         }
     };
 
+    // --- Storage location sync handlers ---
+
+    const handleSyncLocation = async (movie: Movie) => {
+        setSyncLoading(true);
+        try {
+            const result = await syncMovieLocation(movie._id);
+            message.success("同步完成");
+            setData((prev) => ({
+                ...prev,
+                items: prev.items.map((item) =>
+                    item._id === movie._id
+                        ? { ...item, storage_summary: { ...item.storage_summary, locations: result.locations, synced_at: new Date().toISOString() } }
+                        : item
+                ),
+            }));
+            if (detail && (detail._id as string) === movie._id) {
+                const storageSummary = (detail.storage_summary as Record<string, unknown>) || {};
+                setDetail({ ...detail, storage_summary: { ...storageSummary, locations: result.locations, synced_at: new Date().toISOString() } });
+            }
+        } catch (e: unknown) {
+            message.error(getErrorMessage(e));
+        } finally {
+            setSyncLoading(false);
+        }
+    };
+
+    const handleBatchSync = async () => {
+        if (selectedRowKeys.length === 0) return;
+        setBatchSyncLoading(true);
+        setBatchSyncResult(null);
+        try {
+            const result = await syncMovieLocationsBatch(selectedRowKeys as string[]);
+            setBatchSyncResult(result);
+            message.success(`同步完成: ${result.total} 部`);
+            loadMovies(data.page);
+        } catch (e: unknown) {
+            message.error(getErrorMessage(e));
+        } finally {
+            setBatchSyncLoading(false);
+        }
+    };
+
     const storageStatusColor: Record<string, string> = {
         pending: "processing",
         running: "processing",
@@ -373,6 +422,7 @@ export default function Movies() {
         completed: "success",
         failed: "error",
         retryable: "warning",
+        missing: "error",
     };
 
     const storageStatusText: Record<string, string> = {
@@ -385,6 +435,7 @@ export default function Movies() {
         completed: "已完成",
         failed: "失败",
         retryable: "可重试",
+        missing: "文件缺失",
     };
 
     const columns: ColumnsType<Movie> = [
@@ -460,7 +511,7 @@ export default function Movies() {
             title: "操作",
             key: "actions",
             fixed: 'right',
-            width: 320,
+            width: 400,
             render: (_: unknown, record: Movie) => {
                 const ss = record.storage_summary;
                 const hasMagnet = getMovieMagnetLinks(record).length > 0;
@@ -477,6 +528,17 @@ export default function Movies() {
                         >
                             选择磁力
                         </Button>
+                        {ss?.locations && ss.locations.length > 0 && (
+                            <Button
+                                type="link"
+                                size="small"
+                                icon={<SyncOutlined/>}
+                                loading={syncLoading}
+                                onClick={() => handleSyncLocation(record)}
+                            >
+                                同步存储
+                            </Button>
+                        )}
                         {ss?.last_status && ["pending", "running", "waiting_download", "downloading", "moving"].includes(ss.last_status) ? (
                             <Button type="link" size="small" disabled>
                                 推送中
@@ -592,6 +654,23 @@ export default function Movies() {
                         maxTagCount="responsive"
                         allowClear
                     />
+                    <Select
+                        style={{width: 160}}
+                        value={storageStatus}
+                        onChange={setStorageStatus}
+                        placeholder="存储状态筛选"
+                        allowClear
+                        options={[
+                            {value: "completed", label: "已完成"},
+                            {value: "missing", label: "文件缺失"},
+                            {value: "failed", label: "失败"},
+                            {value: "pending", label: "等待中"},
+                            {value: "running", label: "运行中"},
+                            {value: "waiting_download", label: "等待下载"},
+                            {value: "waiting_retry", label: "等待重试"},
+                            {value: "retryable", label: "可重试"},
+                        ]}
+                    />
                     <InputNumber
                         style={{width: 120}}
                         placeholder="最低评分"
@@ -640,6 +719,7 @@ export default function Movies() {
                         setSelectedMakers([]);
                         setSelectedSeries([]);
                         setDateRange([null, null]);
+                        setStorageStatus(undefined);
                         loadMovies(1);
                     }}>
                         刷新
@@ -656,6 +736,15 @@ export default function Movies() {
                             onClick={handleOpenBatchPush}
                         >
                             批量推送存储 ({selectedRowKeys.length})
+                        </Button>
+                    )}
+                    {selectedRowKeys.length > 0 && (
+                        <Button
+                            icon={<SyncOutlined/>}
+                            loading={batchSyncLoading}
+                            onClick={handleBatchSync}
+                        >
+                            批量同步 ({selectedRowKeys.length})
                         </Button>
                     )}
                     {selectedRowKeys.length > 0 && (
@@ -811,6 +900,40 @@ export default function Movies() {
                                 {detail.source_url as string}
                             </Typography.Link>
                         </Descriptions.Item>
+                        {(() => {
+                            const storageSummary = detail.storage_summary as Record<string, unknown> | undefined;
+                            const locations = storageSummary?.locations as { path: string; target_folder: string; exists?: boolean }[] | undefined;
+                            if (!locations || locations.length === 0) return null;
+                            return (
+                                <Descriptions.Item label="存储位置">
+                                    <Space direction="vertical" size={4} style={{width: "100%"}}>
+                                        {locations.map((loc, index) => (
+                                            <div key={`${loc.path}-${index}`} style={{display: "flex", alignItems: "center", gap: 8}}>
+                                                <Tag color={loc.exists ? "success" : "error"}>
+                                                    {loc.exists ? "存在" : "缺失"}
+                                                </Tag>
+                                                <Typography.Text copyable={{text: loc.path}} style={{fontSize: 12, wordBreak: "break-all"}}>
+                                                    {loc.path}
+                                                </Typography.Text>
+                                                <Typography.Text type="secondary" style={{fontSize: 12}}>
+                                                    ({loc.target_folder})
+                                                </Typography.Text>
+                                            </div>
+                                        ))}
+                                    </Space>
+                                </Descriptions.Item>
+                            );
+                        })()}
+                        {(() => {
+                            const storageSummary = detail.storage_summary as Record<string, unknown> | undefined;
+                            const syncedAt = storageSummary?.synced_at as string | undefined;
+                            if (!syncedAt) return null;
+                            return (
+                                <Descriptions.Item label="最后同步时间">
+                                    {syncedAt}
+                                </Descriptions.Item>
+                            );
+                        })()}
                     </Descriptions>
                 )}
             </Drawer>
@@ -913,6 +1036,45 @@ export default function Movies() {
                                     .filter((i) => i.result === "skipped")
                                     .map((i) => (
                                         <div key={i.movie_id}>{i.movie_id} — {i.reason}</div>
+                                    ))}
+                            </Typography.Paragraph>
+                        )}
+                    </>
+                )}
+            </Modal>
+
+            {/* Batch sync result modal */}
+            <Modal
+                title="批量同步结果"
+                open={batchSyncResult !== null}
+                onCancel={() => setBatchSyncResult(null)}
+                footer={
+                    <Button type="primary" onClick={() => setBatchSyncResult(null)}>
+                        完成
+                    </Button>
+                }
+            >
+                {batchSyncResult && (
+                    <>
+                        <Row gutter={16} style={{marginBottom: 16}}>
+                            <Col span={12}>
+                                <Statistic title="总数" value={batchSyncResult.total}/>
+                            </Col>
+                            <Col span={12}>
+                                <Statistic
+                                    title="成功"
+                                    value={batchSyncResult.results.filter((r) => r.synced).length}
+                                    valueStyle={{color: "#3f8600"}}
+                                />
+                            </Col>
+                        </Row>
+                        {batchSyncResult.results.filter((r) => !r.synced).length > 0 && (
+                            <Typography.Paragraph type="secondary" style={{fontSize: 12, maxHeight: 200, overflow: "auto"}}>
+                                未同步详情：
+                                {batchSyncResult.results
+                                    .filter((r) => !r.synced)
+                                    .map((r) => (
+                                        <div key={r.movie_id}>{r.movie_id}</div>
                                     ))}
                             </Typography.Paragraph>
                         )}
