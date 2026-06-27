@@ -292,7 +292,7 @@ function UrlEntryCard({
         {({ getFieldValue }) => {
           const url = getFieldValue(["urls", index, "url"]) as string;
           const urlType = getFieldValue(["urls", index, "url_type"]) as string;
-          const canExtract = url && urlType && urlType !== "tags";
+          const canExtract = url && urlType;
 
           return (
             <Button
@@ -379,7 +379,7 @@ export default function TaskForm() {
         let urlName = entry.url_name as string | undefined;
 
         // If no url_name and the type supports extraction, auto-fetch
-        if (!urlName && urlType && urlType !== "tags") {
+        if (!urlName && urlType) {
           try {
             const result = await extractName(entry.url as string, urlType);
             if (result.name) {
