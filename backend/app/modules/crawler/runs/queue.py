@@ -246,6 +246,20 @@ def _worker_loop():
                         upsert=True,
                     )
 
+            def db_check_callback(codes: list[str]) -> set[str]:
+                """Batch check which codes exist in the movies collection."""
+                col = repository.get_collection()
+                existing = col.find(
+                    {"code": {"$in": codes}},
+                    {"code": 1},
+                )
+                return {doc["code"] for doc in existing if doc.get("code")}
+
+            def on_detail_check_callback(code: str) -> bool:
+                """Check if a single code exists in the movies collection."""
+                col = repository.get_collection()
+                return col.find_one({"code": code}, {"_id": 1}) is not None
+
             service = MovieService()
             result = service.crawl_javdb_task(
                 task,
@@ -254,6 +268,8 @@ def _worker_loop():
                 on_item_saved=on_item_saved,
                 on_tasks_batch_created=on_tasks_batch_created,
                 on_detail_failed=on_detail_failed,
+                db_check_callback=db_check_callback,
+                on_detail_check_callback=on_detail_check_callback,
             )
 
             stop_requested = result.get("stopped", False) or _stop_event.is_set()
