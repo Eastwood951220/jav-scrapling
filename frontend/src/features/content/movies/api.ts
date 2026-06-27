@@ -3,6 +3,8 @@ import type { MovieListResponse } from "./types";
 
 export type { MovieListResponse } from "./types";
 
+export type FilterType = "actor" | "tag" | "director" | "maker" | "series";
+
 export function fetchTaskNames(): Promise<{ _id: string; name: string }[]> {
   return client.get("/crawler/tasks").then((res) => res.data);
 }
@@ -17,6 +19,9 @@ export function fetchMovies(params: {
   rating_min?: number;
   actors?: string;
   tags?: string;
+  director?: string;
+  maker?: string;
+  series?: string;
   date_from?: string;
   date_to?: string;
 }): Promise<MovieListResponse> {
@@ -36,6 +41,9 @@ export function fetchAllMagnets(params: {
   rating_min?: number;
   actors?: string;
   tags?: string;
+  director?: string;
+  maker?: string;
+  series?: string;
   date_from?: string;
   date_to?: string;
 }): Promise<{ magnets: MagnetExportItem[]; total: number }> {
@@ -58,12 +66,17 @@ export function selectMagnet(movieId: string, dedupeKey: string): Promise<{ succ
   return client.post(`/movies/${movieId}/select-magnet`, { dedupe_key: dedupeKey }).then((res) => res.data);
 }
 
+export function fetchFilters(type: FilterType): Promise<string[]> {
+  return client.get("/movies/filters", { params: { type } }).then((res) => res.data);
+}
+
+// Backward-compatible helpers
 export function fetchActors(): Promise<string[]> {
-  return client.get("/movies/actors").then((res) => res.data);
+  return fetchFilters("actor");
 }
 
 export function fetchTags(): Promise<string[]> {
-  return client.get("/movies/tags").then((res) => res.data);
+  return fetchFilters("tag");
 }
 
 // ---------------------------------------------------------------------------
