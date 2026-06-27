@@ -136,6 +136,12 @@ class CloudDriveGrpcClient:
         request = clouddrive_pb2.MoveFileRequest(theFilePaths=source_paths, destPath=dest_path)
         return stub.MoveFile(request, metadata=self._auth_metadata(), timeout=self.timeout)
 
+    def copy_file(self, source_paths: list[str], dest_path: str) -> Any:
+        """Copy files to destination. Returns FileOperationResult."""
+        stub = self._get_stub()
+        request = clouddrive_pb2.CopyFileRequest(theFilePaths=source_paths, destPath=dest_path)
+        return stub.CopyFile(request, metadata=self._auth_metadata(), timeout=self.timeout)
+
     def delete_file(self, path: str) -> Any:
         """Delete a file or folder. Returns FileOperationResult."""
         stub = self._get_stub()
