@@ -26,6 +26,24 @@ def _task_to_response(doc: dict) -> dict:
     return stringify_objectids(doc)
 
 
+def _check_name_unique(name: str, exclude_id: str | None = None) -> None:
+    """Raise 409 if a task with this name already exists."""
+    query: dict = {"name": name}
+    if exclude_id:
+        query["_id"] = {"$ne": ObjectId(exclude_id)}
+    if _collection().find_one(query, {"_id": 1}):
+        raise HTTPException(status_code=409, detail=f"任务名称 '{name}' 已存在")
+
+
+def _check_urls_unique(urls: list[TaskUrlEntry]) -> None:
+    """Raise 400 if any URL appears more than once in the list."""
+    seen: set[str] = set()
+    for entry in urls:
+        if entry.url in seen:
+            raise HTTPException(status_code=400, detail=f"URL 重复: {entry.url}")
+        seen.add(entry.url)
+
+
 @router.get("")
 def list_tasks():
     docs = list(_collection().find().sort("created_at", -1))
@@ -34,6 +52,8 @@ def list_tasks():
 
 @router.post("", status_code=201)
 def create_task(body: TaskCreate):
+    _check_name_unique(body.name)
+    _check_urls_unique(body.urls)
     url_entries = []
     for entry in body.urls:
         source = determine_source(entry.url)
@@ -89,6 +109,11 @@ def update_task(task_id: str, body: TaskUpdate):
         raise HTTPException(status_code=400, detail="Invalid task ID")
 
     update_data = body.model_dump(exclude_none=True)
+
+    if "name" in update_data:
+        _check_name_unique(update_data["name"], exclude_id=task_id)
+    if "urls" in update_data and update_data["urls"] is not None:
+        _check_urls_unique(update_data["urls"])
 
     if "urls" in update_data and update_data["urls"] is not None:
         url_entries = []
