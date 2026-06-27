@@ -6,15 +6,18 @@ from bson.errors import InvalidId
 from fastapi import APIRouter, HTTPException
 
 from app.core.bson import stringify_objectids
-from app.db.collections import CRAWL_RUNS, CRAWL_RUN_DETAIL_TASKS, CRAWL_TASKS, MOVIES, MOVIE_MAGNETS
+from shared.database import get_database
+from shared.database.collections import CRAWL_RUNS, CRAWL_RUN_DETAIL_TASKS, CRAWL_TASKS, MOVIES, MOVIE_MAGNETS
 from app.modules.crawler.runs.logs import delete_run_logs
 from app.modules.crawler.runs.queue import enqueue_task
 from app.modules.crawler.runs.schemas import RunResponse
 from app.modules.crawler.tasks.schemas import TaskCreate, TaskUpdate, TaskUrlEntry, ExtractNameRequest
-from scraper.core.security import is_security_check_page
-from scraper.database.mongo_client import get_mongo_db
-from scraper.spiders.javdb.javdb_parser import parse_page_section_name
-from scraper.tasks.task_utils import build_final_url, determine_source
+from shared.integrations.content_sources.javdb import (
+    build_final_url,
+    determine_source,
+    is_security_check_page,
+    parse_page_section_name,
+)
 
 router = APIRouter(prefix="/api/crawler/tasks", tags=["crawler-tasks"])
 
@@ -68,7 +71,7 @@ def extract_name(body: ExtractNameRequest):
 
 
 def _collection():
-    return get_mongo_db()[TASKS_COLLECTION]
+    return get_database()[TASKS_COLLECTION]
 
 
 def _task_to_response(doc: dict) -> dict:
@@ -221,7 +224,7 @@ def delete_task(task_id: str, mode: str = "normal"):
     task_name = task_doc.get("name", "")
 
     # Check for active runs
-    runs_col = get_mongo_db()[CRAWL_RUNS]
+    runs_col = get_database()[CRAWL_RUNS]
     active_run = runs_col.find_one({
         "task_id": str(oid),
         "status": {"$in": ["running", "queued"]},
@@ -235,7 +238,7 @@ def delete_task(task_id: str, mode: str = "normal"):
     # Delete associated runs and detail tasks
     run_ids = [str(r["_id"]) for r in runs_col.find({"task_id": str(oid)}, {"_id": 1})]
     if run_ids:
-        detail_col = get_mongo_db()[CRAWL_RUN_DETAIL_TASKS]
+        detail_col = get_database()[CRAWL_RUN_DETAIL_TASKS]
         for rid in run_ids:
             detail_col.delete_many({"run_id": rid})
         runs_col.delete_many({"task_id": str(oid)})
@@ -247,7 +250,7 @@ def delete_task(task_id: str, mode: str = "normal"):
         logger.info("已删除 %d 条运行记录", len(run_ids))
 
     # Mode-specific cleanup
-    movies_col = get_mongo_db()[MOVIES]
+    movies_col = get_database()[MOVIES]
     movies_affected = 0
     magnets_deleted = 0
 
@@ -276,7 +279,7 @@ def delete_task(task_id: str, mode: str = "normal"):
 
             if movie_ids:
                 # Delete associated magnets
-                magnets_col = get_mongo_db()[MOVIE_MAGNETS]
+                magnets_col = get_database()[MOVIE_MAGNETS]
                 magnet_result = magnets_col.delete_many(
                     {"movie_id": {"$in": movie_ids}},
                 )
