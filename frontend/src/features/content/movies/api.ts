@@ -5,8 +5,8 @@ export type { MovieListResponse } from "./types";
 
 export type FilterType = "actor" | "tag" | "director" | "maker" | "series";
 
-export function fetchTaskNames(): Promise<{ _id: string; name: string }[]> {
-  return client.get("/crawler/tasks").then((res) => res.data);
+export function fetchTaskNames(): Promise<{ name: string }[]> {
+  return client.get("/movies/task-names").then((res) => res.data);
 }
 
 export function fetchMovies(params: {
