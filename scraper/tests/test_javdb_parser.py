@@ -230,8 +230,61 @@ class TestParsePageSectionName:
         result = parse_page_section_name(page, "search")
         assert result == ""
 
-    def test_tags_returns_empty(self):
+    def test_tags_returns_empty_when_no_tags_div(self):
         page = Selector("<html><body></body></html>")
+        result = parse_page_section_name(page, "tags")
+        assert result == ""
+
+    def test_tags_extracts_filtered_tag_names(self):
+        html = '''
+        <html><body>
+          <div id="tags">
+            <div class="tag is-info">VR</div>
+            <div class="tag is-info">含磁鏈</div>
+            <div class="tag is-info">含字幕</div>
+            <div class="tag is-info">4K</div>
+          </div>
+        </body></html>
+        '''
+        page = Selector(html)
+        result = parse_page_section_name(page, "tags")
+        assert result == "VR-4K"
+
+    def test_tags_extracts_single_tag(self):
+        html = '''
+        <html><body>
+          <div id="tags">
+            <div class="tag is-info">VR</div>
+            <div class="tag is-info">含磁鏈</div>
+          </div>
+        </body></html>
+        '''
+        page = Selector(html)
+        result = parse_page_section_name(page, "tags")
+        assert result == "VR"
+
+    def test_tags_returns_empty_when_all_filtered(self):
+        html = '''
+        <html><body>
+          <div id="tags">
+            <div class="tag is-info">含磁鏈</div>
+            <div class="tag is-info">含字幕</div>
+          </div>
+        </body></html>
+        '''
+        page = Selector(html)
+        result = parse_page_section_name(page, "tags")
+        assert result == ""
+
+    def test_tags_returns_empty_when_no_tag_elements(self):
+        html = '''
+        <html><body>
+          <div id="tags">
+            <div class="tag">普通标签</div>
+          </div>
+        </body></html>
+        '''
+        page = Selector(html)
         result = parse_page_section_name(page, "tags")
         assert result == ""
 

@@ -91,6 +91,9 @@ def _parse_magnet_meta(meta_text: str) -> tuple[str, int | None, str]:
 # Keywords that indicate uncensored/pirated content
 UNCENSORED_KEYWORDS = ("无码破解", "无码", "破解")
 
+# Tags to filter out from tag name extraction
+TAGS_FILTER_KEYWORDS = ("含磁鏈", "含磁链", "含字幕")
+
 # Code suffixes: -C = Chinese subtitle, -U = uncensored, -UC = both
 _SUFFIX_RE = re.compile(r"-(UC|C|U)(?:\.|$)", re.IGNORECASE)
 
@@ -241,14 +244,48 @@ _SECTION_NAME_CONFIG: dict[str, dict[str, str | bool]] = {
 }
 
 
+def _extract_tags_name(page) -> str:
+    """从页面的 #tags 区域提取标签名称。
+
+    查找 div.tag.is-info 元素，过滤掉含磁鏈/含字幕，多个用 - 拼接。
+    """
+    tags_div = page.css("#tags")
+    if not tags_div:
+        return ""
+
+    tag_elements = tags_div[0].css("div.tag.is-info")
+    if not tag_elements:
+        return ""
+
+    tag_names = []
+    for elem in tag_elements:
+        text = clean_text(elem.css("::text").get() or "")
+        if not text:
+            continue
+
+        if any(keyword in text for keyword in TAGS_FILTER_KEYWORDS):
+            continue
+
+        tag_names.append(text)
+
+    if not tag_names:
+        return ""
+
+    return "-".join(tag_names)
+
+
 def parse_page_section_name(page, url_type: str) -> str:
     """从页面的 section-title 区域提取名称。
 
     actors 类型: 取 actor-section-name，逗号分割取第一个
     lists 类型: 取 actor-section-name，完整返回
     series/makers/directors/video_codes 类型: 取 section-name
-    search/tags 类型: 返回空字符串
+    search 类型: 返回空字符串
+    tags 类型: 从 #tags 区域的 div.tag.is-info 提取
     """
+    if url_type == "tags":
+        return _extract_tags_name(page)
+
     config = _SECTION_NAME_CONFIG.get(url_type)
     if not config:
         return ""
