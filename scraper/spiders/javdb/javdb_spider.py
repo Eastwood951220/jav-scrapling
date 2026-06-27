@@ -42,6 +42,7 @@ class JavdbSpider(BaseSpider):
         stop_check=None,
         log_callback=None,
         on_tasks_batch_created=None,
+        db_check_callback=None,
     ) -> list[dict]:
         """Collect detail tasks from list pages for a single URL entry."""
         max_pages = MAX_LIST_PAGES
@@ -104,6 +105,22 @@ class JavdbSpider(BaseSpider):
                     seen_codes.add(code)
                 fresh_tasks.append(t)
 
+            # DB dedup: check which codes already exist in movies collection
+            if db_check_callback and fresh_tasks:
+                codes_to_check = [t.get("code") for t in fresh_tasks if t.get("code")]
+                if codes_to_check:
+                    existing_codes = db_check_callback(codes_to_check)
+                    db_skipped = 0
+                    for t in fresh_tasks:
+                        code = t.get("code")
+                        if code and code in existing_codes:
+                            t["status"] = TASK_STATUS_SKIPPED
+                            t["reason"] = "already_exists"
+                            db_skipped += 1
+                    if db_skipped:
+                        msg = f"[{task_name}] 列表页 {page_no}: {db_skipped} 条已存在于数据库, 跳过"
+                        self._emit(msg, log_callback, "INFO")
+
             detail_tasks.extend(fresh_tasks)
 
             if on_tasks_batch_created and fresh_tasks:
@@ -137,6 +154,7 @@ class JavdbSpider(BaseSpider):
         stop_check=None,
         log_callback=None,
         on_tasks_batch_created=None,
+        db_check_callback=None,
     ) -> list[dict]:
         """Collect detail tasks from ALL URLs in a task sequentially."""
         all_detail_tasks: list[dict] = []
@@ -157,6 +175,7 @@ class JavdbSpider(BaseSpider):
                 stop_check=stop_check,
                 log_callback=log_callback,
                 on_tasks_batch_created=on_tasks_batch_created,
+                db_check_callback=db_check_callback,
             )
 
             # Dedup within this run: skip codes already seen
@@ -181,6 +200,7 @@ class JavdbSpider(BaseSpider):
         on_detail_failed=None,
         stop_check=None,
         log_callback=None,
+        on_detail_check_callback=None,
     ) -> list[dict]:
         total = len(tasks)
         verification_count = 0
@@ -214,6 +234,19 @@ class JavdbSpider(BaseSpider):
                     f"name={task.get('name')} reason={task.get('reason')}"
                 )
                 self._emit(msg, log_callback)
+                index += 1
+                continue
+
+            # Pre-fetch DB check: skip if code already exists
+            code = task.get("code")
+            if code and on_detail_check_callback and on_detail_check_callback(code):
+                task["status"] = TASK_STATUS_SKIPPED
+                task["reason"] = "already_exists"
+                msg = (
+                    f"{prefix} 详情 {index + 1}/{total} 跳过: "
+                    f"code={code} 已存在于数据库"
+                )
+                self._emit(msg, log_callback, "INFO")
                 index += 1
                 continue
 
@@ -302,7 +335,7 @@ class JavdbSpider(BaseSpider):
 
         return tasks
 
-    def run_task(self, task: CrawlTask, on_detail_completed=None, on_detail_failed=None, on_tasks_batch_created=None, stop_check=None, log_callback=None) -> list[dict]:
+    def run_task(self, task: CrawlTask, on_detail_completed=None, on_detail_failed=None, on_tasks_batch_created=None, stop_check=None, log_callback=None, db_check_callback=None, on_detail_check_callback=None) -> list[dict]:
         if task.is_skip:
             print(f"[Task:{task.name}] skipped by config")
             return []
@@ -317,6 +350,7 @@ class JavdbSpider(BaseSpider):
             stop_check=stop_check,
             log_callback=log_callback,
             on_tasks_batch_created=on_tasks_batch_created,
+            db_check_callback=db_check_callback,
         )
 
         # Phase 2: Process all detail tasks
@@ -327,6 +361,7 @@ class JavdbSpider(BaseSpider):
             on_detail_failed=on_detail_failed,
             stop_check=stop_check,
             log_callback=log_callback,
+            on_detail_check_callback=on_detail_check_callback,
         )
 
     def run(self, task: CrawlTask) -> list[dict]:
