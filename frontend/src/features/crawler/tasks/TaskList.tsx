@@ -74,7 +74,25 @@ export default function TaskList() {
   };
 
   const columns: ColumnsType<CrawlTask> = [
-    { title: "名称", dataIndex: "name", key: "name", width: 150 },
+    {
+      title: "名称",
+      dataIndex: "name",
+      key: "name",
+      width: 200,
+      render: (_: unknown, record: CrawlTask) => (
+        <div>
+          <div>{record.name}</div>
+          {record.urls?.some((u) => u.url_name) && (
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              {record.urls
+                .filter((u) => u.url_name)
+                .map((u) => u.url_name)
+                .join(", ")}
+            </Typography.Text>
+          )}
+        </div>
+      ),
+    },
     {
       title: "URL数量",
       key: "url_count",
