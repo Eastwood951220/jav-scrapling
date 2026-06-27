@@ -263,6 +263,12 @@ def _worker_loop():
                 col = repository.get_collection()
                 return col.find_one({"code": code}, {"_id": 1}) is not None
 
+            def on_item_already_exists(detail_task: dict) -> None:
+                """当详情页因 code 已存在而跳过时，将当前任务名添加到 source_task_name。"""
+                code = detail_task.get("code")
+                if code:
+                    repository.add_source_task_name(code, task.name)
+
             service = MovieService()
             result = service.crawl_javdb_task(
                 task,
@@ -273,6 +279,7 @@ def _worker_loop():
                 on_detail_failed=on_detail_failed,
                 db_check_callback=db_check_callback,
                 on_detail_check_callback=on_detail_check_callback,
+                on_item_already_exists=on_item_already_exists,
             )
 
             stop_requested = result.get("stopped", False) or _stop_event.is_set()

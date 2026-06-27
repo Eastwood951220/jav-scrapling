@@ -201,6 +201,7 @@ class JavdbSpider(BaseSpider):
         stop_check=None,
         log_callback=None,
         on_detail_check_callback=None,
+        on_item_already_exists=None,
     ) -> list[dict]:
         total = len(tasks)
         verification_count = 0
@@ -247,6 +248,9 @@ class JavdbSpider(BaseSpider):
                     f"code={code} 已存在于数据库"
                 )
                 self._emit(msg, log_callback, "INFO")
+                # 通知已存在，用于更新 source_task_name
+                if on_item_already_exists:
+                    on_item_already_exists(task)
                 index += 1
                 continue
 
@@ -335,7 +339,7 @@ class JavdbSpider(BaseSpider):
 
         return tasks
 
-    def run_task(self, task: CrawlTask, on_detail_completed=None, on_detail_failed=None, on_tasks_batch_created=None, stop_check=None, log_callback=None, db_check_callback=None, on_detail_check_callback=None) -> list[dict]:
+    def run_task(self, task: CrawlTask, on_detail_completed=None, on_detail_failed=None, on_tasks_batch_created=None, stop_check=None, log_callback=None, db_check_callback=None, on_detail_check_callback=None, on_item_already_exists=None) -> list[dict]:
         if task.is_skip:
             print(f"[Task:{task.name}] skipped by config")
             return []
@@ -362,6 +366,7 @@ class JavdbSpider(BaseSpider):
             stop_check=stop_check,
             log_callback=log_callback,
             on_detail_check_callback=on_detail_check_callback,
+            on_item_already_exists=on_item_already_exists,
         )
 
     def run(self, task: CrawlTask) -> list[dict]:
