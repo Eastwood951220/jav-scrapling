@@ -172,19 +172,22 @@ def _worker_loop():
             def on_tasks_batch_created(batch_tasks: list[dict]) -> None:
                 if not batch_tasks:
                     return
-                docs = [{
-                    "run_id": run_id,
-                    "task_name": task.name,
-                    "code": t.get("code"),
-                    "source_url": t.get("url"),
-                    "source_name": t.get("name"),
-                    "status": "pending_crawl",
-                    "error": None,
-                    "item_data": None,
-                    "created_at": datetime.now(timezone.utc),
-                    "crawled_at": None,
-                    "saved_at": None,
-                } for t in batch_tasks]
+                docs = []
+                for t in batch_tasks:
+                    is_skipped = t.get("status") == "skipped"
+                    docs.append({
+                        "run_id": run_id,
+                        "task_name": task.name,
+                        "code": t.get("code"),
+                        "source_url": t.get("url"),
+                        "source_name": t.get("name"),
+                        "status": "skipped" if is_skipped else "pending_crawl",
+                        "error": t.get("reason") if is_skipped else None,
+                        "item_data": None,
+                        "created_at": datetime.now(timezone.utc),
+                        "crawled_at": None,
+                        "saved_at": None,
+                    })
                 detail_col.insert_many(docs, ordered=False)
 
             def on_detail_failed(detail_task: dict, error: str) -> None:
