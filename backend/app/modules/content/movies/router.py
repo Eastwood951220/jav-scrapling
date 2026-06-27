@@ -142,6 +142,18 @@ def list_filters(type: str = Query(..., description="Filter type: actor, tag, di
     ]
 
 
+@router.get("/task-names")
+def list_task_names():
+    """Return distinct source_task_name values from the movies collection."""
+    db = get_mongo_db()
+    col = db[MOVIE_COLLECTION]
+    names = col.distinct("source_task_name")
+    # source_task_name is a list field; distinct returns flat values
+    # Filter out empty strings and sort
+    unique_names = sorted({n for n in names if n and isinstance(n, str)})
+    return [{"name": n} for n in unique_names]
+
+
 @router.get("", response_model=MovieListResponse)
 def list_movies(
     search: str | None = Query(default=None),
