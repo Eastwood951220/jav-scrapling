@@ -9,7 +9,7 @@ from app.db.collections import CRAWL_RUNS, CRAWL_RUN_DETAIL_TASKS, CRAWL_TASKS
 from app.modules.crawler.runs.logs import delete_run_logs
 from app.modules.crawler.runs.queue import enqueue_task
 from app.modules.crawler.runs.schemas import RunResponse
-from app.modules.crawler.tasks.schemas import TaskCreate, TaskUpdate
+from app.modules.crawler.tasks.schemas import TaskCreate, TaskUpdate, TaskUrlEntry
 from scraper.database.mongo_client import get_mongo_db
 from scraper.tasks.task_utils import build_final_url, determine_source
 
@@ -34,27 +34,31 @@ def list_tasks():
 
 @router.post("", status_code=201)
 def create_task(body: TaskCreate):
-    source = determine_source(body.url)
-    final_url = build_final_url(
-        url=body.url,
-        url_type=body.url_type,
-        has_magnet=body.has_magnet,
-        has_chinese_sub=body.has_chinese_sub,
-        sort_type=body.sort_type,
-        source=source,
-    )
+    url_entries = []
+    for entry in body.urls:
+        source = determine_source(entry.url)
+        final_url = build_final_url(
+            url=entry.url,
+            url_type=entry.url_type,
+            has_magnet=entry.has_magnet,
+            has_chinese_sub=entry.has_chinese_sub,
+            sort_type=entry.sort_type,
+            source=source,
+        )
+        url_entries.append({
+            "url": entry.url,
+            "url_type": entry.url_type,
+            "has_magnet": entry.has_magnet,
+            "has_chinese_sub": entry.has_chinese_sub,
+            "sort_type": entry.sort_type,
+            "source": source,
+            "final_url": final_url,
+        })
 
     doc = {
         "name": body.name,
-        "url": body.url,
-        "url_type": body.url_type,
+        "urls": url_entries,
         "is_skip": body.is_skip,
-        "has_magnet": body.has_magnet,
-        "has_chinese_sub": body.has_chinese_sub,
-        "sort_type": body.sort_type,
-        "max_list_pages": body.max_list_pages,
-        "source": source,
-        "final_url": final_url,
         "created_at": datetime.now(),
         "updated_at": datetime.now(),
     }
@@ -86,25 +90,28 @@ def update_task(task_id: str, body: TaskUpdate):
 
     update_data = body.model_dump(exclude_none=True)
 
-    if "url" in update_data or "url_type" in update_data:
-        current = _collection().find_one({"_id": oid})
-        if not current:
-            raise HTTPException(status_code=404, detail="Task not found")
-        url = update_data.get("url", current["url"])
-        url_type = update_data.get("url_type", current["url_type"])
-        has_magnet = update_data.get("has_magnet", current.get("has_magnet", False))
-        has_chinese_sub = update_data.get("has_chinese_sub", current.get("has_chinese_sub", False))
-        sort_type = update_data.get("sort_type", current.get("sort_type", 0))
-        source = determine_source(url)
-        update_data["source"] = source
-        update_data["final_url"] = build_final_url(
-            url=url,
-            url_type=url_type,
-            has_magnet=has_magnet,
-            has_chinese_sub=has_chinese_sub,
-            sort_type=sort_type,
-            source=source,
-        )
+    if "urls" in update_data and update_data["urls"] is not None:
+        url_entries = []
+        for entry in update_data["urls"]:
+            source = determine_source(entry["url"])
+            final_url = build_final_url(
+                url=entry["url"],
+                url_type=entry["url_type"],
+                has_magnet=entry.get("has_magnet", False),
+                has_chinese_sub=entry.get("has_chinese_sub", False),
+                sort_type=entry.get("sort_type", 0),
+                source=source,
+            )
+            url_entries.append({
+                "url": entry["url"],
+                "url_type": entry["url_type"],
+                "has_magnet": entry.get("has_magnet", False),
+                "has_chinese_sub": entry.get("has_chinese_sub", False),
+                "sort_type": entry.get("sort_type", 0),
+                "source": source,
+                "final_url": final_url,
+            })
+        update_data["urls"] = url_entries
 
     update_data["updated_at"] = datetime.now()
 
