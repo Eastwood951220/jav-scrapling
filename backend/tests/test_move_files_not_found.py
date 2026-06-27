@@ -145,8 +145,20 @@ def test_move_files_step_creates_target_folder():
     }
     context.config = {"auto_create_target_folder": True}
     context.provider = MagicMock()
-    # list_files raises exception to simulate folder not existing
-    context.provider.list_files.side_effect = CloudDriveNotFoundError("folder not found")
+
+    # Track folder creation state
+    created_folders = set()
+
+    def mock_list_files(path):
+        if path in created_folders:
+            return []
+        raise CloudDriveNotFoundError("folder not found")
+
+    def mock_ensure_directory(path):
+        created_folders.add(path)
+
+    context.provider.list_files.side_effect = mock_list_files
+    context.provider.ensure_directory.side_effect = mock_ensure_directory
     # find_file returns a file for target (idempotent check)
     context.provider.find_file.return_value = MagicMock(size=0)
     context.provider.move_files.return_value = MagicMock(success=True, error_message=None)
@@ -154,6 +166,7 @@ def test_move_files_step_creates_target_folder():
     result = step.execute(context)
 
     # Should call ensure_directory for target folder
-    context.provider.ensure_directory.assert_called_with("/Movies/SSIS-978")
+    context.provider.ensure_directory.assert_any_call("/Movies")
+    context.provider.ensure_directory.assert_any_call("/Movies/SSIS-978")
     # Should move the file
     assert len(result["moved_files"]) == 1

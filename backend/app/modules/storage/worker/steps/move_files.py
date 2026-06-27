@@ -41,20 +41,43 @@ class MoveFilesStep:
             return True
 
     def _ensure_target_folder(self, context, folder_path: str) -> bool:
-        """Ensure target folder exists, create if needed."""
+        """Ensure target folder exists, create parent directories if needed."""
         try:
             # Try to list the folder first
             context.provider.list_files(folder_path)
             return True
         except Exception:
-            # Folder doesn't exist, try to create it
+            pass
+
+        # Build list of directories to create (from root to target)
+        parts = PurePosixPath(folder_path).parts
+        current = ""
+        dirs_to_create = []
+        for part in parts:
+            current = str(PurePosixPath(current) / part) if current else part
+            if current and current != "/":
+                dirs_to_create.append(current)
+
+        # Create directories in order (parent first)
+        for dir_path in dirs_to_create:
             try:
-                context.provider.ensure_directory(folder_path)
-                context.logger.log(f"已创建目标文件夹: {folder_path}")
-                return True
-            except Exception as e:
-                context.logger.log(f"创建目标文件夹失败: {folder_path}: {e}", "ERROR")
-                return False
+                context.provider.list_files(dir_path)
+            except Exception:
+                try:
+                    context.provider.ensure_directory(dir_path)
+                    context.logger.log(f"已创建文件夹: {dir_path}")
+                except Exception as e:
+                    # Ignore if already exists
+                    if "已存在" not in str(e) and "already exists" not in str(e).lower():
+                        context.logger.log(f"创建文件夹失败: {dir_path}: {e}", "WARNING")
+
+        # Verify the target folder exists now
+        try:
+            context.provider.list_files(folder_path)
+            return True
+        except Exception as e:
+            context.logger.log(f"目标文件夹不存在: {folder_path}: {e}", "ERROR")
+            return False
 
     def execute(self, context) -> dict:
         task = context.task
