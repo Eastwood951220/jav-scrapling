@@ -20,8 +20,8 @@ export function updateTask(id: string, data: Partial<TaskCreatePayload>): Promis
   return client.put(`/crawler/tasks/${id}`, data).then((res) => res.data);
 }
 
-export function deleteTask(id: string): Promise<{ deleted: boolean }> {
-  return client.delete(`/crawler/tasks/${id}`).then((res) => res.data);
+export function deleteTask(id: string, mode: "normal" | "complete" = "normal"): Promise<{ deleted: boolean; mode: string; movies_affected: number; magnets_deleted: number }> {
+  return client.delete(`/crawler/tasks/${id}`, { params: { mode } }).then((res) => res.data);
 }
 
 export function runTask(id: string): Promise<TaskRun> {
