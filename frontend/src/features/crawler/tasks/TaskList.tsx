@@ -75,16 +75,24 @@ export default function TaskList() {
 
   const columns: ColumnsType<CrawlTask> = [
     { title: "名称", dataIndex: "name", key: "name", width: 150 },
-    { title: "URL类型", dataIndex: "url_type", key: "url_type", width: 100 },
     {
-      title: "URL",
-      dataIndex: "url",
-      key: "url",
-      ellipsis: true,
-      render: (url: string) => (
-        <a href={url} target="_blank" rel="noopener noreferrer">
-          {url}
-        </a>
+      title: "URL数量",
+      key: "url_count",
+      width: 100,
+      render: (_: unknown, record: CrawlTask) => (
+        <Tag>{record.urls?.length ?? 0} 个URL</Tag>
+      ),
+    },
+    {
+      title: "URL类型",
+      key: "url_types",
+      width: 150,
+      render: (_: unknown, record: CrawlTask) => (
+        <Space size={4} wrap>
+          {record.urls?.map((u, i) => (
+            <Tag key={i}>{u.url_type}</Tag>
+          ))}
+        </Space>
       ),
     },
     {
@@ -100,12 +108,6 @@ export default function TaskList() {
           unCheckedChildren="禁用"
         />
       ),
-    },
-    {
-      title: "最大页数",
-      dataIndex: "max_list_pages",
-      key: "max_list_pages",
-      width: 100,
     },
     {
       title: "操作",
