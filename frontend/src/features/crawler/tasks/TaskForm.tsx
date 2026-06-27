@@ -4,7 +4,7 @@ import { Form, Input, InputNumber, Switch, Select, Button, Card, message } from 
 import { createTask, fetchTask, updateTask } from "./api";
 import FullPageSpinner from "@/shared/components/FullPageSpinner";
 import { getErrorMessage } from "@/shared/hooks/useErrorMessage";
-import type { TaskCreatePayload } from "./types";
+import type { TaskCreatePayload, TaskUrlEntry } from "./types";
 
 type UrlType = "actors" | "series" | "makers" | "directors" | "video_codes" | "lists" | "tags" | "search";
 
@@ -150,7 +150,6 @@ export default function TaskForm() {
 
     const detected = detectOptionsFromUrl(url, urlType);
     form.setFieldsValue({
-      has_magnet: detected.hasMagnet,
       has_chinese_sub: detected.hasSub,
       sort_type: detected.sortType,
     });
@@ -162,15 +161,15 @@ export default function TaskForm() {
     setLoading(true);
     fetchTask(id)
       .then((task) => {
+        const firstUrl = task.urls[0];
         form.setFieldsValue({
           name: task.name,
-          url: task.url,
-          url_type: task.url_type,
+          url: firstUrl?.url ?? "",
+          url_type: firstUrl?.url_type ?? "actors",
           is_skip: task.is_skip,
-          max_list_pages: task.max_list_pages,
-          has_magnet: task.has_magnet ?? true,
-          has_chinese_sub: task.has_chinese_sub ?? false,
-          sort_type: task.sort_type ?? 0,
+          has_magnet: firstUrl?.has_magnet ?? true,
+          has_chinese_sub: firstUrl?.has_chinese_sub ?? false,
+          sort_type: firstUrl?.sort_type ?? 0,
         });
       })
       .catch((e) => message.error(getErrorMessage(e)))
@@ -189,16 +188,19 @@ export default function TaskForm() {
         (values.sort_type as number) ?? 0,
       );
 
-      const payload: TaskCreatePayload = {
-        name: values.name as string,
+      const urlEntry: TaskUrlEntry = {
         url: values.url as string,
         url_type: urlType,
-        is_skip: (values.is_skip as boolean) ?? false,
-        max_list_pages: (values.max_list_pages as number) ?? 50,
         has_magnet: (values.has_magnet as boolean) ?? false,
         has_chinese_sub: (values.has_chinese_sub as boolean) ?? false,
         sort_type: (values.sort_type as number) ?? 0,
         final_url: finalUrl,
+      };
+
+      const payload: TaskCreatePayload = {
+        name: values.name as string,
+        urls: [urlEntry],
+        is_skip: (values.is_skip as boolean) ?? false,
       };
 
       if (isEdit && id) {
