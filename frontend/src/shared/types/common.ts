@@ -26,6 +26,7 @@ export interface MovieMagnet {
   has_chinese_sub?: boolean;
   date?: string;
   dedupe_key?: string;
+  weight?: number;
 }
 
 /** Storage task summary embedded in a movie document. */

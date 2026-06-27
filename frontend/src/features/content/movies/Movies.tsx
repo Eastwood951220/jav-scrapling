@@ -768,6 +768,7 @@ export default function Movies() {
                                 const displayName = m.name || m.title || "-";
                                 const displaySize = getMagnetSizeText(m);
                                 const displaySub = m.has_chinese_sub ? "是" : "否";
+                                const displayWeight = m.weight != null ? ` · 权重: ${m.weight}` : "";
                                 return (
                                     <Space direction="vertical" size={2}>
                                         <Typography.Text strong>{displayName}</Typography.Text>
@@ -775,6 +776,7 @@ export default function Movies() {
                                             {displaySize ? `大小: ${displaySize}` : ""}
                                             {m.file_text ? ` · ${m.file_text}` : ""}
                                             {` · 中字: ${displaySub}`}
+                                            {displayWeight}
                                         </Typography.Text>
                                         {m.magnet && (
                                             <Typography.Paragraph copyable={{text: m.magnet}} style={{marginBottom: 0, fontSize: 12, wordBreak: "break-all"}}>
@@ -928,7 +930,9 @@ export default function Movies() {
             >
                 {selectMagnetMovie && (
                     <Table
-                        dataSource={(selectMagnetMovie.magnets ?? []).filter((m) => Boolean(m.magnet?.trim()))}
+                        dataSource={(selectMagnetMovie.magnets ?? [])
+                            .filter((m) => Boolean(m.magnet?.trim()))
+                            .sort((a, b) => (b.weight ?? 0) - (a.weight ?? 0))}
                         rowKey={(m) => (m as MovieMagnet).magnet}
                         pagination={false}
                         size="small"
@@ -968,6 +972,15 @@ export default function Movies() {
                                     Array.isArray(tags) && tags.length > 0
                                         ? <Space size={[0, 4]} wrap>{tags.map((t) => <Tag key={t}>{t}</Tag>)}</Space>
                                         : "-",
+                            },
+                            {
+                                title: "权重",
+                                dataIndex: "weight",
+                                key: "weight",
+                                width: 80,
+                                sorter: (a: MovieMagnet, b: MovieMagnet) => (a.weight ?? 0) - (b.weight ?? 0),
+                                defaultSortOrder: "descend" as const,
+                                render: (v: number) => v != null ? v : "-",
                             },
                             {
                                 title: "操作",
