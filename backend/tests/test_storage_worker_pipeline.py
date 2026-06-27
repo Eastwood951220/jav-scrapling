@@ -271,6 +271,8 @@ def test_prepare_step_derives_code_suffix():
         "movie_id": "60f7c2d4e13823a3c8b45678",
         "movie_code": "SSIS-945",
         "magnet_url": "magnet:?xt=urn:btih:abc123",
+        "has_chinese_sub": True,
+        "tags": ["中文字幕"],
     }
     context.config = {
         "download_root_folder": "/Downloads",
@@ -282,12 +284,6 @@ def test_prepare_step_derives_code_suffix():
         "_id": "60f7c2d4e13823a3c8b45678",
         "code": "SSIS-945",
         "source_task_name": "taskA",
-    }
-    context.magnet_repository = MagicMock()
-    context.magnet_repository.find_by_url.return_value = {
-        "magnet_url": "magnet:?xt=urn:btih:abc123",
-        "has_chinese_sub": True,
-        "tags": ["中文字幕"],
     }
     context.task_repository = MagicMock()
 

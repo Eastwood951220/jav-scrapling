@@ -103,8 +103,17 @@ export interface StorageBatchResponse {
   items: StorageBatchItem[];
 }
 
-export function createStorageTask(movieId: string, magnetUrl: string): Promise<StorageTaskCreateResponse> {
-  return client.post("/storage/tasks", { movie_id: movieId, magnet_url: magnetUrl }).then((res) => res.data);
+export function createStorageTask(
+  movieId: string,
+  magnetUrl: string,
+  magnetMeta?: { has_chinese_sub?: boolean; tags?: string[] },
+): Promise<StorageTaskCreateResponse> {
+  return client.post("/storage/tasks", {
+    movie_id: movieId,
+    magnet_url: magnetUrl,
+    has_chinese_sub: magnetMeta?.has_chinese_sub ?? false,
+    tags: magnetMeta?.tags ?? [],
+  }).then((res) => res.data);
 }
 
 export function batchCreateStorageTasks(

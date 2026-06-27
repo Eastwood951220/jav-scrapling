@@ -101,15 +101,15 @@ def test_create_storage_task_derives_code_suffix():
     task_repo.create.side_effect = lambda doc: doc
     movie_repo = MagicMock()
     movie_repo.get_by_id.return_value = {"_id": "60f7c2d4e13823a3c8b45678", "code": "SSIS-945", "source_name": "Movie"}
-    magnet_repo = MagicMock()
-    magnet_repo.find_by_url.return_value = {
+
+    service = StorageTaskService(task_repository=task_repo, movie_repository=movie_repo, magnet_repository=MagicMock())
+
+    result = service.create_task({
+        "movie_id": "60f7c2d4e13823a3c8b45678",
+        "magnet_url": "magnet:?xt=urn:btih:ABC123",
         "has_chinese_sub": True,
         "tags": ["中文字幕"],
-    }
-
-    service = StorageTaskService(task_repository=task_repo, movie_repository=movie_repo, magnet_repository=magnet_repo)
-
-    result = service.create_task({"movie_id": "60f7c2d4e13823a3c8b45678", "magnet_url": "magnet:?xt=urn:btih:ABC123"})
+    })
 
     created_doc = task_repo.create.call_args[0][0]
     assert created_doc["code_suffix"] == "-C"

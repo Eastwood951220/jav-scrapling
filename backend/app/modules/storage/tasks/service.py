@@ -40,14 +40,13 @@ class StorageTaskService:
             if existing:
                 return {"task_id": existing["task_id"], "status": "existing"}
 
-        # Derive code suffix from magnet metadata
-        code_suffix = ""
-        magnet = self.magnet_repository.find_by_url(magnet_url)
-        if magnet:
-            code_suffix = derive_code_suffix(
-                has_chinese_sub=magnet.get("has_chinese_sub", False),
-                tags=magnet.get("tags", []),
-            )
+        # Derive code suffix from magnet metadata passed from frontend
+        has_chinese_sub = body.get("has_chinese_sub", False)
+        tags = body.get("tags", [])
+        code_suffix = derive_code_suffix(
+            has_chinese_sub=has_chinese_sub,
+            tags=tags,
+        )
 
         task_id = self._generate_task_id()
         now = datetime.now(timezone.utc)
@@ -60,6 +59,8 @@ class StorageTaskService:
             "title": movie.get("source_name") or movie.get("config_task_name", ""),
             "magnet_url": magnet_url,
             "info_hash": info_hash,
+            "has_chinese_sub": has_chinese_sub,
+            "tags": tags,
             "status": "pending",
             "step": None,
             "source": "api",

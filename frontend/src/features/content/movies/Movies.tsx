@@ -299,7 +299,13 @@ export default function Movies() {
         if (!pushMovie || !pushMagnet) return;
         setPushLoading(true);
         try {
-            const res = await createStorageTask(pushMovie._id, pushMagnet);
+            // Find selected magnet metadata
+            const selectedMagnet = (pushMovie.magnets ?? []).find((m) => m.magnet === pushMagnet);
+            const magnetMeta = {
+                has_chinese_sub: selectedMagnet?.has_chinese_sub ?? false,
+                tags: selectedMagnet?.tags ?? [],
+            };
+            const res = await createStorageTask(pushMovie._id, pushMagnet, magnetMeta);
             if (res.status === "existing") {
                 message.info("已有进行中的任务");
             } else {

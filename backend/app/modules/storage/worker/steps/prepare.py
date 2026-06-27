@@ -30,17 +30,15 @@ class PrepareStep:
         if not magnet_url:
             raise ValueError("缺少磁力链接")
 
-        # Derive code suffix from magnet metadata
-        code_suffix = ""
-        magnet = context.magnet_repository.find_by_url(magnet_url)
-        if magnet:
-            code_suffix = derive_code_suffix(
-                has_chinese_sub=magnet.get("has_chinese_sub", False),
-                tags=magnet.get("tags", []),
-            )
-            context.logger.log(f"从磁力元数据推导后缀: {code_suffix or '(无)'}")
-        else:
-            context.logger.log(f"未找到磁力记录: {magnet_url[:50]}...", "WARNING")
+        # Derive code suffix from task data (passed from frontend)
+        has_chinese_sub = task.get("has_chinese_sub", False)
+        tags = task.get("tags", [])
+        code_suffix = derive_code_suffix(
+            has_chinese_sub=has_chinese_sub,
+            tags=tags,
+        )
+        if code_suffix:
+            context.logger.log(f"从磁力元数据推导后缀: {code_suffix}")
 
         # Fallback: try to derive suffix from original filename
         if not code_suffix:
