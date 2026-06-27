@@ -698,43 +698,52 @@ def _step_move_files(task: dict, config: dict) -> dict:
 
 
 def _step_verify_result(task: dict, config: dict) -> dict:
-    """Step 8: Verify target files exist with correct sizes."""
+    """Step 8: Verify target files exist with correct sizes.
+
+    Checks moved_path (last target) AND all copied_paths (non-last targets).
+    """
     task_id = task["task_id"]
-    # Use moved_files (has moved_path) instead of selected_videos
     moved_files = task.get("moved_files", [])
-    target_path = task["target_path"]
 
     cd2 = _build_cd2_client(config)
     try:
         all_ok = True
         for video in moved_files:
+            # Collect all paths to verify: moved + copied
+            paths_to_verify = []
             moved_path = video.get("moved_path")
-            if not moved_path:
-                all_ok = False
-                _append_log(task_id, f"验证失败: {video.get('name')} 缺少 moved_path", "ERROR")
-                continue
+            if moved_path:
+                paths_to_verify.append(("moved", moved_path))
+            for cp in video.get("copied_paths", []):
+                paths_to_verify.append(("copied", cp))
 
-            info = _get_file_info(cd2, moved_path)
-            if not info:
+            if not paths_to_verify:
                 all_ok = False
-                _append_log(task_id, f"验证失败: 文件不存在 {moved_path}", "ERROR")
+                _append_log(task_id, f"验证失败: {video.get('name')} 无任何目标路径", "ERROR")
                 continue
 
             expected_size = video.get("size", 0)
-            actual_size = info.get("size", 0)
-            if expected_size > 0 and abs(actual_size - expected_size) > 1024:
-                all_ok = False
-                _append_log(
-                    task_id,
-                    f"验证失败: 大小不匹配 {PurePosixPath(moved_path).name} "
-                    f"(expected={expected_size}, actual={actual_size})",
-                    "ERROR",
-                )
+            for label, path in paths_to_verify:
+                info = _get_file_info(cd2, path)
+                if not info:
+                    all_ok = False
+                    _append_log(task_id, f"验证失败: {label} 文件不存在 {path}", "ERROR")
+                    continue
+
+                actual_size = info.get("size", 0)
+                if expected_size > 0 and abs(actual_size - expected_size) > 1024:
+                    all_ok = False
+                    _append_log(
+                        task_id,
+                        f"验证失败: {label} 大小不匹配 {PurePosixPath(path).name} "
+                        f"(expected={expected_size}, actual={actual_size})",
+                        "ERROR",
+                    )
 
         _update_task(task_id, {"verified": all_ok})
 
         if all_ok:
-            _append_log(task_id, "验证通过: 所有文件完整")
+            _append_log(task_id, "验证通过: 所有文件完整 (含复制目标)")
         else:
             raise RuntimeError("文件验证失败")
 
