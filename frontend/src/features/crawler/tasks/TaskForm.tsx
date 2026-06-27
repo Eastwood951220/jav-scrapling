@@ -17,13 +17,13 @@ interface CondParamConfig {
 
 const URL_TYPE_PARAMS: Record<string, CondParamConfig> = {
   actors: { magnet: "t=d", sub: "t=c", both: "t=c,d" },
-  series: { magnet: "f=download", sub: "f=cnsub", both: "" },
-  makers: { magnet: "f=download", sub: "f=cnsub", both: "" },
-  directors: { magnet: "f=download", sub: "f=cnsub", both: "" },
-  video_codes: { magnet: "f=download", sub: "f=cnsub", both: "" },
-  lists: { magnet: "f=download", sub: "f=cnsub", both: "" },
+  series: { magnet: "f=download", sub: "f=cnsub", both: "f=cnsub" },
+  makers: { magnet: "f=download", sub: "f=cnsub", both: "f=cnsub" },
+  directors: { magnet: "f=download", sub: "f=cnsub", both: "f=cnsub" },
+  video_codes: { magnet: "f=download", sub: "f=cnsub", both: "f=cnsub" },
+  lists: { magnet: "f=download", sub: "f=cnsub", both: "f=cnsub" },
   tags: { magnet: "c10=1", sub: "c10=2", both: "c10=1,2" },
-  search: { magnet: "f=download", sub: "f=cnsub", both: "" },
+  search: { magnet: "f=download", sub: "f=cnsub", both: "f=cnsub" },
 };
 
 const SORT_OPTIONS = [
@@ -36,16 +36,37 @@ const SEARCH_SORT_OPTIONS = [
   { value: 1, label: "按发布日期" },
 ];
 
-const URL_TYPE_OPTIONS = [
-  { value: "actors", label: "演员 (actors)" },
-  { value: "series", label: "系列 (series)" },
-  { value: "makers", label: "片商 (makers)" },
-  { value: "directors", label: "导演 (directors)" },
-  { value: "video_codes", label: "番号 (video_codes)" },
-  { value: "lists", label: "列表 (lists)" },
-  { value: "tags", label: "标签 (tags)" },
-  { value: "search", label: "搜索 (search)" },
-];
+const URL_TYPE_LABELS: Record<UrlType, string> = {
+  actors: "演员 (actors)",
+  series: "系列 (series)",
+  makers: "片商 (makers)",
+  directors: "导演 (directors)",
+  video_codes: "番号 (video_codes)",
+  lists: "列表 (lists)",
+  tags: "标签 (tags)",
+  search: "搜索 (search)",
+};
+
+/** 从 URL 路径自动检测 URL 类型 */
+function detectUrlType(url: string): UrlType | null {
+  try {
+    const u = new URL(url);
+    const path = u.pathname;
+
+    if (path.startsWith("/search")) return "search";
+    if (path.startsWith("/actors/")) return "actors";
+    if (path.startsWith("/series/")) return "series";
+    if (path.startsWith("/makers/")) return "makers";
+    if (path.startsWith("/directors/")) return "directors";
+    if (path.startsWith("/video_codes/")) return "video_codes";
+    if (path.startsWith("/lists/")) return "lists";
+    if (path.startsWith("/tags/")) return "tags";
+
+    return null;
+  } catch {
+    return null;
+  }
+}
 
 const PARAM_KEYS = ["t", "f", "c10", "sort", "page", "sb"] as const;
 
@@ -131,10 +152,12 @@ function UrlEntryCard({
   index,
   remove,
   onNameExtracted,
+  onUrlTypeDetected,
 }: {
   index: number;
   remove?: () => void;
   onNameExtracted?: (index: number, name: string) => void;
+  onUrlTypeDetected?: (index: number, urlType: UrlType) => void;
 }) {
   const [extracting, setExtracting] = useState(false);
 
@@ -153,20 +176,45 @@ function UrlEntryCard({
       )}
       style={{ marginBottom: 12 }}
     >
-      <Form.Item
-        name={[index, "url"]}
-        label="URL"
-        rules={[{ required: true, message: "请输入URL" }]}
-      >
-        <Input placeholder="https://javdb.com/actors/..." />
-      </Form.Item>
+      <Form.Item noStyle shouldUpdate={(prev, cur) => {
+        const prevUrl = prev.urls?.[index]?.url;
+        const curUrl = cur.urls?.[index]?.url;
+        return prevUrl !== curUrl;
+      }}>
+        {({ getFieldValue }) => {
+          const url = getFieldValue(["urls", index, "url"]) as string;
+          const detected = url ? detectUrlType(url) : null;
+          const currentType = getFieldValue(["urls", index, "url_type"]) as UrlType | undefined;
 
-      <Form.Item
-        name={[index, "url_type"]}
-        label="URL类型"
-        rules={[{ required: true }]}
-      >
-        <Select options={URL_TYPE_OPTIONS} />
+          // URL 变化时自动更新 url_type
+          if (detected && detected !== currentType && onUrlTypeDetected) {
+            setTimeout(() => onUrlTypeDetected(index, detected), 0);
+          }
+
+          return (
+            <>
+              <Form.Item
+                name={[index, "url"]}
+                label="URL"
+                rules={[{ required: true, message: "请输入URL" }]}
+              >
+                <Input placeholder="https://javdb.com/actors/..." />
+              </Form.Item>
+
+              <Form.Item label="URL类型">
+                <Input
+                  value={detected ? URL_TYPE_LABELS[detected] : (url ? "无法识别" : "请输入URL")}
+                  disabled
+                />
+              </Form.Item>
+
+              {/* 隐藏字段存储 url_type 值 */}
+              <Form.Item name={[index, "url_type"]} hidden>
+                <Input />
+              </Form.Item>
+            </>
+          );
+        }}
       </Form.Item>
 
       <Form.Item noStyle shouldUpdate={(prev, cur) => {
@@ -382,7 +430,7 @@ export default function TaskForm() {
         layout="vertical"
         onFinish={handleSubmit}
         initialValues={{
-          urls: [{ url_type: "actors", has_magnet: true, has_chinese_sub: false, sort_type: 0 }],
+          urls: [{ has_magnet: true, has_chinese_sub: false, sort_type: 0 }],
           is_skip: false,
         }}
       >
@@ -413,11 +461,18 @@ export default function TaskForm() {
                         form.setFieldsValue({ name });
                       }
                     }}
+                    onUrlTypeDetected={(idx, urlType) => {
+                      const urls = form.getFieldValue("urls") ?? [];
+                      const updated = urls.map((u: Record<string, unknown>, i: number) =>
+                        i === idx ? { ...u, url_type: urlType } : u,
+                      );
+                      form.setFieldsValue({ urls: updated });
+                    }}
                   />
                 ))}
                 <Button
                   type="dashed"
-                  onClick={() => add({ url_type: "actors", has_magnet: true, has_chinese_sub: false, sort_type: 0 })}
+                  onClick={() => add({ has_magnet: true, has_chinese_sub: false, sort_type: 0 })}
                   icon={<PlusOutlined />}
                   block
                 >
