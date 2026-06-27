@@ -626,23 +626,33 @@ def _step_rename_files(task: dict, config: dict) -> dict:
 
 
 def _step_move_files(task: dict, config: dict) -> dict:
-    """Step 7: Move renamed videos (and optionally subtitles/covers) to target folder."""
+    """Step 7: Move renamed videos to target folder(s).
+
+    When multiple target_paths exist (from multiple source_task_name):
+    - Copy files to all targets EXCEPT the last one
+    - Move files to the LAST target (preserves the download folder for cleanup)
+    """
     task_id = task["task_id"]
     selected = task.get("selected_videos", [])
     target_path = task["target_path"]
+    target_paths = task.get("target_paths", [target_path])
 
-    # Only move video files (not covers/subtitles)
     files_to_move = list(selected)
 
     if not files_to_move:
         _append_log(task_id, "无需移动，没有文件")
         return task
 
+    # Split targets: copy targets (all but last) + move target (last)
+    copy_targets = target_paths[:-1] if len(target_paths) > 1 else []
+    move_target = target_paths[-1]
+
     cd2 = _build_cd2_client(config)
     try:
-        # Ensure target folder exists
+        # Ensure all target folders exist
         if config.get("auto_create_target_folder", True):
-            cd2.create_folder(target_path)
+            for tp in target_paths:
+                cd2.create_folder(tp)
 
         moved = []
         for i, f in enumerate(files_to_move):
@@ -650,21 +660,35 @@ def _step_move_files(task: dict, config: dict) -> dict:
                 return task
 
             src = f.get("renamed_path") or f["path"]
-            dst = str(PurePosixPath(target_path) / PurePosixPath(src).name)
+            file_name = PurePosixPath(src).name
+            dst = str(PurePosixPath(move_target) / file_name)
 
-            # Idempotent: skip if target file already exists
+            # Idempotent: skip if target file already exists in move target
             existing = _get_file_info(cd2, dst)
             if existing and existing.get("size", 0) > 0:
-                _append_log(task_id, f"跳过已存在: {PurePosixPath(dst).name}")
-                moved.append({**f, "moved_path": dst})
+                _append_log(task_id, f"跳过已存在: {file_name}")
+                moved.append({**f, "moved_path": dst, "copied_paths": []})
                 continue
 
+            # Copy to all targets except the last
+            copied_paths = []
+            for ct in copy_targets:
+                copy_dst = str(PurePosixPath(ct) / file_name)
+                try:
+                    cd2.copy_file([src], ct)
+                    copied_paths.append(copy_dst)
+                    _append_log(task_id, f"已复制: {file_name} → {ct}")
+                except Exception as e:
+                    _append_log(task_id, f"复制失败: {file_name} → {ct}: {e}", "ERROR")
+                    raise
+
+            # Move to last target
             try:
-                cd2.move_file([src], target_path)
-                moved.append({**f, "moved_path": dst})
-                _append_log(task_id, f"已移动: {PurePosixPath(src).name} → {target_path}")
+                cd2.move_file([src], move_target)
+                moved.append({**f, "moved_path": dst, "copied_paths": copied_paths})
+                _append_log(task_id, f"已移动: {file_name} → {move_target}")
             except Exception as e:
-                _append_log(task_id, f"移动失败: {PurePosixPath(src).name}: {e}", "ERROR")
+                _append_log(task_id, f"移动失败: {file_name}: {e}", "ERROR")
                 raise
 
         _update_task(task_id, {"moved_files": moved})
