@@ -35,7 +35,7 @@ def build_crawl_task_from_doc(doc: dict[str, Any]) -> CrawlTask:
     return CrawlTask(
         name=doc["name"],
         urls=urls,
-        is_skip=False,
+        is_skip=doc.get("is_skip", False),
     )
 
 

@@ -164,7 +164,7 @@ def _worker_loop():
                 raise ValueError(f"Task {run_doc['task_id']} not found")
 
             task = build_crawl_task_from_doc(task_doc)
-            _append_log(run_id, f"执行任务: {task.name}, URL: {task.final_url}", "INFO")
+            _append_log(run_id, f"执行任务: {task.name}, URL: {task.urls[0].final_url if task.urls else None}", "INFO")
 
             def log_callback(message: str, level: str = "INFO"):
                 _append_log(run_id, message, level)
