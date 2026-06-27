@@ -230,7 +230,7 @@ def parse_detail_page(page) -> dict:
     return detail
 
 
-# Different url_type section name extraction config
+# 不同 url_type 对应的 section name 提取配置
 _SECTION_NAME_CONFIG: dict[str, dict[str, str | bool]] = {
     "actors": {"selector": ".actor-section-name::text", "split_comma": True},
     "lists": {"selector": ".actor-section-name::text", "split_comma": False},
@@ -242,12 +242,12 @@ _SECTION_NAME_CONFIG: dict[str, dict[str, str | bool]] = {
 
 
 def parse_page_section_name(page, url_type: str) -> str:
-    """Extract name from the section-title area of a page.
+    """从页面的 section-title 区域提取名称。
 
-    actors: take actor-section-name, split by comma, return first part
-    lists: take actor-section-name, return full text
-    series/makers/directors/video_codes: take section-name
-    search/tags: return empty string (no extraction)
+    actors 类型: 取 actor-section-name，逗号分割取第一个
+    lists 类型: 取 actor-section-name，完整返回
+    series/makers/directors/video_codes 类型: 取 section-name
+    search/tags 类型: 返回空字符串
     """
     config = _SECTION_NAME_CONFIG.get(url_type)
     if not config:
