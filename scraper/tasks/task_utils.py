@@ -128,6 +128,10 @@ def build_final_url(
     if url_type in ("actors", "series", "makers", "directors", "video_codes"):
         params["sort_type"] = sort_type
 
+    # search type uses sb param: 0=relevance, 1=date
+    if url_type == "search":
+        params["sb"] = sort_type
+
     if url_type == "search" and "?" not in url:
         params.setdefault("f", "all")
 
