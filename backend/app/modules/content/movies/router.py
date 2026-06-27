@@ -94,6 +94,49 @@ def _magnet_export_item(movie: dict, magnet: dict) -> dict:
     }
 
 
+def _build_cd2_client(config: dict):
+    """Build a CloudDriveGrpcClient from storage config."""
+    from clouddrive.clouddrive_grpc_client import CloudDriveGrpcClient
+
+    raw_host = config.get("grpc_host", "localhost:9798")
+    token = config.get("api_token", "")
+    timeout = config.get("request_timeout_seconds", 60)
+
+    host = raw_host
+    if host.startswith("http://"):
+        host = host[7:]
+    elif host.startswith("https://"):
+        host = host[8:]
+    host = host.rstrip("/")
+
+    return CloudDriveGrpcClient(host=host, token=token, timeout=timeout)
+
+
+def _load_storage_config() -> dict:
+    """Load the default storage config from MongoDB."""
+    from app.modules.storage.config.schemas import StorageConfig
+
+    db = get_mongo_db()
+    doc = db[STORAGE_CONFIG].find_one({"_key": "default"})
+    if not doc:
+        return StorageConfig().model_dump()
+    doc.pop("_id", None)
+    doc.pop("_key", None)
+    doc.pop("updated_at", None)
+    defaults = StorageConfig().model_dump()
+    return {**defaults, **doc}
+
+
+def _check_location_exists(cd2, path: str) -> bool:
+    """Check if a file exists on CloudDrive2 at the given path."""
+    from pathlib import PurePosixPath
+
+    parent = PurePosixPath(path).parent.as_posix() or "/"
+    name = PurePosixPath(path).name
+    found = cd2.find_file_by_path(parent, name)
+    return found is not None
+
+
 @router.get("/collections")
 def list_collections():
     """List movie collections (backward-compatible, returns unified collection)."""
@@ -353,6 +396,62 @@ def export_magnets(
     return {"magnets": magnets, "total": len(magnets)}
 
 
+@router.post("/sync-location/batch")
+def sync_movie_locations_batch(body: dict):
+    """Batch check storage locations for multiple movies."""
+    ids = body.get("ids", [])
+    if not ids:
+        raise HTTPException(status_code=400, detail="ids is required")
+
+    db = get_mongo_db()
+    col = db[MOVIE_COLLECTION]
+    config = _load_storage_config()
+    cd2 = _build_cd2_client(config)
+
+    try:
+        results = []
+        for mid in ids:
+            try:
+                oid = ObjectId(mid)
+            except InvalidId:
+                results.append({"movie_id": mid, "error": "Invalid ID"})
+                continue
+
+            movie = col.find_one({"_id": oid})
+            if not movie:
+                results.append({"movie_id": mid, "error": "Not found"})
+                continue
+
+            locations = movie.get("storage_summary", {}).get("locations", [])
+            if not locations:
+                results.append({"movie_id": mid, "synced": False, "locations": [], "message": "No storage locations"})
+                continue
+
+            loc_results = []
+            all_exist = True
+            for loc in locations:
+                path = loc.get("path", "")
+                exists = _check_location_exists(cd2, path) if path else False
+                if not exists:
+                    all_exist = False
+                loc_results.append({**loc, "exists": exists})
+
+            new_status = "completed" if all_exist else "missing"
+            col.update_one(
+                {"_id": oid},
+                {"$set": {
+                    "storage_summary.last_status": new_status,
+                    "storage_summary.locations": loc_results,
+                    "storage_summary.synced_at": datetime.now(),
+                }},
+            )
+            results.append({"movie_id": mid, "synced": all_exist, "locations": loc_results})
+
+        return {"results": results, "total": len(results)}
+    finally:
+        cd2.close()
+
+
 @router.get("/{movie_id}")
 def get_movie(movie_id: str):
     """Get a single movie by ID."""
@@ -409,6 +508,52 @@ def select_magnet(movie_id: str, body: dict):
     )
 
     return {"success": True, "selected_magnet_dedupe_key": dedupe_key}
+
+
+@router.post("/{movie_id}/sync-location")
+def sync_movie_location(movie_id: str):
+    """Check storage locations on CloudDrive2 and update movie status."""
+    try:
+        oid = ObjectId(movie_id)
+    except InvalidId:
+        raise HTTPException(status_code=400, detail="Invalid movie ID")
+
+    db = get_mongo_db()
+    col = db[MOVIE_COLLECTION]
+    movie = col.find_one({"_id": oid})
+    if not movie:
+        raise HTTPException(status_code=404, detail="Movie not found")
+
+    locations = movie.get("storage_summary", {}).get("locations", [])
+    if not locations:
+        return {"locations": [], "synced": False, "message": "No storage locations"}
+
+    config = _load_storage_config()
+    cd2 = _build_cd2_client(config)
+    try:
+        results = []
+        all_exist = True
+        for loc in locations:
+            path = loc.get("path", "")
+            exists = _check_location_exists(cd2, path) if path else False
+            if not exists:
+                all_exist = False
+            results.append({**loc, "exists": exists})
+
+        # Update movie's storage status based on sync result
+        new_status = "completed" if all_exist else "missing"
+        col.update_one(
+            {"_id": oid},
+            {"$set": {
+                "storage_summary.last_status": new_status,
+                "storage_summary.locations": results,
+                "storage_summary.synced_at": datetime.now(),
+            }},
+        )
+
+        return {"locations": results, "synced": all_exist}
+    finally:
+        cd2.close()
 
 
 @router.delete("/batch")
