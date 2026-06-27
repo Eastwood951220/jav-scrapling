@@ -26,25 +26,39 @@
 .
 ├── backend/                  # FastAPI 后端、模块化 API、任务队列、调度器
 │   ├── app/
-│   │   ├── core/             # BSON、日志等基础设施
-│   │   ├── db/               # 集合名和索引定义
+│   │   ├── core/             # BSON、日志、依赖注入等基础设施
+│   │   ├── db/               # 兼容层，re-export shared.database
 │   │   ├── modules/          # crawler/storage/content 大模块
 │   │   ├── main.py           # FastAPI 入口
 │   │   ├── scheduler.py      # APScheduler 定时任务
 │   └── requirements.txt
 ├── frontend/                 # React 管理界面源码
-├── scraper/                  # 爬虫、解析、清洗、数据库仓储
-│   ├── database/             # MongoDB 连接、索引、电影仓储
+├── scraper/                  # 爬虫、解析、清洗
+│   ├── config/               # 环境变量、站点配置
+│   ├── database/             # 兼容层，delegate to shared.database
 │   ├── fetchers/
 │   ├── pipelines/
 │   ├── services/
 │   ├── spiders/
 │   └── tasks/
+├── shared/                   # 共享基础设施（backend 和 scraper 共用）
+│   ├── database/             # MongoDB 客户端、集合常量、索引、仓储
+│   └── integrations/         # CloudDrive2 gRPC、JavDB 边界导入
 ├── scripts/                  # 电影集合迁移/清理脚本
 ├── docker-compose.yml
 ├── Makefile
 └── .env.example
 ```
+
+### 依赖方向
+
+```text
+backend ─┐
+         ├── shared
+scraper ─┘
+```
+
+Backend 和 scraper 都依赖 shared，但彼此不直接依赖数据库或集成层。
 
 ## 快速开始
 
@@ -231,7 +245,7 @@ movies
 电影数据通过 `code` 或 `source_url` 去重。索引定义在：
 
 ```text
-scraper/database/indexes.py
+shared/database/indexes/
 ```
 
 主要索引包括：

@@ -1,6 +1,8 @@
 from unittest.mock import MagicMock, patch
 from bson import ObjectId
 
+from shared.integrations.storage_providers.clouddrive2.models import RemoteFile
+
 
 def test_sync_location_checks_files_on_clouddrive():
     """sync-location should check each location on CloudDrive2 and update status."""
@@ -22,14 +24,10 @@ def test_sync_location_checks_files_on_clouddrive():
         },
     }
 
-    mock_cd2 = MagicMock()
+    mock_gateway = MagicMock()
     # First location exists, second doesn't
-    mock_file = MagicMock()
-    mock_file.name = "ABC-001.mp4"
-    mock_file.fullPathName = "/Movies/taskA/ABC-001.mp4"
-    mock_file.size = 1024
-    mock_file.isDirectory = False
-    mock_cd2.find_file_by_path.side_effect = [mock_file, None]
+    mock_file = RemoteFile(name="ABC-001.mp4", full_path="/Movies/taskA/ABC-001.mp4", size=1024, is_directory=False)
+    mock_gateway.find_file.side_effect = [mock_file, None]
 
     mock_config_col = MagicMock()
     mock_config_col.find_one.return_value = {"grpc_host": "localhost:19798", "api_token": ""}
@@ -43,8 +41,8 @@ def test_sync_location_checks_files_on_clouddrive():
 
     mock_db.__getitem__ = lambda self, key: get_collection(key)
 
-    with patch("app.modules.content.movies.router.get_mongo_db", return_value=mock_db), \
-         patch("app.modules.content.movies.router._build_cd2_client", return_value=mock_cd2):
+    with patch("app.modules.content.movies.router.get_database", return_value=mock_db), \
+         patch("app.modules.content.movies.router._build_cd2_gateway", return_value=mock_gateway):
         client = TestClient(app)
         resp = client.post(f"/api/movies/{movie_id}/sync-location")
 
@@ -95,11 +93,10 @@ def test_sync_location_batch_checks_multiple_movies():
 
     movies_col.find_one.side_effect = find_one
 
-    mock_cd2 = MagicMock()
+    mock_gateway = MagicMock()
     # First movie's file exists, second doesn't
-    mock_file = MagicMock()
-    mock_file.name = "ABC-001.mp4"
-    mock_cd2.find_file_by_path.side_effect = [mock_file, None]
+    mock_file = RemoteFile(name="ABC-001.mp4", full_path="/Movies/ABC-001.mp4", size=1024, is_directory=False)
+    mock_gateway.find_file.side_effect = [mock_file, None]
 
     mock_config_col = MagicMock()
     mock_config_col.find_one.return_value = {"grpc_host": "localhost:19798", "api_token": ""}
@@ -113,8 +110,8 @@ def test_sync_location_batch_checks_multiple_movies():
 
     mock_db.__getitem__ = lambda self, key: get_collection(key)
 
-    with patch("app.modules.content.movies.router.get_mongo_db", return_value=mock_db), \
-         patch("app.modules.content.movies.router._build_cd2_client", return_value=mock_cd2):
+    with patch("app.modules.content.movies.router.get_database", return_value=mock_db), \
+         patch("app.modules.content.movies.router._build_cd2_gateway", return_value=mock_gateway):
         client = TestClient(app)
         resp = client.post(
             "/api/movies/sync-location/batch",
@@ -143,7 +140,7 @@ def test_sync_location_no_locations_returns_empty():
         "code": "XYZ-999",
     }
 
-    mock_cd2 = MagicMock()
+    mock_gateway = MagicMock()
 
     mock_config_col = MagicMock()
     mock_config_col.find_one.return_value = {"grpc_host": "localhost:19798", "api_token": ""}
@@ -157,8 +154,8 @@ def test_sync_location_no_locations_returns_empty():
 
     mock_db.__getitem__ = lambda self, key: get_collection(key)
 
-    with patch("app.modules.content.movies.router.get_mongo_db", return_value=mock_db), \
-         patch("app.modules.content.movies.router._build_cd2_client", return_value=mock_cd2):
+    with patch("app.modules.content.movies.router.get_database", return_value=mock_db), \
+         patch("app.modules.content.movies.router._build_cd2_gateway", return_value=mock_gateway):
         client = TestClient(app)
         resp = client.post(f"/api/movies/{movie_id}/sync-location")
 

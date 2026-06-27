@@ -26,7 +26,7 @@ def test_delete_normal_mode_removes_source_task_name():
 
     mock_db.__getitem__ = lambda self, key: get_collection(key)
 
-    with patch("app.modules.crawler.tasks.router.get_mongo_db", return_value=mock_db):
+    with patch("app.modules.crawler.tasks.router.get_database", return_value=mock_db):
         client = TestClient(app)
         resp = client.delete(f"/api/crawler/tasks/{task_id}?mode=normal")
 
@@ -79,7 +79,7 @@ def test_delete_complete_mode_deletes_movies_and_magnets():
 
     mock_db.__getitem__ = lambda self, key: get_collection(key)
 
-    with patch("app.modules.crawler.tasks.router.get_mongo_db", return_value=mock_db):
+    with patch("app.modules.crawler.tasks.router.get_database", return_value=mock_db):
         client = TestClient(app)
         resp = client.delete(f"/api/crawler/tasks/{task_id}?mode=complete")
 
@@ -115,7 +115,7 @@ def test_delete_default_mode_is_normal():
 
     mock_db.__getitem__ = lambda self, key: get_collection(key)
 
-    with patch("app.modules.crawler.tasks.router.get_mongo_db", return_value=mock_db):
+    with patch("app.modules.crawler.tasks.router.get_database", return_value=mock_db):
         client = TestClient(app)
         resp = client.delete(f"/api/crawler/tasks/{task_id}")
 
@@ -136,7 +136,7 @@ def test_delete_invalid_mode_returns_400():
 
     mock_db.__getitem__ = lambda self, key: tasks_col if key == "crawl_tasks" else MagicMock()
 
-    with patch("app.modules.crawler.tasks.router.get_mongo_db", return_value=mock_db):
+    with patch("app.modules.crawler.tasks.router.get_database", return_value=mock_db):
         client = TestClient(app)
         resp = client.delete(f"/api/crawler/tasks/{task_id}?mode=invalid")
 
@@ -164,7 +164,7 @@ def test_delete_normal_mode_no_pull_when_no_task_name():
 
     mock_db.__getitem__ = lambda self, key: get_collection(key)
 
-    with patch("app.modules.crawler.tasks.router.get_mongo_db", return_value=mock_db):
+    with patch("app.modules.crawler.tasks.router.get_database", return_value=mock_db):
         client = TestClient(app)
         resp = client.delete(f"/api/crawler/tasks/{task_id}?mode=normal")
 

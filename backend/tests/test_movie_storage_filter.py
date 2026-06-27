@@ -24,7 +24,7 @@ def test_list_movies_storage_status_filter():
 
     mock_db.__getitem__ = lambda self, key: get_collection(key)
 
-    with patch("app.modules.content.movies.router.get_mongo_db", return_value=mock_db):
+    with patch("app.modules.content.movies.router.get_database", return_value=mock_db):
         client = TestClient(app)
         resp = client.get("/api/movies?storage_status=completed")
 

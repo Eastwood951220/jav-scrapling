@@ -1,6 +1,6 @@
 """Repository for maintaining the unified movie_filters collection."""
 
-from app.db.collections import MOVIES, MOVIE_FILTERS
+from shared.database.collections import MOVIES, MOVIE_FILTERS
 
 # Fields that are arrays on movie documents
 _ARRAY_FIELDS: dict[str, str] = {

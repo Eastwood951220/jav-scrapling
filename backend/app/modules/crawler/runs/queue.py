@@ -9,7 +9,7 @@ from bson import ObjectId
 from bson.errors import InvalidId
 
 from app.core.bson import stringify_objectids
-from app.db.collections import CRAWL_RUNS, CRAWL_RUN_DETAIL_TASKS, CRAWL_TASKS
+from shared.database.collections import CRAWL_RUNS, CRAWL_RUN_DETAIL_TASKS, CRAWL_TASKS
 
 _Queue = queue.Queue[Any]
 _task_queue: _Queue = queue.Queue()
@@ -21,14 +21,14 @@ _stop_event = threading.Event()
 
 def enqueue_task(task_id: str) -> dict:
     """Add a task to the execution queue. Returns the run document."""
-    from scraper.database.mongo_client import get_mongo_db
+    from shared.database import get_database
 
     try:
         oid = ObjectId(task_id)
     except InvalidId:
         raise ValueError(f"Invalid task ID: {task_id}")
 
-    tasks_col = get_mongo_db()[CRAWL_TASKS]
+    tasks_col = get_database()[CRAWL_TASKS]
     task_doc = tasks_col.find_one({"_id": oid})
 
     run_doc = {
@@ -42,7 +42,7 @@ def enqueue_task(task_id: str) -> dict:
         "error": None,
     }
 
-    result = get_mongo_db()[CRAWL_RUNS].insert_one(run_doc)
+    result = get_database()[CRAWL_RUNS].insert_one(run_doc)
     run_doc["_id"] = str(result.inserted_id)
 
     _task_queue.put(str(result.inserted_id))
@@ -70,9 +70,9 @@ def recover_orphaned_runs() -> int:
 
     Returns the number of runs recovered.
     """
-    from scraper.database.mongo_client import get_mongo_db
+    from shared.database import get_database
 
-    runs_col = get_mongo_db()[CRAWL_RUNS]
+    runs_col = get_database()[CRAWL_RUNS]
     orphaned = list(runs_col.find({"status": "queued"}))
 
     for run_doc in orphaned:
@@ -129,7 +129,7 @@ def _persist_crawled_item(repository, magnet_repository, cleaned_item: dict):
 def _worker_loop():
     global _current_run_id, _worker_running, _stop_event
 
-    from scraper.database.mongo_client import get_mongo_db
+    from shared.database import get_database
     from scraper.database.repositories.filter_repository import sync_movie_filters
     from scraper.database.repositories.movie_magnet_repository import MovieMagnetRepository
     from scraper.database.repositories.movie_repository import MovieRepository
@@ -141,9 +141,9 @@ def _worker_loop():
         _current_run_id = run_id
         _stop_event.clear()
 
-        runs_col = get_mongo_db()[CRAWL_RUNS]
-        tasks_col = get_mongo_db()[CRAWL_TASKS]
-        detail_col = get_mongo_db()[CRAWL_RUN_DETAIL_TASKS]
+        runs_col = get_database()[CRAWL_RUNS]
+        tasks_col = get_database()[CRAWL_TASKS]
+        detail_col = get_database()[CRAWL_RUN_DETAIL_TASKS]
         repository = MovieRepository()
         magnet_repository = MovieMagnetRepository()
 
@@ -297,7 +297,7 @@ def _worker_loop():
 
             # Auto-sync filter collection after crawl completes
             try:
-                sync_result = sync_movie_filters(get_mongo_db())
+                sync_result = sync_movie_filters(get_database())
                 _append_log(
                     run_id,
                     f"筛选列表已同步: 演员={sync_result['actors']}, 标签={sync_result['tags']}, "
@@ -366,11 +366,11 @@ def retry_detail_task(task_id: str, mode: str) -> dict:
         task_id: detail task 的 ObjectId 字符串
         mode: "crawl" 或 "save"
     """
-    from scraper.database.mongo_client import get_mongo_db
+    from shared.database import get_database
     from scraper.database.repositories.movie_magnet_repository import MovieMagnetRepository
     from scraper.database.repositories.movie_repository import MovieRepository
 
-    detail_col = get_mongo_db()[CRAWL_RUN_DETAIL_TASKS]
+    detail_col = get_database()[CRAWL_RUN_DETAIL_TASKS]
     doc = detail_col.find_one({"_id": ObjectId(task_id)})
     if not doc:
         return {"success": False, "error": "任务不存在"}

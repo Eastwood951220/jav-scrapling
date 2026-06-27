@@ -56,6 +56,16 @@ make dev      # Run both backend and frontend locally
 
 ## Architecture
 
+### Shared (`shared/`)
+
+Infrastructure used by both backend and scraper:
+
+- `database/` owns MongoDB client lifecycle, collection constants, indexes, and shared repositories.
+- `integrations/storage_providers/clouddrive2/` owns CloudDrive2 gRPC, protobuf mapping, factory normalization, and gateway methods.
+- `integrations/content_sources/javdb/` exposes JavDB boundary imports used by backend without coupling backend to scraper internals.
+
+Backend business code must not import `scraper.database` or generated CloudDrive2 protobuf modules directly.
+
 ### Backend (`backend/app/`)
 
 Modular FastAPI application with three main modules:
@@ -69,16 +79,17 @@ Modular FastAPI application with three main modules:
 
 Core infrastructure:
 - `core/bson.py` - BSON serialization helpers
+- `core/dependencies.py` - Shared dependency injection (repositories, factories, gateway)
 - `core/logging.py` - Application logging configuration
-- `db/collections.py` - MongoDB collection name constants
-- `db/indexes.py` - Backend-specific index definitions
+- `db/collections.py` - Re-exports from `shared.database.collections`
+- `db/indexes.py` - Re-exports from `shared.database.indexes`
 
 ### Scraper (`scraper/`)
 
 Standalone scraping package (importable by both backend and CLI):
 
 - **`config/`** - Settings from `.env`, site configuration, logging
-- **`database/`** - MongoDB client, movie repository, index definitions
+- **`database/`** - Compatibility wrappers that delegate to `shared.database`
 - **`fetchers/`** - Scrapling-based HTTP fetchers (static/dynamic)
 - **`parsers/`** - JavDB HTML parsers
 - **`pipelines/`** - Data cleaning and transformation pipelines
@@ -160,6 +171,8 @@ cd backend && PYTHONPATH=".:..:$PYTHONPATH" pytest -v
 ## Common Patterns
 
 - Backend modules follow `router.py` (endpoints) + `schemas.py` (Pydantic models) structure
-- MongoDB operations use `get_mongo_db()` from `scraper.database.mongo_client`
+- MongoDB operations use `get_database()` from `shared.database`
+- Collection constants come from `shared.database.collections`
+- CloudDrive2 access uses `CloudDriveClientFactory` + `CloudDrive2Gateway` from `shared.integrations.storage_providers.clouddrive2`
 - All ObjectId conversions go through `app.core.bson.stringify_objectids()`
 - Scraping tasks use callback pattern for progress tracking and data flow

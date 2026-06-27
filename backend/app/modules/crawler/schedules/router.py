@@ -5,10 +5,10 @@ from bson import ObjectId
 from bson.errors import InvalidId
 from fastapi import APIRouter, HTTPException
 
-from app.db.collections import CRAWL_SCHEDULES
+from shared.database import get_database
+from shared.database.collections import CRAWL_SCHEDULES
 from app.modules.crawler.schedules.schemas import ScheduleCreate, ScheduleUpdate
 from app.scheduler import add_schedule_job, remove_schedule_job
-from scraper.database.mongo_client import get_mongo_db
 
 router = APIRouter(prefix="/api/crawler/schedules", tags=["crawler-schedules"])
 
@@ -16,7 +16,7 @@ COLLECTION = CRAWL_SCHEDULES
 
 
 def _col():
-    return get_mongo_db()[COLLECTION]
+    return get_database()[COLLECTION]
 
 
 def _validate_cron(expression: str) -> None:

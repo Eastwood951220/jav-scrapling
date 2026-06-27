@@ -3,7 +3,8 @@ from bson.errors import InvalidId
 from fastapi import APIRouter, HTTPException, Query
 
 from app.core.bson import stringify_objectids
-from app.db.collections import CRAWL_RUNS, CRAWL_RUN_DETAIL_TASKS
+from shared.database import get_database
+from shared.database.collections import CRAWL_RUNS, CRAWL_RUN_DETAIL_TASKS
 from app.modules.crawler.runs.logs import delete_run_logs, load_run_logs
 from app.modules.crawler.runs.queue import (
     get_queue_status,
@@ -13,7 +14,6 @@ from app.modules.crawler.runs.queue import (
 )
 from app.modules.crawler.runs.detail_schemas import RunDetailTaskListResponse
 from app.modules.crawler.runs.schemas import QueueStatusResponse, RunListResponse, RunResponse
-from scraper.database.mongo_client import get_mongo_db
 
 router = APIRouter(prefix="/api/crawler/runs", tags=["crawler-runs"])
 
@@ -21,7 +21,7 @@ COLLECTION = CRAWL_RUNS
 
 
 def _col():
-    return get_mongo_db()[COLLECTION]
+    return get_database()[COLLECTION]
 
 
 @router.get("/queue-status", response_model=QueueStatusResponse)
@@ -156,7 +156,7 @@ DETAIL_TASKS_COLLECTION = CRAWL_RUN_DETAIL_TASKS
 
 
 def _detail_col():
-    return get_mongo_db()[DETAIL_TASKS_COLLECTION]
+    return get_database()[DETAIL_TASKS_COLLECTION]
 
 
 @router.get("/{run_id}/tasks", response_model=RunDetailTaskListResponse)

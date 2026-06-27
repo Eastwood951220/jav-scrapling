@@ -5,7 +5,8 @@ from bson import ObjectId
 from bson.errors import InvalidId
 from fastapi import APIRouter, HTTPException, Query
 
-from app.db.collections import (
+from shared.database import get_database, sanitize_collection_name
+from shared.database.collections import (
     MOVIES,
     MOVIE_MAGNETS,
     MOVIE_FILTERS,
@@ -20,7 +21,6 @@ from app.db.collections import (
     STORAGE_TASKS,
 )
 from app.modules.content.movies.schemas import MovieListResponse
-from scraper.database.mongo_client import get_mongo_db, sanitize_collection_name
 
 router = APIRouter(prefix="/api/movies", tags=["movies"])
 
@@ -94,29 +94,21 @@ def _magnet_export_item(movie: dict, magnet: dict) -> dict:
     }
 
 
-def _build_cd2_client(config: dict):
-    """Build a CloudDriveGrpcClient from storage config."""
-    from clouddrive.clouddrive_grpc_client import CloudDriveGrpcClient
+def _build_cd2_gateway(config: dict):
+    """Build a CloudDrive2Gateway from storage config."""
+    from shared.integrations.storage_providers.clouddrive2.factory import CloudDriveClientFactory
+    from shared.integrations.storage_providers.clouddrive2.gateway import CloudDrive2Gateway
 
-    raw_host = config.get("grpc_host", "localhost:9798")
-    token = config.get("api_token", "")
-    timeout = config.get("request_timeout_seconds", 60)
-
-    host = raw_host
-    if host.startswith("http://"):
-        host = host[7:]
-    elif host.startswith("https://"):
-        host = host[8:]
-    host = host.rstrip("/")
-
-    return CloudDriveGrpcClient(host=host, token=token, timeout=timeout)
+    factory = CloudDriveClientFactory()
+    client = factory.create(config)
+    return CloudDrive2Gateway(client)
 
 
 def _load_storage_config() -> dict:
     """Load the default storage config from MongoDB."""
     from app.modules.storage.config.schemas import StorageConfig
 
-    db = get_mongo_db()
+    db = get_database()
     doc = db[STORAGE_CONFIG].find_one({"_key": "default"})
     if not doc:
         return StorageConfig().model_dump()
@@ -127,13 +119,9 @@ def _load_storage_config() -> dict:
     return {**defaults, **doc}
 
 
-def _check_location_exists(cd2, path: str) -> bool:
+def _check_location_exists(gateway, path: str) -> bool:
     """Check if a file exists on CloudDrive2 at the given path."""
-    from pathlib import PurePosixPath
-
-    parent = PurePosixPath(path).parent.as_posix() or "/"
-    name = PurePosixPath(path).name
-    found = cd2.find_file_by_path(parent, name)
+    found = gateway.find_file(path)
     return found is not None
 
 
@@ -146,7 +134,7 @@ def list_collections():
 @router.delete("/collections/{collection_name}")
 def delete_collection(collection_name: str):
     """Delete a collection (backward-compatible). Blocks deletion of system and unified collections."""
-    db = get_mongo_db()
+    db = get_database()
     safe_name = sanitize_collection_name(collection_name)
     excluded = {
         MOVIE_COLLECTION,
@@ -177,7 +165,7 @@ def list_filters(type: str = Query(..., description="Filter type: actor, tag, di
     """Return deduplicated filter names for the given type."""
     if type not in _VALID_FILTER_TYPES:
         raise HTTPException(status_code=400, detail=f"Invalid filter type: {type}. Valid: {_VALID_FILTER_TYPES}")
-    db = get_mongo_db()
+    db = get_database()
     col = db[MOVIE_FILTERS]
     return [
         doc["name"]
@@ -188,7 +176,7 @@ def list_filters(type: str = Query(..., description="Filter type: actor, tag, di
 @router.get("/task-names")
 def list_task_names():
     """Return distinct source_task_name values from the movies collection."""
-    db = get_mongo_db()
+    db = get_database()
     col = db[MOVIE_COLLECTION]
     names = col.distinct("source_task_name")
     # source_task_name is a list field; distinct returns flat values
@@ -216,7 +204,7 @@ def list_movies(
     storage_status: str | None = Query(default=None, description="Filter by storage status: completed, failed, pending, etc."),
 ):
     """Get a paginated movie list with optional filters."""
-    db = get_mongo_db()
+    db = get_database()
     col = db[MOVIE_COLLECTION]
 
     query = {}
@@ -320,7 +308,7 @@ def export_magnets(
     date_to: str | None = Query(default=None, description="YYYY-MM-DD"),
 ):
     """Return all magnets matching the query filters (no pagination) for export."""
-    db = get_mongo_db()
+    db = get_database()
     col = db[MOVIE_COLLECTION]
 
     query = {}
@@ -403,10 +391,10 @@ def sync_movie_locations_batch(body: dict):
     if not ids:
         raise HTTPException(status_code=400, detail="ids is required")
 
-    db = get_mongo_db()
+    db = get_database()
     col = db[MOVIE_COLLECTION]
     config = _load_storage_config()
-    cd2 = _build_cd2_client(config)
+    gateway = _build_cd2_gateway(config)
 
     try:
         results = []
@@ -431,7 +419,7 @@ def sync_movie_locations_batch(body: dict):
             all_exist = True
             for loc in locations:
                 path = loc.get("path", "")
-                exists = _check_location_exists(cd2, path) if path else False
+                exists = _check_location_exists(gateway, path) if path else False
                 if not exists:
                     all_exist = False
                 loc_results.append({**loc, "exists": exists})
@@ -449,7 +437,7 @@ def sync_movie_locations_batch(body: dict):
 
         return {"results": results, "total": len(results)}
     finally:
-        cd2.close()
+        gateway.client.close()
 
 
 @router.get("/{movie_id}")
@@ -460,7 +448,7 @@ def get_movie(movie_id: str):
     except InvalidId:
         raise HTTPException(status_code=400, detail="Invalid movie ID")
 
-    db = get_mongo_db()
+    db = get_database()
     col = db[MOVIE_COLLECTION]
     doc = col.find_one({"_id": oid})
 
@@ -485,7 +473,7 @@ def select_magnet(movie_id: str, body: dict):
     if not dedupe_key:
         raise HTTPException(status_code=400, detail="dedupe_key is required")
 
-    db = get_mongo_db()
+    db = get_database()
     col = db[MOVIE_COLLECTION]
 
     # Verify movie exists
@@ -518,7 +506,7 @@ def sync_movie_location(movie_id: str):
     except InvalidId:
         raise HTTPException(status_code=400, detail="Invalid movie ID")
 
-    db = get_mongo_db()
+    db = get_database()
     col = db[MOVIE_COLLECTION]
     movie = col.find_one({"_id": oid})
     if not movie:
@@ -529,13 +517,13 @@ def sync_movie_location(movie_id: str):
         return {"locations": [], "synced": False, "message": "No storage locations"}
 
     config = _load_storage_config()
-    cd2 = _build_cd2_client(config)
+    gateway = _build_cd2_gateway(config)
     try:
         results = []
         all_exist = True
         for loc in locations:
             path = loc.get("path", "")
-            exists = _check_location_exists(cd2, path) if path else False
+            exists = _check_location_exists(gateway, path) if path else False
             if not exists:
                 all_exist = False
             results.append({**loc, "exists": exists})
@@ -553,7 +541,7 @@ def sync_movie_location(movie_id: str):
 
         return {"locations": results, "synced": all_exist}
     finally:
-        cd2.close()
+        gateway.client.close()
 
 
 @router.delete("/batch")
@@ -570,7 +558,7 @@ def delete_movies_batch(body: dict):
         except InvalidId:
             raise HTTPException(status_code=400, detail=f"Invalid movie ID: {mid}")
 
-    db = get_mongo_db()
+    db = get_database()
     col = db[MOVIE_COLLECTION]
     result = col.delete_many({"_id": {"$in": oids}})
 
@@ -589,7 +577,7 @@ def delete_movie(movie_id: str):
     except InvalidId:
         raise HTTPException(status_code=400, detail="Invalid movie ID")
 
-    db = get_mongo_db()
+    db = get_database()
     col = db[MOVIE_COLLECTION]
     result = col.delete_one({"_id": oid})
 
