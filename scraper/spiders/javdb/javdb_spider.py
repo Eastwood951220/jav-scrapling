@@ -235,6 +235,9 @@ class JavdbSpider(BaseSpider):
                     f"name={task.get('name')} reason={task.get('reason')}"
                 )
                 self._emit(msg, log_callback)
+                # LIST 阶段跳过的已存在电影，也需要更新 source_task_name
+                if task.get("reason") == "already_exists" and on_item_already_exists:
+                    on_item_already_exists(task)
                 index += 1
                 continue
 
