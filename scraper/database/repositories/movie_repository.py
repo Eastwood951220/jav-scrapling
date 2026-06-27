@@ -2,20 +2,25 @@ from datetime import datetime
 
 from pymongo.errors import DuplicateKeyError, PyMongoError
 
+from shared.database import get_database
+from shared.database.collections import MOVIES
 from scraper.config.logging import get_logger
 from scraper.database.indexes import ensure_indexes
-from scraper.database.mongo_client import get_mongo_db
-from app.db.collections import MOVIES
+from shared.database.repositories.movie_repository import (
+    MovieRepository as _SharedMovieRepository,
+)
 
 
-class MovieRepository:
+class MovieRepository(_SharedMovieRepository):
     COLLECTION_NAME = MOVIES
 
     def __init__(self):
         self.logger = get_logger("movie_repository")
-        self.db = get_mongo_db()
+        self.db = get_database()
         self.available = True
         self._indexes_ensured = False
+        # Initialize shared repository with the same collection
+        super().__init__(collection=self.db[self.COLLECTION_NAME])
 
     def _ensure_indexes(self) -> None:
         """Ensure indexes are created (lazy initialization)."""
@@ -25,7 +30,7 @@ class MovieRepository:
 
     def get_collection(self):
         """Get the unified movies collection."""
-        return self.db[self.COLLECTION_NAME]
+        return self.collection
 
     def insert_if_not_exists(
         self,
