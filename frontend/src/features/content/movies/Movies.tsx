@@ -30,8 +30,7 @@ import {
     fetchMovie,
     deleteMovie,
     deleteMovies,
-    fetchActors,
-    fetchTags,
+    fetchFilters,
     fetchAllMagnets,
     createStorageTask,
     batchCreateStorageTasks,
@@ -59,6 +58,12 @@ export default function Movies() {
     const [tagOptions, setTagOptions] = useState<{ value: string; label: string }[]>([]);
     const [selectedActors, setSelectedActors] = useState<string[]>([]);
     const [selectedTags, setSelectedTags] = useState<string[]>([]);
+    const [directorOptions, setDirectorOptions] = useState<{ value: string; label: string }[]>([]);
+    const [makerOptions, setMakerOptions] = useState<{ value: string; label: string }[]>([]);
+    const [seriesOptions, setSeriesOptions] = useState<{ value: string; label: string }[]>([]);
+    const [selectedDirectors, setSelectedDirectors] = useState<string[]>([]);
+    const [selectedMakers, setSelectedMakers] = useState<string[]>([]);
+    const [selectedSeries, setSelectedSeries] = useState<string[]>([]);
     const [filtersLoading, setFiltersLoading] = useState(false);
     const [dateRange, setDateRange] = useState<[Dayjs | null, Dayjs | null]>([null, null]);
 
@@ -80,9 +85,18 @@ export default function Movies() {
     const loadFilters = useCallback(async () => {
         setFiltersLoading(true);
         try {
-            const [actors, tags] = await Promise.all([fetchActors(), fetchTags()]);
+            const [actors, tags, directors, makers, series] = await Promise.all([
+                fetchFilters("actor"),
+                fetchFilters("tag"),
+                fetchFilters("director"),
+                fetchFilters("maker"),
+                fetchFilters("series"),
+            ]);
             setActorOptions(actors.map((a) => ({value: a, label: a})));
             setTagOptions(tags.map((t) => ({value: t, label: t})));
+            setDirectorOptions(directors.map((d) => ({value: d, label: d})));
+            setMakerOptions(makers.map((m) => ({value: m, label: m})));
+            setSeriesOptions(series.map((s) => ({value: s, label: s})));
         } catch (e: unknown) {
             message.error(getErrorMessage(e));
         } finally {
@@ -113,6 +127,9 @@ export default function Movies() {
                 rating_min: ratingMin,
                 actors: selectedActors.length > 0 ? selectedActors.join(",") : undefined,
                 tags: selectedTags.length > 0 ? selectedTags.join(",") : undefined,
+                director: selectedDirectors.length > 0 ? selectedDirectors.join(",") : undefined,
+                maker: selectedMakers.length > 0 ? selectedMakers.join(",") : undefined,
+                series: selectedSeries.length > 0 ? selectedSeries.join(",") : undefined,
                 date_from: dateRange[0]?.format("YYYY-MM-DD"),
                 date_to: dateRange[1]?.format("YYYY-MM-DD"),
             });
@@ -122,7 +139,7 @@ export default function Movies() {
         } finally {
             setLoading(false);
         }
-    }, [selectedTask, search, sortBy, sortOrder, ratingMin, pageSize, selectedActors, selectedTags, dateRange]);
+    }, [selectedTask, search, sortBy, sortOrder, ratingMin, pageSize, selectedActors, selectedTags, selectedDirectors, selectedMakers, selectedSeries, dateRange]);
 
     useEffect(() => {
         loadTasks();
@@ -168,6 +185,9 @@ export default function Movies() {
                     rating_min: ratingMin,
                     actors: selectedActors.length > 0 ? selectedActors.join(",") : undefined,
                     tags: selectedTags.length > 0 ? selectedTags.join(",") : undefined,
+                    director: selectedDirectors.length > 0 ? selectedDirectors.join(",") : undefined,
+                    maker: selectedMakers.length > 0 ? selectedMakers.join(",") : undefined,
+                    series: selectedSeries.length > 0 ? selectedSeries.join(",") : undefined,
                     date_from: dateRange[0]?.format("YYYY-MM-DD"),
                     date_to: dateRange[1]?.format("YYYY-MM-DD"),
                 });
@@ -539,6 +559,39 @@ export default function Movies() {
                         maxTagCount="responsive"
                         allowClear
                     />
+                    <Select
+                        mode="tags"
+                        style={{width: 200}}
+                        placeholder="筛选导演"
+                        value={selectedDirectors}
+                        onChange={setSelectedDirectors}
+                        options={directorOptions}
+                        loading={filtersLoading}
+                        maxTagCount="responsive"
+                        allowClear
+                    />
+                    <Select
+                        mode="tags"
+                        style={{width: 200}}
+                        placeholder="筛选片商"
+                        value={selectedMakers}
+                        onChange={setSelectedMakers}
+                        options={makerOptions}
+                        loading={filtersLoading}
+                        maxTagCount="responsive"
+                        allowClear
+                    />
+                    <Select
+                        mode="tags"
+                        style={{width: 200}}
+                        placeholder="筛选系列"
+                        value={selectedSeries}
+                        onChange={setSelectedSeries}
+                        options={seriesOptions}
+                        loading={filtersLoading}
+                        maxTagCount="responsive"
+                        allowClear
+                    />
                     <InputNumber
                         style={{width: 120}}
                         placeholder="最低评分"
@@ -583,6 +636,9 @@ export default function Movies() {
                         setSortOrder(-1);
                         setSelectedActors([]);
                         setSelectedTags([]);
+                        setSelectedDirectors([]);
+                        setSelectedMakers([]);
+                        setSelectedSeries([]);
                         setDateRange([null, null]);
                         loadMovies(1);
                     }}>
