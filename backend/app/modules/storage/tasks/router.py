@@ -6,14 +6,16 @@ from datetime import datetime
 
 from bson import ObjectId
 from bson.errors import InvalidId
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.core.bson import stringify_objectids
-from app.db.collections import MOVIES, MOVIE_MAGNETS, STORAGE_COUNTERS, STORAGE_TASKS
+from app.core.dependencies import get_storage_task_service
+from shared.database import get_database
+from shared.database.collections import MOVIES, MOVIE_MAGNETS, STORAGE_COUNTERS, STORAGE_TASKS
+from shared.database.repositories import select_best_magnet as _select_best_magnet
 from app.modules.storage.tasks.id_generator import generate_storage_task_id
 from app.modules.storage.tasks.logs import load_storage_task_logs
-from scraper.database.mongo_client import get_mongo_db
-from scraper.database.repositories.movie_magnet_repository import select_best_magnet as _select_best_magnet
+from app.modules.storage.tasks.service import StorageTaskService
 
 router = APIRouter(prefix="/api/storage/tasks", tags=["storage-tasks"])
 
@@ -29,19 +31,19 @@ logger = logging.getLogger("storage_tasks")
 
 
 def _col():
-    return get_mongo_db()[TASKS_COLLECTION]
+    return get_database()[TASKS_COLLECTION]
 
 
 def _movies_col():
-    return get_mongo_db()[MOVIES_COLLECTION]
+    return get_database()[MOVIES_COLLECTION]
 
 
 def _movie_magnets_col():
-    return get_mongo_db()[MAGNETS_COLLECTION]
+    return get_database()[MAGNETS_COLLECTION]
 
 
 def _counters_col():
-    return get_mongo_db()[COUNTERS_COLLECTION]
+    return get_database()[COUNTERS_COLLECTION]
 
 
 def _escape_regex(value: str) -> str:
@@ -120,82 +122,21 @@ def batch_delete_storage_tasks(body: dict):
 # ---------------------------------------------------------------------------
 
 @router.post("")
-def create_storage_task(body: dict):
+def create_storage_task(
+    body: dict,
+    service: StorageTaskService = Depends(get_storage_task_service),
+):
     """Create a storage task for a single movie.
 
     Request body:
         { "movie_id": "...", "magnet_url": "magnet:..." }
     """
-    movie_id = body.get("movie_id")
-    magnet_url = body.get("magnet_url")
-
-    if not movie_id:
-        raise HTTPException(status_code=400, detail="movie_id is required")
-    if not magnet_url:
-        raise HTTPException(status_code=400, detail="magnet_url is required")
-
-    # Validate movie_id
     try:
-        movie_oid = ObjectId(movie_id)
-    except InvalidId:
-        raise HTTPException(status_code=400, detail="Invalid movie_id")
-
-    # Look up movie
-    movie = _movies_col().find_one({"_id": movie_oid})
-    if not movie:
-        raise HTTPException(status_code=404, detail="Movie not found")
-
-    info_hash = _extract_info_hash(magnet_url)
-
-    # Check for duplicate: same movie_id + info_hash + active status
-    if info_hash:
-        existing = _col().find_one({
-            "movie_id": str(movie_oid),
-            "info_hash": info_hash,
-            "status": {"$in": list(ACTIVE_STATUSES)},
-        })
-        if existing:
-            return {"task_id": existing["task_id"], "status": "existing"}
-
-    # Generate task_id
-    task_id = _generate_task_id()
-    now = datetime.now()
-
-    movie_code = movie.get("code") or movie.get("config_task_name", "")
-
-    task_doc = {
-        "task_id": task_id,
-        "movie_id": str(movie_oid),
-        "movie_code": movie_code,
-        "title": movie.get("source_name") or movie.get("config_task_name", ""),
-        "magnet_url": magnet_url,
-        "info_hash": info_hash,
-        "status": "pending",
-        "step": None,
-        "source": "api",
-        "retry_count": 0,
-        "max_retries": 3,
-        "error_message": None,
-        "download_path": None,
-        "target_path": None,
-        "progress": 0.0,
-        "created_at": now,
-        "updated_at": now,
-    }
-
-    _col().insert_one(task_doc)
-
-    # Update movie's storage_summary
-    _movies_col().update_one(
-        {"_id": movie_oid},
-        {"$set": {
-            "storage_summary.last_task_id": task_id,
-            "storage_summary.last_status": "pending",
-            "storage_summary.updated_at": now,
-        }},
-    )
-
-    return {"task_id": task_id, "status": "created"}
+        return service.create_task(body)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 # ---------------------------------------------------------------------------
