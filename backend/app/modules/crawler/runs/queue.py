@@ -200,17 +200,40 @@ def _worker_loop():
 
             def on_item_saved(detail_task: dict, cleaned_item: dict) -> None:
                 try:
-                    _persist_crawled_item(repository, magnet_repository, cleaned_item)
-                    detail_col.update_one(
-                        {"run_id": run_id, "source_url": detail_task.get("url")},
-                        {"$set": {
-                            "status": "saved",
-                            "crawled_at": datetime.now(timezone.utc),
-                            "saved_at": datetime.now(timezone.utc),
-                            "item_data": cleaned_item,
-                        }},
-                        upsert=True,
-                    )
+                    code = cleaned_item.get("code")
+                    task_name = task.name
+
+                    # Check if movie already exists in DB
+                    existing_movie = repository.get_collection().find_one(
+                        {"code": code}, {"_id": 1}
+                    ) if code else None
+
+                    if existing_movie:
+                        # Movie exists: just add this task name to source_task_name list
+                        repository.add_source_task_name(code, task_name)
+                        detail_col.update_one(
+                            {"run_id": run_id, "source_url": detail_task.get("url")},
+                            {"$set": {
+                                "status": "saved",
+                                "crawled_at": datetime.now(timezone.utc),
+                                "saved_at": datetime.now(timezone.utc),
+                                "item_data": cleaned_item,
+                                "dedup_existing": True,
+                            }},
+                            upsert=True,
+                        )
+                    else:
+                        _persist_crawled_item(repository, magnet_repository, cleaned_item)
+                        detail_col.update_one(
+                            {"run_id": run_id, "source_url": detail_task.get("url")},
+                            {"$set": {
+                                "status": "saved",
+                                "crawled_at": datetime.now(timezone.utc),
+                                "saved_at": datetime.now(timezone.utc),
+                                "item_data": cleaned_item,
+                            }},
+                            upsert=True,
+                        )
                 except Exception as save_exc:
                     detail_col.update_one(
                         {"run_id": run_id, "source_url": detail_task.get("url")},

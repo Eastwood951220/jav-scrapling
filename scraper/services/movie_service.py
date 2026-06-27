@@ -29,11 +29,12 @@ class MovieService:
         if task.is_skip:
             if log_callback:
                 log_callback(f"跳过任务: {task.name}", "INFO")
+            first_url = task.urls[0] if task.urls else None
             return {
                 "task_name": task.name,
-                "source": task.source,
-                "url": task.url,
-                "final_url": task.final_url,
+                "source": first_url.source if first_url else None,
+                "url": first_url.url if first_url else None,
+                "final_url": first_url.final_url if first_url else None,
                 "is_skip": True,
                 "total_tasks": 0,
                 "completed_tasks": 0,
@@ -95,11 +96,12 @@ class MovieService:
         # 检测停止: 判断 stop_check 是否被触发
         stopped = stop_check() if stop_check else False
 
+        first_url = task.urls[0] if task.urls else None
         return {
             "task_name": task.name,
-            "source": task.source,
-            "url": task.url,
-            "final_url": task.final_url,
+            "source": first_url.source if first_url else None,
+            "url": first_url.url if first_url else None,
+            "final_url": first_url.final_url if first_url else None,
             "is_skip": task.is_skip,
             "total_tasks": len(detail_tasks),
             "completed_tasks": len(completed_tasks),
@@ -137,17 +139,18 @@ class MovieService:
                 print(f"[Tasks] {index}/{total_config_tasks} stopped by signal")
                 break
 
+            first_url = task.urls[0] if task.urls else None
             print(
                 f"[Tasks] {index}/{total_config_tasks} "
-                f"name={task.name} skip={task.is_skip} url={task.url}"
+                f"name={task.name} skip={task.is_skip} url={first_url.url if first_url else None}"
             )
 
             if task.is_skip:
                 result = {
                     "task_name": task.name,
-                    "source": task.source,
-                    "url": task.url,
-                    "final_url": task.final_url,
+                    "source": first_url.source if first_url else None,
+                    "url": first_url.url if first_url else None,
+                    "final_url": first_url.final_url if first_url else None,
                     "is_skip": True,
                     "total_tasks": 0,
                     "completed_tasks": 0,

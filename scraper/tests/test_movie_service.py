@@ -1,6 +1,6 @@
 import pytest
 from scraper.services.movie_service import MovieService
-from scraper.tasks.task_schema import CrawlTask
+from scraper.tasks.task_schema import CrawlTask, CrawlTaskUrlEntry
 
 
 class FakeFetcher:
@@ -25,8 +25,11 @@ def test_crawl_javdb_task_returns_items_in_result(monkeypatch):
     service = MovieService()
     monkeypatch.setattr(service, "_build_spider", lambda: FakeSpider())
 
-    task = CrawlTask(name="test", source="javdb", url="http://x.com", final_url="http://x.com",
-                     max_list_pages=1, filter=None, is_skip=False, url_type="javdb")
+    task = CrawlTask(
+        name="test",
+        urls=[CrawlTaskUrlEntry(url="http://x.com", url_type="javdb", source="javdb", final_url="http://x.com")],
+        is_skip=False,
+    )
     result = service.crawl_javdb_task(task)
 
     assert "items" in result
