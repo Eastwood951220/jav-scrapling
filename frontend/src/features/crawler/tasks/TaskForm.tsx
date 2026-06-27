@@ -206,9 +206,22 @@ export default function TaskForm() {
   }, [id, isEdit, form]);
 
   const handleSubmit = async (values: Record<string, unknown>) => {
+    // Validate URL uniqueness
+    const urlEntries = values.urls as Record<string, unknown>[];
+    const urlSet = new Set<string>();
+    for (let i = 0; i < urlEntries.length; i++) {
+      const url = urlEntries[i].url as string;
+      if (url && urlSet.has(url)) {
+        message.error(`URL 重复: ${url}`);
+        setSubmitting(false);
+        return;
+      }
+      if (url) urlSet.add(url);
+    }
+
     setSubmitting(true);
     try {
-      const urls = (values.urls as Record<string, unknown>[]).map((entry) => ({
+      const urls = urlEntries.map((entry) => ({
         url: entry.url as string,
         url_type: entry.url_type as string,
         has_magnet: (entry.has_magnet as boolean) ?? false,
