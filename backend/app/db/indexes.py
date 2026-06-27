@@ -3,6 +3,7 @@ from pymongo import ASCENDING, DESCENDING, IndexModel
 from app.db.collections import (
     CRAWL_RUNS,
     CRAWL_RUN_DETAIL_TASKS,
+    MOVIE_FILTERS,
     MOVIE_MAGNETS,
     STORAGE_COUNTERS,
     STORAGE_TASKS,
@@ -10,6 +11,7 @@ from app.db.collections import (
 )
 from scraper.database.indexes import (
     ensure_indexes as ensure_movie_indexes,
+    ensure_filters_indexes,
     ensure_magnet_indexes,
 )
 
@@ -18,6 +20,7 @@ def ensure_backend_indexes(db) -> None:
     """Create indexes for fresh backend-owned collections."""
     ensure_movie_indexes(db, "movies")
     ensure_magnet_indexes(db, MOVIE_MAGNETS)
+    ensure_filters_indexes(db, MOVIE_FILTERS)
 
     db[CRAWL_TASKS].create_indexes([
         IndexModel([("created_at", DESCENDING)], name="idx_crawl_tasks_created_at"),
