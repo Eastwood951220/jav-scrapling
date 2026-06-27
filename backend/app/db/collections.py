@@ -1,12 +1,1 @@
-MOVIES = "movies"
-MOVIE_MAGNETS = "movie_magnets"
-MOVIE_FILTERS = "movie_filters"
-CRAWL_TASKS = "crawl_tasks"
-CRAWL_RUNS = "crawl_runs"
-CRAWL_RUN_DETAIL_TASKS = "crawl_run_detail_tasks"
-CRAWL_SCHEDULES = "crawl_schedules"
-CRAWL_CONFIG = "crawl_config"
-CRAWL_COOKIES_CONFIG = "crawl_cookies_config"
-STORAGE_CONFIG = "storage_config"
-STORAGE_TASKS = "storage_tasks"
-STORAGE_COUNTERS = "storage_counters"
+from shared.database.collections import *  # noqa: F401,F403

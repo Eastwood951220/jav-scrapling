@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.logging import configure_logging, get_app_logger
-from app.db.indexes import ensure_backend_indexes
+from shared.database.indexes import ensure_all_indexes
 from app.modules.content.movies.router import router as movies_router
 from app.modules.crawler.cookies.router import router as cookies_config_router
 from app.modules.crawler.runs.router import router as runs_router
@@ -15,8 +15,8 @@ from app.modules.storage.config.router import router as storage_config_router
 from app.modules.storage.tasks.router import router as storage_tasks_router
 from app.modules.storage.tasks.worker import start_storage_worker, stop_storage_worker
 from app.scheduler import start_scheduler
-from scraper.config.settings import MONGO_DB_NAME
-from scraper.database.mongo_client import connect_mongo, close_mongo, get_mongo_db
+from shared.database import close_database, connect_database, get_database
+from shared.database.config import get_database_config
 
 configure_logging()
 _startup_logger = get_app_logger("startup")
@@ -27,7 +27,7 @@ async def lifespan(app: FastAPI):
     _startup_logger.info("Starting Jav Scrapling backend...")
     try:
         _startup_logger.info("Connecting to MongoDB...")
-        connect_mongo()
+        connect_database()
         _startup_logger.info("MongoDB connected successfully")
     except Exception:
         _startup_logger.exception("FATAL: Failed to connect to MongoDB")
@@ -35,8 +35,8 @@ async def lifespan(app: FastAPI):
 
     try:
         _startup_logger.info("Ensuring database indexes...")
-        db = get_mongo_db()
-        ensure_backend_indexes(db)
+        db = get_database()
+        ensure_all_indexes(db)
         _startup_logger.info("Database indexes ensured successfully")
     except Exception:
         _startup_logger.exception("FATAL: Failed to ensure database indexes")
@@ -69,7 +69,7 @@ async def lifespan(app: FastAPI):
     yield
     _startup_logger.info("Shutting down...")
     stop_storage_worker()
-    close_mongo()
+    close_database()
     _startup_logger.info("Backend stopped")
 
 
@@ -99,4 +99,4 @@ app.add_middleware(
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "db": MONGO_DB_NAME}
+    return {"status": "ok", "db": get_database_config().database_name}

@@ -1,103 +1,17 @@
-from pymongo import ASCENDING, DESCENDING, IndexModel
-
-
-MOVIE_INDEXES: list[IndexModel] = [
-    IndexModel(
-        [("code", ASCENDING)],
-        unique=True,
-        sparse=True,
-        name="idx_movie_code_unique",
-    ),
-    IndexModel(
-        [("source_url", ASCENDING)],
-        unique=True,
-        sparse=True,
-        name="idx_movie_source_url_unique",
-    ),
-    IndexModel(
-        [("source_task_name", ASCENDING)],
-        name="idx_movie_source_task_name",
-    ),
-    IndexModel(
-        [("release_date", DESCENDING)],
-        name="idx_movie_release_date",
-    ),
-    IndexModel(
-        [("rating", DESCENDING)],
-        sparse=True,
-        name="idx_movie_rating",
-    ),
-    IndexModel(
-        [("created_at", DESCENDING)],
-        name="idx_movie_created_at",
-    ),
-    IndexModel(
-        [("updated_at", DESCENDING)],
-        name="idx_movie_updated_at",
-    ),
-    IndexModel(
-        [("source_name", ASCENDING)],
-        name="idx_movie_source_name",
-    ),
-]
-
-
-MAGNET_INDEXES: list[IndexModel] = [
-    IndexModel(
-        [("movie_id", ASCENDING), ("dedupe_key", ASCENDING)],
-        unique=True,
-        name="idx_movie_magnets_movie_dedupe",
-    ),
-    IndexModel(
-        [("movie_id", ASCENDING)],
-        name="idx_movie_magnets_movie_id",
-    ),
-    IndexModel(
-        [("info_hash", ASCENDING)],
-        sparse=True,
-        name="idx_movie_magnets_info_hash",
-    ),
-    IndexModel(
-        [("source_task_name", ASCENDING), ("movie_code", ASCENDING)],
-        name="idx_movie_magnets_source_task",
-    ),
-    IndexModel(
-        [("has_chinese_sub", DESCENDING), ("size", DESCENDING)],
-        name="idx_movie_magnets_quality",
-    ),
-    IndexModel(
-        [("updated_at", DESCENDING)],
-        name="idx_movie_magnets_updated_at",
-    ),
-]
-
-
-MOVIE_FILTERS_INDEXES: list[IndexModel] = [
-    IndexModel(
-        [("type", ASCENDING), ("name", ASCENDING)],
-        unique=True,
-        name="idx_movie_filters_type_name",
-    ),
-    IndexModel(
-        [("type", ASCENDING)],
-        name="idx_movie_filters_type",
-    ),
-]
+from shared.database.indexes.content import (
+    MAGNET_INDEXES,
+    MOVIE_FILTERS_INDEXES,
+    MOVIE_INDEXES,
+)
 
 
 def ensure_indexes(db, collection_name: str = "movies") -> None:
-    """Ensure all movie indexes exist on the target collection."""
-    collection = db[collection_name]
-    collection.create_indexes(MOVIE_INDEXES)
+    db[collection_name].create_indexes(MOVIE_INDEXES)
 
 
 def ensure_magnet_indexes(db, collection_name: str = "movie_magnets") -> None:
-    """Ensure all movie magnet indexes exist on the target collection."""
-    collection = db[collection_name]
-    collection.create_indexes(MAGNET_INDEXES)
+    db[collection_name].create_indexes(MAGNET_INDEXES)
 
 
 def ensure_filters_indexes(db, collection_name: str = "movie_filters") -> None:
-    """Ensure all movie filter indexes exist on the target collection."""
-    collection = db[collection_name]
-    collection.create_indexes(MOVIE_FILTERS_INDEXES)
+    db[collection_name].create_indexes(MOVIE_FILTERS_INDEXES)
