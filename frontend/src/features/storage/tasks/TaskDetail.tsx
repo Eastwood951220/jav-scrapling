@@ -229,9 +229,19 @@ export default function TaskDetail() {
           {task.final_files && task.final_files.length > 0 && (
             <Card title="最终文件" className={styles.detailCard}>
               <Space direction="vertical" style={{ width: "100%" }}>
-                {task.final_files.map((filePath) => (
-                  <CopyableText key={filePath} text={filePath} />
-                ))}
+                {task.final_files.map((file, index) => {
+                  // Handle both string paths and file objects
+                  const filePath = typeof file === "string" ? file : file.moved_path || file.path || file.name || "-";
+                  const fileName = typeof file === "string" ? file.split("/").pop() || file : file.name || filePath.split("/").pop() || "-";
+                  return (
+                    <div key={index} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <CopyableText text={filePath} display={fileName} />
+                      {typeof file === "object" && file.size != null && (
+                        <Typography.Text type="secondary">({formatFileSize(file.size)})</Typography.Text>
+                      )}
+                    </div>
+                  );
+                })}
               </Space>
             </Card>
           )}

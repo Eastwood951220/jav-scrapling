@@ -17,6 +17,18 @@ export interface TaskFile {
   result?: string;
 }
 
+export interface MovedFile {
+  name: string;
+  path: string;
+  size?: number;
+  is_dir?: boolean;
+  video_type?: string;
+  renamed_path?: string;
+  renamed_name?: string;
+  moved_path?: string;
+  copied_paths?: string[];
+}
+
 export interface Task {
   _id: string;
   task_id: string;
@@ -41,7 +53,7 @@ export interface Task {
   completed_at: string | null;
   steps?: TaskStep[];
   scanned_files?: TaskFile[];
-  final_files?: string[];
+  final_files?: (string | MovedFile)[];
 }
 
 export interface TaskListResponse {
