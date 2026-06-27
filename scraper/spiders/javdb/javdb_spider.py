@@ -46,6 +46,7 @@ class JavdbSpider(BaseSpider):
         """Collect detail tasks from list pages for a single URL entry."""
         max_pages = MAX_LIST_PAGES
         detail_tasks: list[dict] = []
+        seen_codes: set[str] = set()
         verification_count = 0
 
         final_url = url_entry.final_url or url_entry.url
@@ -93,10 +94,20 @@ class JavdbSpider(BaseSpider):
                 self._emit(msg, log_callback)
                 break
 
-            detail_tasks.extend(page_tasks)
+            # Dedup: filter out codes already seen in this URL
+            fresh_tasks: list[dict] = []
+            for t in page_tasks:
+                code = t.get("code")
+                if code and code in seen_codes:
+                    continue
+                if code:
+                    seen_codes.add(code)
+                fresh_tasks.append(t)
 
-            if on_tasks_batch_created:
-                on_tasks_batch_created(page_tasks)
+            detail_tasks.extend(fresh_tasks)
+
+            if on_tasks_batch_created and fresh_tasks:
+                on_tasks_batch_created(fresh_tasks)
 
             total_count = len(detail_tasks)
             skipped_count = sum(
@@ -105,7 +116,7 @@ class JavdbSpider(BaseSpider):
             pending_count = total_count - skipped_count
 
             msg = (
-                f"[{task_name}] 列表页 {page_no} 完成: 本页={len(page_tasks)}条, "
+                f"[{task_name}] 列表页 {page_no} 完成: 本页={len(fresh_tasks)}条(去重后), "
                 f"总计={total_count}, 待处理={pending_count}, 跳过={skipped_count}"
             )
             self._emit(msg, log_callback)
