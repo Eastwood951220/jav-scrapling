@@ -63,6 +63,7 @@ def _public_magnet_doc(doc: dict) -> dict:
         "has_chinese_sub": bool(doc.get("has_chinese_sub")),
         "date": doc.get("date", ""),
         "dedupe_key": doc.get("dedupe_key", ""),
+        "weight": doc.get("weight", 0),
     }
 
 

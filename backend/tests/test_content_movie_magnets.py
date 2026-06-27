@@ -58,6 +58,7 @@ def test_attach_movie_magnets_groups_rows_by_movie_id():
             "has_chinese_sub": False,
             "date": "2023-09-22",
             "dedupe_key": "",
+            "weight": 0,
         }
     ]
 
