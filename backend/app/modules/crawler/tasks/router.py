@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime
 
 from bson import ObjectId
@@ -9,13 +10,53 @@ from app.db.collections import CRAWL_RUNS, CRAWL_RUN_DETAIL_TASKS, CRAWL_TASKS
 from app.modules.crawler.runs.logs import delete_run_logs
 from app.modules.crawler.runs.queue import enqueue_task
 from app.modules.crawler.runs.schemas import RunResponse
-from app.modules.crawler.tasks.schemas import TaskCreate, TaskUpdate, TaskUrlEntry
+from app.modules.crawler.tasks.schemas import TaskCreate, TaskUpdate, TaskUrlEntry, ExtractNameRequest
+from scraper.core.security import is_security_check_page
 from scraper.database.mongo_client import get_mongo_db
+from scraper.spiders.javdb.javdb_parser import parse_page_section_name
 from scraper.tasks.task_utils import build_final_url, determine_source
 
 router = APIRouter(prefix="/api/crawler/tasks", tags=["crawler-tasks"])
 
 TASKS_COLLECTION = CRAWL_TASKS
+
+
+@router.post("/extract-name")
+def extract_name(body: ExtractNameRequest):
+    """从目标页面提取名称，用于自动填充任务名称。"""
+    logger = logging.getLogger("tasks")
+
+    if body.url_type in ("search", "tags"):
+        return {"name": ""}
+
+    try:
+        from scraper.config.sites import JAVDB_SITE
+        from scraper.cookies.cookie_manager import CookieManager
+        from scraper.config.settings import REQUEST_TIMEOUT
+        from scraper.fetchers.scrapling_fetcher import ScraplingFetcher
+
+        cookie_manager = CookieManager(JAVDB_SITE["cookie_file"])
+        cookies = cookie_manager.load()
+
+        fetcher = ScraplingFetcher(
+            headers=JAVDB_SITE["headers"],
+            cookies=cookies,
+            timeout=REQUEST_TIMEOUT,
+        )
+
+        page = fetcher.get(body.url)
+
+        if is_security_check_page(page):
+            raise HTTPException(status_code=429, detail="触发安全验证，请稍后重试")
+
+        name = parse_page_section_name(page, body.url_type)
+        return {"name": name}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("提取名称失败 url=%s: %s", body.url, e)
+        raise HTTPException(status_code=500, detail=f"提取名称失败: {e}")
 
 
 def _collection():

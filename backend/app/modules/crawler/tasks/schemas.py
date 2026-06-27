@@ -21,3 +21,14 @@ class TaskUpdate(BaseModel):
     name: str | None = None
     urls: list[TaskUrlEntry] | None = None
     is_skip: bool | None = None
+
+
+class ExtractNameRequest(BaseModel):
+    """提取 URL 名称的请求。"""
+    url: str
+    url_type: str
+
+
+class ExtractNameResponse(BaseModel):
+    """提取 URL 名称的响应。"""
+    name: str
