@@ -5,7 +5,7 @@ import { PlusOutlined, MinusCircleOutlined, SearchOutlined } from "@ant-design/i
 import { createTask, fetchTask, updateTask, extractName } from "./api";
 import FullPageSpinner from "@/shared/components/FullPageSpinner";
 import { getErrorMessage } from "@/shared/hooks/useErrorMessage";
-import type { TaskCreatePayload } from "./types";
+import type { TaskCreatePayload, TaskUrlEntry } from "./types";
 
 type UrlType = "actors" | "series" | "makers" | "directors" | "video_codes" | "lists" | "tags" | "search";
 
@@ -98,7 +98,7 @@ function UrlEntryCard({
 }: {
   index: number;
   remove?: () => void;
-  onNameExtracted?: (name: string) => void;
+  onNameExtracted?: (index: number, name: string) => void;
 }) {
   const [extracting, setExtracting] = useState(false);
 
@@ -182,6 +182,23 @@ function UrlEntryCard({
         }}
       </Form.Item>
 
+      {/* url_name display (read-only) */}
+      <Form.Item noStyle shouldUpdate={(prev, cur) => {
+        const prevUrls = prev.urls?.[index];
+        const curUrls = cur.urls?.[index];
+        return prevUrls?.url_name !== curUrls?.url_name;
+      }}>
+        {({ getFieldValue }) => {
+          const urlName = getFieldValue(["urls", index, "url_name"]) as string | undefined;
+          if (!urlName) return null;
+          return (
+            <Form.Item label="URL 名称">
+              <Input value={urlName} disabled />
+            </Form.Item>
+          );
+        }}
+      </Form.Item>
+
       <Form.Item noStyle shouldUpdate={(prev, cur) => {
         const prevUrls = prev.urls?.[index];
         const curUrls = cur.urls?.[index];
@@ -203,7 +220,7 @@ function UrlEntryCard({
                 try {
                   const result = await extractName(url, urlType);
                   if (result.name && onNameExtracted) {
-                    onNameExtracted(result.name);
+                    onNameExtracted(index, result.name);
                   } else if (!result.name) {
                     message.warning("未能提取到名称");
                   }
@@ -245,6 +262,7 @@ export default function TaskForm() {
             has_magnet: u.has_magnet ?? true,
             has_chinese_sub: u.has_chinese_sub ?? false,
             sort_type: u.sort_type ?? 0,
+            url_name: u.url_name ?? "",
           })) ?? [],
           is_skip: task.is_skip,
         });
@@ -269,17 +287,37 @@ export default function TaskForm() {
 
     setSubmitting(true);
     try {
-      const urls = urlEntries.map((entry) => ({
-        url: entry.url as string,
-        url_type: entry.url_type as string,
-        has_magnet: (entry.has_magnet as boolean) ?? false,
-        has_chinese_sub: (entry.has_chinese_sub as boolean) ?? false,
-        sort_type: (entry.sort_type as number) ?? 0,
-      }));
+      // Auto-extract missing url_name values
+      const enrichedEntries: TaskUrlEntry[] = [];
+      for (const entry of urlEntries) {
+        const urlType = entry.url_type as string;
+        let urlName = entry.url_name as string | undefined;
+
+        // If no url_name and the type supports extraction, auto-fetch
+        if (!urlName && urlType && urlType !== "search" && urlType !== "tags") {
+          try {
+            const result = await extractName(entry.url as string, urlType);
+            if (result.name) {
+              urlName = result.name;
+            }
+          } catch {
+            // Extraction failure should not block submission
+          }
+        }
+
+        enrichedEntries.push({
+          url: entry.url as string,
+          url_type: urlType,
+          has_magnet: (entry.has_magnet as boolean) ?? false,
+          has_chinese_sub: (entry.has_chinese_sub as boolean) ?? false,
+          sort_type: (entry.sort_type as number) ?? 0,
+          url_name: urlName ?? "",
+        });
+      }
 
       const payload: TaskCreatePayload = {
         name: values.name as string,
-        urls,
+        urls: enrichedEntries,
         is_skip: (values.is_skip as boolean) ?? false,
       };
 
@@ -324,8 +362,15 @@ export default function TaskForm() {
                     key={field.key}
                     index={field.name}
                     remove={fields.length > 1 ? () => remove(field.name) : undefined}
-                    onNameExtracted={(name) => {
-                      // 自动填充任务名称（仅当名称为空时）
+                    onNameExtracted={(idx, name) => {
+                      // Save url_name to the corresponding URL entry
+                      const urls = form.getFieldValue("urls") ?? [];
+                      const updated = urls.map((u: Record<string, unknown>, i: number) =>
+                        i === idx ? { ...u, url_name: name } : u,
+                      );
+                      form.setFieldsValue({ urls: updated });
+
+                      // Auto-fill task name (only when empty)
                       const currentName = form.getFieldValue("name");
                       if (!currentName) {
                         form.setFieldsValue({ name });
