@@ -59,7 +59,7 @@ class MovieService:
                 collected_items.append(cleaned)
                 msg = (
                     f"[{task.name}] 详情完成: code={cleaned.get('code')} "
-                    f"collection={cleaned.get('config_task_name')}"
+                    f"source_task_name={cleaned.get('source_task_name')}"
                 )
                 print(msg)
                 if log_callback:
@@ -127,7 +127,6 @@ class MovieService:
             "source_url": detail_task.get("url"),
             "source_name": detail_task.get("name") or detail.get("source_name"),
             "source_code": source_code,
-            "config_task_name": task.name,
         }
 
     def crawl_javdb_tasks(self, tasks: list[CrawlTask], stop_check=None) -> dict:
