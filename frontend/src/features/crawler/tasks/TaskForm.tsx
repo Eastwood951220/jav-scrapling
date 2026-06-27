@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "@tanstack/react-router";
-import { Form, Input, InputNumber, Switch, Select, Button, Card, message } from "antd";
+import { Form, Input, Switch, Select, Button, Card, message } from "antd";
+import { PlusOutlined, MinusCircleOutlined } from "@ant-design/icons";
 import { createTask, fetchTask, updateTask } from "./api";
 import FullPageSpinner from "@/shared/components/FullPageSpinner";
 import { getErrorMessage } from "@/shared/hooks/useErrorMessage";
-import type { TaskCreatePayload, TaskUrlEntry } from "./types";
+import type { TaskCreatePayload } from "./types";
 
 type UrlType = "actors" | "series" | "makers" | "directors" | "video_codes" | "lists" | "tags" | "search";
 
@@ -42,50 +43,6 @@ const URL_TYPE_OPTIONS = [
 
 const PARAM_KEYS = ["t", "f", "c10", "sort", "page"] as const;
 
-/** Parse query string into a Map preserving key order. */
-function parseUrlParams(rawUrl: string): Map<string, string> {
-  const params = new Map<string, string>();
-  try {
-    const u = new URL(rawUrl);
-    u.searchParams.forEach((v, k) => params.set(k, v));
-  } catch {
-    // invalid URL, return empty
-  }
-  return params;
-}
-
-/** Detect has_magnet / has_chinese_sub / sort_type from existing URL params. */
-function detectOptionsFromUrl(
-  rawUrl: string,
-  urlType: UrlType,
-): { hasMagnet: boolean; hasSub: boolean; sortType: number } {
-  const params = parseUrlParams(rawUrl);
-  let hasMagnet = false;
-  let hasSub = false;
-  let sortType = 0;
-
-  if (urlType === "actors") {
-    const t = params.get("t") ?? "";
-    hasMagnet = t.includes("d");
-    hasSub = t.includes("c");
-    sortType = Number(params.get("sort") ?? "0");
-  } else if (urlType === "tags") {
-    const c10 = params.get("c10") ?? "";
-    hasMagnet = c10.includes("1");
-    hasSub = c10.includes("2");
-  } else if (urlType in URL_TYPE_PARAMS) {
-    const f = params.get("f") ?? "";
-    hasMagnet = f === "download";
-    hasSub = f === "cnsub";
-    if (urlType === "video_codes") {
-      sortType = Number(params.get("sort") ?? "0");
-    }
-  }
-
-  return { hasMagnet, hasSub, sortType };
-}
-
-/** Strip known query params from URL, keeping only the path. */
 function stripQueryParams(rawUrl: string): string {
   try {
     const u = new URL(rawUrl);
@@ -97,7 +54,6 @@ function stripQueryParams(rawUrl: string): string {
   }
 }
 
-/** Build the final URL from base path + condition options. */
 function buildFinalUrl(
   baseUrl: string,
   urlType: UrlType,
@@ -125,7 +81,6 @@ function buildFinalUrl(
 
   if (parts.length === 0) return stripped;
 
-  // Use the origin from baseUrl if available, otherwise just path
   try {
     const u = new URL(baseUrl);
     const base = u.origin + stripped;
@@ -133,6 +88,91 @@ function buildFinalUrl(
   } catch {
     return stripped + (stripped.includes("?") ? "&" : "?") + parts.join("&");
   }
+}
+
+/** A single URL entry form card. */
+function UrlEntryCard({ index, remove }: { index: number; remove?: () => void }) {
+  return (
+    <Card
+      size="small"
+      title={`URL ${index + 1}`}
+      extra={remove && (
+        <Button
+          type="text"
+          danger
+          icon={<MinusCircleOutlined />}
+          onClick={remove}
+          size="small"
+        />
+      )}
+      style={{ marginBottom: 12 }}
+    >
+      <Form.Item
+        name={[index, "url"]}
+        label="URL"
+        rules={[{ required: true, message: "请输入URL" }]}
+      >
+        <Input placeholder="https://javdb.com/actors/..." />
+      </Form.Item>
+
+      <Form.Item
+        name={[index, "url_type"]}
+        label="URL类型"
+        rules={[{ required: true }]}
+      >
+        <Select options={URL_TYPE_OPTIONS} />
+      </Form.Item>
+
+      <Form.Item noStyle shouldUpdate={(prev, cur) => {
+        const prevUrls = prev.urls?.[index];
+        const curUrls = cur.urls?.[index];
+        return prevUrls?.url_type !== curUrls?.url_type;
+      }}>
+        {({ getFieldValue }) => {
+          const urlType = getFieldValue(["urls", index, "url_type"]) as UrlType;
+          const showConditions = urlType in URL_TYPE_PARAMS;
+          const showSort = urlType === "video_codes";
+
+          if (!showConditions) return null;
+
+          return (
+            <>
+              <Form.Item name={[index, "has_magnet"]} label="含磁力链接" valuePropName="checked">
+                <Switch />
+              </Form.Item>
+
+              <Form.Item name={[index, "has_chinese_sub"]} label="含中文字幕" valuePropName="checked">
+                <Switch />
+              </Form.Item>
+
+              {showSort && (
+                <Form.Item name={[index, "sort_type"]} label="排序方式">
+                  <Select options={SORT_OPTIONS} />
+                </Form.Item>
+              )}
+            </>
+          );
+        }}
+      </Form.Item>
+
+      <Form.Item noStyle shouldUpdate>
+        {({ getFieldValue }) => {
+          const baseUrl: string = getFieldValue(["urls", index, "url"]) ?? "";
+          const urlType = getFieldValue(["urls", index, "url_type"]) as UrlType;
+          const hasMagnet = (getFieldValue(["urls", index, "has_magnet"]) as boolean) ?? false;
+          const hasSub = (getFieldValue(["urls", index, "has_chinese_sub"]) as boolean) ?? false;
+          const sortType = (getFieldValue(["urls", index, "sort_type"]) as number) ?? 0;
+          const finalUrl = buildFinalUrl(baseUrl, urlType, hasMagnet, hasSub, sortType);
+
+          return (
+            <Form.Item label="最终 URL 预览">
+              <Input value={finalUrl} disabled />
+            </Form.Item>
+          );
+        }}
+      </Form.Item>
+    </Card>
+  );
 }
 
 export default function TaskForm() {
@@ -143,33 +183,22 @@ export default function TaskForm() {
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  const handleUrlBlur = useCallback(() => {
-    const url: string = form.getFieldValue("url") ?? "";
-    const urlType = form.getFieldValue("url_type") as UrlType;
-    if (!url || !(urlType in URL_TYPE_PARAMS)) return;
-
-    const detected = detectOptionsFromUrl(url, urlType);
-    form.setFieldsValue({
-      has_chinese_sub: detected.hasSub,
-      sort_type: detected.sortType,
-    });
-  }, [form]);
-
   useEffect(() => {
     if (!isEdit || !id) return;
 
     setLoading(true);
     fetchTask(id)
       .then((task) => {
-        const firstUrl = task.urls[0];
         form.setFieldsValue({
           name: task.name,
-          url: firstUrl?.url ?? "",
-          url_type: firstUrl?.url_type ?? "actors",
+          urls: task.urls?.map((u) => ({
+            url: u.url,
+            url_type: u.url_type,
+            has_magnet: u.has_magnet ?? true,
+            has_chinese_sub: u.has_chinese_sub ?? false,
+            sort_type: u.sort_type ?? 0,
+          })) ?? [],
           is_skip: task.is_skip,
-          has_magnet: firstUrl?.has_magnet ?? true,
-          has_chinese_sub: firstUrl?.has_chinese_sub ?? false,
-          sort_type: firstUrl?.sort_type ?? 0,
         });
       })
       .catch((e) => message.error(getErrorMessage(e)))
@@ -179,27 +208,17 @@ export default function TaskForm() {
   const handleSubmit = async (values: Record<string, unknown>) => {
     setSubmitting(true);
     try {
-      const urlType = values.url_type as UrlType;
-      const finalUrl = buildFinalUrl(
-        values.url as string,
-        urlType,
-        (values.has_magnet as boolean) ?? false,
-        (values.has_chinese_sub as boolean) ?? false,
-        (values.sort_type as number) ?? 0,
-      );
-
-      const urlEntry: TaskUrlEntry = {
-        url: values.url as string,
-        url_type: urlType,
-        has_magnet: (values.has_magnet as boolean) ?? false,
-        has_chinese_sub: (values.has_chinese_sub as boolean) ?? false,
-        sort_type: (values.sort_type as number) ?? 0,
-        final_url: finalUrl,
-      };
+      const urls = (values.urls as Record<string, unknown>[]).map((entry) => ({
+        url: entry.url as string,
+        url_type: entry.url_type as string,
+        has_magnet: (entry.has_magnet as boolean) ?? false,
+        has_chinese_sub: (entry.has_chinese_sub as boolean) ?? false,
+        sort_type: (entry.sort_type as number) ?? 0,
+      }));
 
       const payload: TaskCreatePayload = {
         name: values.name as string,
-        urls: [urlEntry],
+        urls,
         is_skip: (values.is_skip as boolean) ?? false,
       };
 
@@ -221,83 +240,46 @@ export default function TaskForm() {
   if (loading) return <FullPageSpinner />;
 
   return (
-    <Card title={isEdit ? "编辑任务" : "新建任务"} style={{ maxWidth: 700 }}>
+    <Card title={isEdit ? "编辑任务" : "新建任务"} style={{ maxWidth: 800 }}>
       <Form
         form={form}
         layout="vertical"
         onFinish={handleSubmit}
         initialValues={{
-          url_type: "actors",
+          urls: [{ url_type: "actors", has_magnet: true, has_chinese_sub: false, sort_type: 0 }],
           is_skip: false,
-          max_list_pages: 50,
-          has_magnet: true,
-          has_chinese_sub: false,
-          sort_type: 0,
         }}
       >
         <Form.Item name="name" label="任务名称" rules={[{ required: true, message: "请输入任务名称" }]}>
           <Input placeholder="例如：某演员名称" />
         </Form.Item>
 
-        <Form.Item name="url" label="URL" rules={[{ required: true, message: "请输入URL" }]}>
-          <Input placeholder="https://javdb.com/actors/..." onBlur={handleUrlBlur} />
-        </Form.Item>
-
-        <Form.Item name="url_type" label="URL类型" rules={[{ required: true }]}>
-          <Select options={URL_TYPE_OPTIONS} />
-        </Form.Item>
-
-        <Form.Item noStyle shouldUpdate={(prev, cur) => prev.url_type !== cur.url_type}>
-          {({ getFieldValue }) => {
-            const urlType = getFieldValue("url_type") as UrlType;
-            const showConditions = urlType in URL_TYPE_PARAMS;
-            const showSort = urlType === "video_codes";
-
-            if (!showConditions) return null;
-
-            return (
+        <Form.Item label="URL 列表" required>
+          <Form.List name="urls">
+            {(fields, { add, remove }) => (
               <>
-                <Form.Item name="has_magnet" label="含磁力链接" valuePropName="checked">
-                  <Switch />
-                </Form.Item>
-
-                <Form.Item name="has_chinese_sub" label="含中文字幕" valuePropName="checked">
-                  <Switch />
-                </Form.Item>
-
-                {showSort && (
-                  <Form.Item name="sort_type" label="排序方式">
-                    <Select options={SORT_OPTIONS} />
-                  </Form.Item>
-                )}
+                {fields.map((field) => (
+                  <UrlEntryCard
+                    key={field.key}
+                    index={field.name}
+                    remove={fields.length > 1 ? () => remove(field.name) : undefined}
+                  />
+                ))}
+                <Button
+                  type="dashed"
+                  onClick={() => add({ url_type: "actors", has_magnet: true, has_chinese_sub: false, sort_type: 0 })}
+                  icon={<PlusOutlined />}
+                  block
+                >
+                  添加 URL
+                </Button>
               </>
-            );
-          }}
-        </Form.Item>
-
-        <Form.Item name="max_list_pages" label="最大翻页数">
-          <InputNumber min={1} max={100} />
+            )}
+          </Form.List>
         </Form.Item>
 
         <Form.Item name="is_skip" label="禁用此任务" valuePropName="checked">
           <Switch />
-        </Form.Item>
-
-        <Form.Item noStyle shouldUpdate>
-          {({ getFieldValue }) => {
-            const baseUrl: string = getFieldValue("url") ?? "";
-            const urlType = getFieldValue("url_type") as UrlType;
-            const hasMagnet = (getFieldValue("has_magnet") as boolean) ?? false;
-            const hasSub = (getFieldValue("has_chinese_sub") as boolean) ?? false;
-            const sortType = (getFieldValue("sort_type") as number) ?? 0;
-            const finalUrl = buildFinalUrl(baseUrl, urlType, hasMagnet, hasSub, sortType);
-
-            return (
-              <Form.Item label="最终 URL 预览">
-                <Input value={finalUrl} disabled />
-              </Form.Item>
-            );
-          }}
         </Form.Item>
 
         <Form.Item>
