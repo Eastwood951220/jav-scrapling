@@ -179,7 +179,6 @@ def list_movies(
         query["$or"] = [
             {"source_name": {"$regex": escaped, "$options": "i"}},
             {"code": {"$regex": escaped, "$options": "i"}},
-            {"config_task_name": {"$regex": escaped, "$options": "i"}},
             {"source_task_name": {"$regex": escaped, "$options": "i"}},
         ]
 
@@ -223,7 +222,7 @@ def list_movies(
     total = col.count_documents(query)
     total_pages = max(1, (total + limit - 1) // limit)
 
-    allowed_sort = {"created_at", "updated_at", "code", "source_name", "config_task_name", "release_date", "rating"}
+    allowed_sort = {"created_at", "updated_at", "code", "source_name", "release_date", "rating"}
     if sort_by not in allowed_sort:
         sort_by = "created_at"
     if sort_order not in (-1, 1):
@@ -281,7 +280,6 @@ def export_magnets(
         query["$or"] = [
             {"source_name": {"$regex": escaped, "$options": "i"}},
             {"code": {"$regex": escaped, "$options": "i"}},
-            {"config_task_name": {"$regex": escaped, "$options": "i"}},
             {"source_task_name": {"$regex": escaped, "$options": "i"}},
         ]
 
