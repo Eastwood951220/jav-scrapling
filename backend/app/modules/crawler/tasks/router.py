@@ -112,8 +112,8 @@ def update_task(task_id: str, body: TaskUpdate):
 
     if "name" in update_data:
         _check_name_unique(update_data["name"], exclude_id=task_id)
-    if "urls" in update_data and update_data["urls"] is not None:
-        _check_urls_unique(update_data["urls"])
+    if body.urls is not None:
+        _check_urls_unique(body.urls)
 
     if "urls" in update_data and update_data["urls"] is not None:
         url_entries = []
