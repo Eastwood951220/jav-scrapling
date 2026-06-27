@@ -131,7 +131,7 @@ def test_parse_detail_page_attaches_all_magnets_without_best_selection_fields():
 
     detail = parse_detail_page(page)
 
-    assert detail["title"] == "SSIS-889 Title"
+    assert detail["source_name"] == "SSIS-889 Title"
     assert detail["release_date"] == "2023-10-17"
     assert detail["magnets"] == [
         {

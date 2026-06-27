@@ -65,7 +65,7 @@ def test_upsert_many_normalizes_upserts_and_skips_empty_rows():
     movie_id = ObjectId("507f1f77bcf86cd799439011")
     movie = {
         "code": "SSIS-889",
-        "title": "SSIS-889 Title",
+        "source_name": "SSIS-889 Title",
         "source_url": "https://javdb.com/v/abc",
         "source_task_name": "javdb-daily",
     }
@@ -119,7 +119,7 @@ def test_upsert_many_omits_info_hash_for_metadata_only_rows():
     movie_id = ObjectId("507f1f77bcf86cd799439011")
     movie = {
         "code": "SSIS-889",
-        "title": "SSIS-889 Title",
+        "source_name": "SSIS-889 Title",
         "source_url": "https://javdb.com/v/abc",
         "source_task_name": "javdb-daily",
     }
